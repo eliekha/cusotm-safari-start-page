@@ -97,12 +97,20 @@ Safari buffers history writes. The search server reads the WAL file for real-tim
 2. Reopen Safari
 3. Search again
 
-### Permission denied
-Ensure Full Disk Access is granted to the Python binary that launchd uses:
+### Permission denied / History search stopped working
+Full Disk Access is tied to specific Python binary paths, which can change after macOS or Xcode updates.
+
+**Quick fix:** Re-grant FDA to the current Python:
 ```bash
 /usr/bin/python3 -c "import sys; print(sys.executable)"
 ```
 Add that path to Full Disk Access in System Settings.
+
+**Stable fix:** Use Homebrew Python (path stays consistent):
+```bash
+brew install python@3.11
+```
+Then edit `~/Library/LaunchAgents/com.startpage.search.plist` and change `/usr/bin/python3` to `/opt/homebrew/bin/python3.11`, grant FDA to Homebrew Python, and restart the service.
 
 ### Check server status
 ```bash
