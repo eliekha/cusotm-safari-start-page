@@ -109,10 +109,23 @@ input[type="file"]{display:none}
 .theme-preview{width:28px;height:20px;border-radius:4px;flex-shrink:0}
 .theme-btn.dark .theme-preview{background:linear-gradient(135deg,#1a1a2e,#0f3460);border:1px solid rgba(255,255,255,.2)}
 .theme-btn.light .theme-preview{background:linear-gradient(135deg,#f0f0f2,#fff);border:1px solid rgba(0,0,0,.15)}
+.logo{width:56px;height:56px;margin:0 auto 16px;display:none}
+.logo.show{display:block}
+.logo img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))}
+.logo-upload{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.logo-preview{width:48px;height:48px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,.1);flex-shrink:0}
+.logo-preview img{width:100%;height:100%;object-fit:contain}
+.logo-preview svg{width:24px;height:24px;fill:rgba(255,255,255,.3)}
+.logo-btns{display:flex;gap:8px;flex:1}
+.logo-btn{flex:1;padding:10px;background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;text-align:center;transition:all .15s}
+.logo-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3)}
+.logo-clear{padding:10px;background:rgba(255,100,100,.15);border:none;border-radius:8px;color:#ff6b6b;cursor:pointer;font-size:12px}
+.logo-clear:hover{background:rgba(255,100,100,.25)}
 </style>
 </head>
 <body>
 <div class="c">
+<div class="logo" id="logo"><img src="" alt=""></div>
 <div class="g" id="g">Good afternoon</div>
 <div class="t" id="t">12<span class="ts">:</span>00</div>
 <div class="dt" id="d">Wednesday, January 28</div>
@@ -129,6 +142,19 @@ input[type="file"]{display:none}
 <div class="modal" id="modal">
 <div class="modal-content">
 <h2>Customize Start Page</h2>
+<div class="modal-section">
+<label>Logo</label>
+<div class="logo-upload">
+<div class="logo-preview" id="logo-preview">
+<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+</div>
+<div class="logo-btns">
+<div class="logo-btn" onclick="document.getElementById('logo-file').click()">Upload logo</div>
+<input type="file" id="logo-file" accept="image/*" onchange="handleLogoUpload(this)">
+<button class="logo-clear" onclick="clearLogo()">Remove</button>
+</div>
+</div>
+</div>
 <div class="modal-section">
 <label>Your Name</label>
 <input type="text" id="edit-name" placeholder="Enter your name">
@@ -224,7 +250,7 @@ var gradients=[
 function getSettings(){
 var s=localStorage.getItem('startpage');
 if(s){try{var p=JSON.parse(s);if(!p.theme)p.theme='dark';return p;}catch(e){}}
-return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark'};
+return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:''};
 }
 function saveToStorage(settings){localStorage.setItem('startpage',JSON.stringify(settings));}
 
@@ -260,6 +286,18 @@ document.body.style.background=bg;
 
 applyBg();
 applyTheme();
+
+function renderLogo(){
+var logoEl=document.getElementById('logo');
+var logoImg=logoEl.querySelector('img');
+if(settings.logo){
+logoImg.src=settings.logo;
+logoEl.classList.add('show');
+}else{
+logoEl.classList.remove('show');
+}
+}
+renderLogo();
 
 function renderLinks(){
 var h='';
@@ -305,9 +343,35 @@ if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&document.activeElement!==s&&!docume
 function openModal(){
 document.getElementById('modal').classList.add('show');
 document.getElementById('edit-name').value=settings.name||'';
+renderLogoPreview();
 renderBgPresets();
 updateThemeButtons();
 renderLinkEditor();
+}
+function renderLogoPreview(){
+var preview=document.getElementById('logo-preview');
+if(settings.logo){
+preview.innerHTML='<img src="'+settings.logo+'" alt="">';
+}else{
+preview.innerHTML='<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+}
+}
+function handleLogoUpload(input){
+var file=input.files[0];
+if(!file)return;
+if(file.size>500000){alert('Image too large. Please use an image under 500KB.');return;}
+var reader=new FileReader();
+reader.onload=function(e){
+settings.logo=e.target.result;
+renderLogoPreview();
+renderLogo();
+};
+reader.readAsDataURL(file);
+}
+function clearLogo(){
+settings.logo='';
+renderLogoPreview();
+renderLogo();
 }
 function closeModal(){
 document.getElementById('modal').classList.remove('show');
