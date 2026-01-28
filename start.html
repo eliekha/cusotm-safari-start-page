@@ -334,7 +334,11 @@ else if(e.key==='ArrowUp'){e.preventDefault();I=Math.max(I-1,-1);for(var i=0;i<a
 else if(e.key==='Enter'){if(I>=0&&a[I])location.href=a[I].href;else if(s.value.trim()){var v=s.value.trim();if(/^https?:\/\//i.test(v))location.href=v;else if(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z]{2,})+/i.test(v))location.href='https://'+v;else location.href='https://www.google.com/search?q='+encodeURIComponent(v);}}
 else if(e.key==='Escape'){r.classList.remove('a');I=-1;}};
 
-document.onclick=function(e){if(!e.target.closest('.sc')&&!e.target.closest('.modal'))r.classList.remove('a');};
+document.onclick=function(e){
+var link=e.target.closest('.su')||e.target.closest('.q');
+if(link&&link.href){e.preventDefault();window.location.href=link.href;return;}
+if(!e.target.closest('.sc')&&!e.target.closest('.modal'))r.classList.remove('a');
+};
 document.onkeydown=function(e){
 if(e.key==='Escape'&&document.getElementById('modal').classList.contains('show')){closeModal();return;}
 if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&document.activeElement!==s&&!document.getElementById('modal').classList.contains('show'))s.focus();
