@@ -1,0 +1,23 @@
+# Logs
+*.log
+
+# Database copies
+*.db
+*.db-wal
+*.db-shm
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Personal files (not included in repo)
+logo.png
