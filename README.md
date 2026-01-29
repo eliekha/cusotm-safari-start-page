@@ -106,11 +106,18 @@ Full Disk Access is tied to specific Python binary paths, which can change after
 ```
 Add that path to Full Disk Access in System Settings.
 
-**Stable fix:** Use Homebrew Python (path stays consistent):
+**Most stable fix:** Build a standalone binary (path never changes):
 ```bash
-brew install python@3.11
+pip3 install pyinstaller
+cd ~/.local/share/safari_start_page
+pyinstaller --onefile --name search-server --distpath . search-server.py
+rm -rf build *.spec
 ```
-Then edit `~/Library/LaunchAgents/com.startpage.search.plist` and change `/usr/bin/python3` to `/opt/homebrew/bin/python3.11`, grant FDA to Homebrew Python, and restart the service.
+Then update your LaunchAgent plist to use the binary directly (no Python path needed):
+```xml
+<string>/Users/YOURNAME/.local/share/safari_start_page/search-server</string>
+```
+Grant FDA to the binary once - it will never change.
 
 ### Check server status
 ```bash
