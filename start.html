@@ -6,30 +6,35 @@
 <title>New Tab</title>
 <style>
 :root{
---text-primary:rgba(255,255,255,.9);
---text-secondary:rgba(255,255,255,.7);
+--text-primary:rgba(255,255,255,.95);
+--text-secondary:rgba(255,255,255,.75);
 --text-muted:rgba(255,255,255,.5);
---text-greeting:rgba(255,255,255,.8);
+--text-greeting:rgba(255,255,255,.85);
 --text-time:#fff;
---text-date:rgba(255,255,255,.5);
---bg-card:rgba(0,0,0,.3);
---bg-card-hover:rgba(255,255,255,.1);
---border-color:rgba(255,255,255,.15);
---border-hover:rgba(255,255,255,.25);
+--text-date:rgba(255,255,255,.55);
+--bg-card:rgba(15,20,35,.65);
+--bg-card-hover:rgba(255,255,255,.08);
+--border-color:rgba(255,255,255,.12);
+--border-hover:rgba(255,255,255,.22);
+--accent-blue:#4f8cff;
+--accent-purple:#a855f7;
+--accent-green:#34d399;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden}
-body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px;background:#1a1a2e;background-size:cover;background-position:center}
-.c{width:100%;max-width:600px;text-align:center}
-.g{font-size:24px;font-weight:300;margin-bottom:6px;letter-spacing:-.3px;color:var(--text-greeting)}
-.t{font-size:72px;font-weight:100;letter-spacing:-4px;line-height:1;margin-bottom:4px;color:var(--text-time)}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 35%,#312e81 70%,#1e3a5f 100%);background-size:400% 400%;animation:gradientShift 20s ease infinite}
+@keyframes gradientShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(79,140,255,.15) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(168,85,247,.1) 0%,transparent 50%);pointer-events:none}
+.c{width:100%;max-width:620px;text-align:center;position:relative;z-index:1}
+.g{font-size:22px;font-weight:400;margin-bottom:8px;letter-spacing:.2px;color:var(--text-greeting);text-shadow:0 2px 20px rgba(0,0,0,.3)}
+.t{font-size:84px;font-weight:200;letter-spacing:-3px;line-height:1;margin-bottom:6px;color:var(--text-time);text-shadow:0 4px 30px rgba(0,0,0,.4)}
 .ts{animation:b 1s ease-in-out infinite}
-@keyframes b{0%,45%{opacity:1}50%,100%{opacity:.3}}
-.dt{font-size:14px;font-weight:400;margin-bottom:28px;letter-spacing:.3px;color:var(--text-date)}
-.sc{position:relative;width:100%;max-width:500px;margin:0 auto 24px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border-color);overflow:hidden;transition:all .2s;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-.sc:focus-within{background:var(--bg-card-hover);border-color:var(--border-hover)}
-.si{width:100%;padding:16px 20px;font-size:16px;border:none;background:transparent;color:var(--text-primary);outline:none}
-.si::placeholder{color:var(--text-muted)}
+@keyframes b{0%,45%{opacity:1}50%,100%{opacity:.4}}
+.dt{font-size:13px;font-weight:500;margin-bottom:32px;letter-spacing:1px;color:var(--text-date);text-transform:uppercase}
+.sc{position:relative;width:100%;max-width:520px;margin:0 auto 28px;background:var(--bg-card);border-radius:16px;border:1px solid var(--border-color);overflow:hidden;transition:all .25s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.05)}
+.sc:focus-within{background:rgba(255,255,255,.08);border-color:var(--accent-blue);box-shadow:0 8px 32px rgba(79,140,255,.15),0 0 0 1px rgba(79,140,255,.2)}
+.si{width:100%;padding:18px 24px;font-size:16px;border:none;background:transparent;color:var(--text-primary);outline:none;font-weight:400}
+.si::placeholder{color:var(--text-muted);font-weight:400}
 .sg{max-height:0;opacity:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease,padding .2s ease;background:var(--bg-card)}
 .sg.a{max-height:350px;opacity:1;border-top:1px solid var(--border-color);padding:6px 0;overflow-y:auto}
 .su{display:flex;align-items:center;padding:10px 20px;cursor:pointer;color:var(--text-primary);text-decoration:none;transition:background .15s ease;opacity:0;transform:translateY(-8px);animation:fadeIn .2s ease forwards}
@@ -42,12 +47,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;display:f
 .sug .suy{background:rgba(100,150,255,.2);color:rgba(130,170,255,.9)}
 .suv{font-size:9px;color:var(--text-muted);margin-left:8px}
 .ql{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
-.q{display:flex;align-items:center;gap:6px;padding:10px 16px;background:var(--bg-card);color:var(--text-secondary);text-decoration:none;border-radius:8px;font-size:13px;font-weight:500;border:1px solid var(--border-color);transition:all .15s ease;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
-.q svg,.q img{width:16px;height:16px;flex-shrink:0;transition:all .15s ease}
-.q svg{fill:currentColor;opacity:.6}
-.q img{opacity:.7;border-radius:3px}
-.q:hover{background:var(--bg-card-hover);color:var(--text-primary);border-color:var(--border-hover)}
-.q:hover svg{opacity:.85}
+.q{display:flex;align-items:center;gap:8px;padding:11px 18px;background:var(--bg-card);color:var(--text-secondary);text-decoration:none;border-radius:12px;font-size:13px;font-weight:500;border:1px solid var(--border-color);transition:all .2s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.q svg,.q img{width:16px;height:16px;flex-shrink:0;transition:all .2s}
+.q svg{fill:currentColor;opacity:.65}
+.q img{opacity:.75;border-radius:4px}
+.q:hover{background:rgba(255,255,255,.1);color:var(--text-primary);border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.15)}
+.q:hover svg{opacity:1}
 .q:hover img{opacity:1}
 .edit-btn{position:fixed;bottom:20px;right:20px;width:32px;height:32px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .edit-btn:hover{background:var(--bg-card-hover);color:var(--text-secondary);border-color:var(--border-hover)}
@@ -60,6 +65,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;display:f
 .modal input[type="text"]{width:100%;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:14px;margin-bottom:16px;outline:none}
 .modal input[type="text"]:focus{border-color:rgba(255,255,255,.3)}
 .modal-section{margin-bottom:20px}
+.settings-tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:12px}
+.settings-tab{padding:8px 16px;background:transparent;border:none;color:rgba(255,255,255,.5);font-size:13px;cursor:pointer;border-radius:6px;transition:all .15s;font-family:inherit}
+.settings-tab:hover{color:rgba(255,255,255,.7);background:rgba(255,255,255,.05)}
+.settings-tab.active{color:#fff;background:rgba(99,102,241,.2)}
+.settings-panel{display:none}
+.settings-panel.active{display:block}
+.hub-sources{border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden}
+.hub-source{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.hub-source:last-child{border-bottom:none}
+.hub-source input{width:16px;height:16px;accent-color:#6366f1}
+.hub-source-info{flex:1}
+.hub-source-name{font-size:13px;color:rgba(255,255,255,.85)}
+.hub-source-status{font-size:10px;padding:2px 6px;border-radius:4px;margin-left:auto}
+.hub-source-status.connected{background:rgba(34,197,94,.15);color:#22c55e}
+.hub-source-status.warning{background:rgba(251,191,36,.15);color:#fbbf24}
+.hub-source-status.available{background:rgba(99,102,241,.15);color:#a5b4fc}
+.hub-sources-disabled{opacity:.4;pointer-events:none}
+.hub-setup-hint{margin-top:12px;padding:10px 12px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:8px;font-size:11px;color:rgba(255,255,255,.7);line-height:1.5}
+.hub-setup-hint a{color:#fbbf24;text-decoration:none}
+.hub-setup-hint a:hover{text-decoration:underline}
+.hub-setup-hint code{background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;font-size:10px}
 .link-item{display:flex;gap:8px;margin-bottom:12px;align-items:flex-start;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid rgba(255,255,255,.06)}
 .link-icon{width:40px;height:40px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;border:1px solid rgba(255,255,255,.1);transition:all .15s}
 .link-icon:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2)}
@@ -118,9 +144,265 @@ input[type="file"]{display:none}
 .logo-preview svg{width:24px;height:24px;fill:rgba(255,255,255,.3)}
 .logo-btns{display:flex;gap:8px;flex:1}
 .logo-btn{flex:1;padding:10px;background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.2);border-radius:8px;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;text-align:center;transition:all .15s}
+.cal-container{display:none;max-width:500px;margin:24px auto 0}
+.cal-container.show{display:block}
+.cal-in-call{padding:12px 16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-color);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .2s}
+.cal-in-call:hover{border-color:var(--border-hover);background:var(--bg-card-hover)}
+.cal-in-call-info{display:flex;align-items:center;gap:10px}
+.cal-in-call-dot{width:8px;height:8px;border-radius:50%;background:#34a853;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.cal-in-call-text{font-size:13px;color:var(--text-secondary)}
+.cal-in-call-text strong{color:var(--text-primary);font-weight:500}
+.cal-in-call-toggle{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px}
+.cal-in-call-toggle svg{width:12px;height:12px;fill:currentColor;transition:transform .2s}
+.cal-in-call.expanded .cal-in-call-toggle svg{transform:rotate(180deg)}
+.cal-events{display:flex;flex-direction:column;gap:8px}
+.cal-events.collapsed{display:none}
+.cal-card{padding:12px 16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-color);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);text-align:left;transition:all .2s}
+.cal-card:hover{border-color:var(--border-hover);background:var(--bg-card-hover)}
+.cal-card-inner{display:flex;align-items:center;gap:12px}
+.cal-icon{width:34px;height:34px;border-radius:8px;background:rgba(66,133,244,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cal-icon svg{width:18px;height:18px;fill:#4285f4}
+.cal-info{flex:1;min-width:0}
+.cal-title{font-size:13px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
+.cal-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted)}
+.cal-time{color:var(--text-secondary);font-weight:500}
+.cal-countdown{padding:2px 6px;background:rgba(255,180,0,.12);color:#e4a832;border-radius:3px;font-weight:600;font-size:10px;letter-spacing:.2px}
+.cal-countdown.soon{background:rgba(234,67,53,.12);color:#ea4335}
+.cal-countdown.now{background:rgba(52,168,83,.12);color:#34a853}
+.cal-join{padding:6px 12px;background:#4285f4;color:#fff;text-decoration:none;border-radius:5px;font-size:11px;font-weight:600;white-space:nowrap;transition:all .15s;flex-shrink:0;display:flex;align-items:center;gap:5px}
+.cal-join:hover{background:#3367d6;box-shadow:0 2px 8px rgba(66,133,244,.3)}
+.cal-join svg{width:12px;height:12px;fill:#fff}
+.cal-empty{padding:14px 16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-color);text-align:center;color:var(--text-muted);font-size:13px}
+.cal-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-color)}
+.cal-spinner{width:16px;height:16px;border:2px solid var(--border-color);border-top-color:var(--text-secondary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cal-loading-text{font-size:12px;color:var(--text-muted)}
+.cal-settings{margin-top:8px}
+.cal-settings input[type="number"]{width:80px;padding:8px 10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#fff;font-size:13px;margin-left:8px}
+.cal-toggle{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.cal-toggle input{width:18px;height:18px;accent-color:#4285f4}
 .logo-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3)}
+/* Hub Styles - Polished Design */
+.hub-container{position:fixed;top:50%;left:28px;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;width:360px;max-height:75vh;z-index:50;transition:all .3s ease;overflow:visible;padding:10px 0}
+.hub-container.minimized{width:auto;left:20px;padding:0}
+.hub-prep-container{position:fixed;top:50%;right:28px;transform:translateY(-50%);width:400px;max-height:75vh;z-index:50;overflow:visible;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent;transition:all .3s ease;padding:10px 0}
+.hub-prep-container.minimized{width:auto;right:20px;overflow:visible;padding:0}
+.hub-prep-container::-webkit-scrollbar{width:5px}
+.hub-prep-container::-webkit-scrollbar-track{background:transparent}
+.hub-prep-container::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:4px}
+.hub-prep-container::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.4)}
+/* Collapsed/minimized state - minimal floating icon */
+.hub-section.collapsed{position:relative;background:rgba(255,255,255,.06);border:none;border-radius:14px;backdrop-filter:blur(16px);cursor:pointer;transition:all .2s ease}
+.hub-section.collapsed:hover{background:rgba(255,255,255,.12)}
+.hub-section.collapsed .hub-header{padding:10px;border-radius:14px;background:transparent;box-shadow:none}
+.hub-section.collapsed .hub-header-info,.hub-section.collapsed .hub-header-right{display:none}
+.hub-section.collapsed .hub-header-left{gap:0}
+.hub-section.collapsed .hub-header-icon{width:28px;height:28px;border-radius:8px;background:transparent}
+.hub-section.collapsed .hub-header-icon svg{width:22px;height:22px}
+.hub-section.collapsed .hub-content{display:none}
+/* Badge for collapsed state - corner position, only show when collapsed AND has items */
+.hub-collapsed-badge{display:none !important}
+.hub-section.collapsed .hub-collapsed-badge.has-items{display:flex !important;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;background:#ef4444;border-radius:8px;font-size:9px;font-weight:600;color:#fff;align-items:center;justify-content:center;padding:0 4px}
+@media(max-width:900px){.hub-container,.hub-prep-container{position:static;transform:none;width:100%;max-width:450px;margin:20px auto}}
+.hub-section{text-align:left;opacity:0;transform:translateY(10px);animation:hubFadeIn .4s ease forwards}
+.hub-section:nth-child(1){animation-delay:.1s}
+.hub-section:nth-child(2){animation-delay:.2s}
+@keyframes hubFadeIn{to{opacity:1;transform:translateY(0)}}
+.hub-section.collapsed .hub-content{max-height:0;opacity:0;padding:0;overflow:hidden}
+.hub-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;background:var(--bg-card);border-radius:16px;border:1px solid var(--border-color);cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 4px 24px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.05)}
+.hub-header:hover{background:rgba(255,255,255,.08);border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.hub-header-left{display:flex;align-items:center;gap:12px}
+.hub-header-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s}
+.hub-header:hover .hub-header-icon{transform:scale(1.05)}
+.hub-header-icon svg{width:18px;height:18px;fill:currentColor}
+.hub-header-icon.slack{background:rgba(255,255,255,.08)}
+.hub-header-icon.prep{background:rgba(66,133,244,.15)}
+.hub-header-info{display:flex;flex-direction:column;gap:2px}
+.hub-header-title{font-size:14px;font-weight:600;color:var(--text-primary);letter-spacing:-.2px}
+.hub-header-subtitle{font-size:11px;color:var(--text-muted);font-weight:400}
+.hub-header-right{display:flex;align-items:center;gap:8px}
+.hub-filter-toggle{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--bg-card-hover);border-radius:16px;cursor:pointer;font-size:10px;font-weight:500;color:var(--text-muted);transition:all .2s ease;border:1px solid transparent}
+.hub-filter-toggle:hover{background:var(--bg-card);border-color:var(--border-color)}
+.hub-filter-toggle.active{background:rgba(102,126,234,.15);color:#667eea;border-color:rgba(102,126,234,.3)}
+.hub-filter-toggle svg{width:12px;height:12px;fill:currentColor}
+.hub-header-badge{font-size:11px;font-weight:600;color:var(--text-secondary);padding:4px 10px;background:var(--bg-card-hover);border-radius:20px;min-width:24px;text-align:center;transition:all .2s ease}
+.hub-header-badge.has-unread{background:#e01e5a;color:#fff;font-weight:700}
+.hub-collapsed-badge.has-unread{background:#e01e5a!important;color:#fff!important}
+.hub-toggle{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all .3s cubic-bezier(.4,0,.2,1);border-radius:6px}
+.hub-header:hover .hub-toggle{color:var(--text-secondary)}
+.hub-toggle svg{width:16px;height:16px;fill:currentColor}
+.hub-section:not(.collapsed) .hub-toggle{transform:rotate(180deg)}
+.hub-content{padding:12px 0 0;max-height:calc(70vh - 80px);overflow-y:auto;opacity:1;transition:all .3s cubic-bezier(.4,0,.2,1);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.3) transparent}
+.hub-content::-webkit-scrollbar{width:6px}
+.hub-content::-webkit-scrollbar-track{background:transparent}
+.hub-content::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3);border-radius:3px}
+.hub-prep-container .hub-content::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.5)}
+.hub-items{display:flex;flex-direction:column;gap:8px}
+.hub-item{display:flex;gap:14px;padding:14px 16px;background:rgba(15,20,35,.5);border-radius:14px;border:1px solid var(--border-color);transition:all .2s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);opacity:0;transform:translateX(-8px);animation:hubItemIn .3s ease forwards;position:relative;overflow:hidden}
+.hub-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:transparent;transition:background .2s;border-radius:0 2px 2px 0}
+.hub-item:nth-child(1){animation-delay:.05s}
+.hub-item:nth-child(2){animation-delay:.1s}
+.hub-item:nth-child(3){animation-delay:.15s}
+.hub-item:nth-child(4){animation-delay:.2s}
+.hub-item:nth-child(5){animation-delay:.25s}
+@keyframes hubItemIn{to{opacity:1;transform:translateX(0)}}
+.hub-item:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateX(2px)}
+.hub-item:hover::before{background:currentColor;opacity:.3}
+.hub-item.slack::before{background:#e01e5a}
+.hub-item.drive::before{background:#4285f4}
+.hub-item-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hub-item-icon svg{width:20px;height:20px}
+.hub-item-icon.slack{background:rgba(255,255,255,.08)}
+.hub-item-icon.avatar{border-radius:50%;font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:-.5px}
+.hub-item-icon.channel{background:rgba(54,197,240,.12)}
+.hub-item-icon.thread{background:rgba(224,30,90,.12)}
+.hub-item-icon.group{background:rgba(46,182,125,.12)}
+.hub-item-icon.jira{background:rgba(0,82,204,.12)}
+.hub-item-icon.confluence{background:rgba(0,101,255,.12)}
+.hub-item-icon.drive{background:rgba(66,133,244,.12)}
+.hub-item-icon.gmail{background:rgba(234,67,53,.12)}
+.hub-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.hub-item-title{font-size:13px;font-weight:500;color:var(--text-primary);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hub-item-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hub-item-meta{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.hub-item-meta svg{width:12px;height:12px;fill:currentColor;opacity:.6}
+.hub-item-time{font-size:10px;color:var(--text-muted);padding:2px 6px;background:var(--bg-card-hover);border-radius:4px;font-weight:500}
+.hub-item-link{color:inherit;text-decoration:none;display:block}
+.hub-item-link:hover .hub-item-title{color:var(--text-primary)}
+.hub-empty{padding:24px 16px;text-align:center;border-radius:12px;background:var(--bg-card);border:1px dashed var(--border-color)}
+.hub-empty-icon{width:48px;height:48px;margin:0 auto 12px;border-radius:12px;background:var(--bg-card-hover);display:flex;align-items:center;justify-content:center}
+.hub-empty-icon svg{width:24px;height:24px;fill:var(--text-muted);opacity:.5}
+.hub-empty-text{font-size:13px;color:var(--text-muted);margin-bottom:4px}
+.hub-empty-hint{font-size:11px;color:var(--text-muted);opacity:.7}
+.hub-loading{padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.hub-loading-spinner{width:24px;height:24px;border:2px solid var(--border-color);border-top-color:var(--text-secondary);border-radius:50%;animation:spin .8s linear infinite}
+.hub-loading-text{font-size:12px;color:var(--text-muted)}
+.hub-prep-meeting{padding:16px;background:linear-gradient(135deg,var(--bg-card),var(--bg-card-hover));border-radius:14px;border:1px solid var(--border-color);margin-bottom:12px;position:relative;overflow:hidden}
+.hub-prep-meeting::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4285f4,#34a853,#fbbc04,#ea4335);opacity:.8}
+.hub-prep-meeting-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.hub-prep-meeting-info{flex:1;min-width:0}
+.hub-prep-meeting-title{font-size:16px;font-weight:600;color:var(--text-primary);letter-spacing:-.3px;margin-bottom:6px;line-height:1.3}
+.hub-prep-meeting-details{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hub-prep-meeting-time{font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:5px}
+.hub-prep-meeting-time svg{width:14px;height:14px;fill:currentColor;opacity:.7}
+.hub-prep-meeting-countdown{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(66,133,244,.15);color:#4285f4}
+.hub-prep-meeting-countdown.soon{background:rgba(251,188,4,.15);color:#f9a825}
+.hub-prep-meeting-countdown.now{background:rgba(52,168,83,.15);color:#34a853}
+.hub-prep-section{margin-top:16px}
+.hub-prep-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;padding-left:4px;display:flex;align-items:center;gap:6px}
+.hub-prep-section-title::after{content:'';flex:1;height:1px;background:var(--border-color)}
+.hub-section-empty{font-size:12px;color:var(--text-muted);padding:12px 4px;font-style:italic;opacity:.7;display:flex;align-items:center;justify-content:space-between}
+.hub-retry-btn{font-size:11px;padding:4px 10px;background:var(--surface-hover);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-style:normal;opacity:1;transition:all .15s}
+.hub-retry-btn:hover{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
+.hub-prep-summary{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.08));border:1px solid rgba(99,102,241,.15);border-radius:10px;margin-bottom:12px;padding:12px 14px}
+.hub-prep-summary .hub-prep-section-title{cursor:pointer;user-select:none;margin-bottom:0}
+.hub-prep-summary .hub-prep-section-title::before{content:'';display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--text-muted);margin-right:8px;transition:transform .2s}
+.hub-prep-summary.collapsed .hub-prep-section-title::before{transform:rotate(-90deg)}
+.hub-prep-summary.collapsed .hub-summary-body{display:none}
+.hub-prep-summary .hub-prep-section-title.has-content{margin-bottom:10px}
+.hub-summary-content{padding:10px 4px}
+.summary-text{font-size:13px;line-height:1.6;color:var(--text-primary)}
+.summary-text p{margin:0 0 8px 0}
+.summary-text h3.summary-h2{font-size:14px;font-weight:600;color:var(--text-primary);margin:16px 0 8px 0;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
+.summary-text h4.summary-h3{font-size:13px;font-weight:600;color:var(--text-secondary);margin:12px 0 6px 0}
+.summary-text ul{margin:4px 0;padding-left:20px}
+.summary-text li{margin:4px 0;color:var(--text-secondary)}
+.summary-text strong{color:var(--text-primary)}
+.hub-auth-error{font-size:12px;color:var(--text-muted);padding:12px;background:rgba(255,152,0,.08);border:1px solid rgba(255,152,0,.2);border-radius:8px;display:flex;flex-direction:column;gap:8px}
+.hub-auth-error .hub-auth-icon{font-size:14px}
+.hub-auth-error .hub-auth-instructions{font-size:11px;opacity:.8;line-height:1.4}
+.hub-auth-error code{background:rgba(0,0,0,.2);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:10px}
+.hub-auth-btn{padding:6px 12px;background:linear-gradient(135deg,#0052cc,#2684ff);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;align-self:flex-start;margin-top:4px}
+.hub-auth-btn:hover{filter:brightness(1.1)}
+.hub-insights{display:flex;gap:12px;padding:14px 16px;background:linear-gradient(135deg,rgba(52,168,83,.08),rgba(66,133,244,.08));border-radius:12px;border:1px solid rgba(52,168,83,.2);margin-top:12px}
+.hub-insights-icon{width:28px;height:28px;border-radius:8px;background:rgba(52,168,83,.15);color:#34a853;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hub-insights-icon svg{width:16px;height:16px;fill:currentColor}
+.hub-insights-text{font-size:13px;line-height:1.5;color:var(--text-primary);flex:1}
+.hub-item-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;opacity:0;transform:translateX(4px);transition:all .2s}
+.hub-item:hover .hub-item-actions{opacity:1;transform:translateX(0)}
+.hub-action-btn{width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.hub-action-btn:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.hub-action-btn svg{width:16px;height:16px;fill:currentColor}
+.hub-action-btn.reply{color:#e01e5a}
+.hub-action-btn.reply:hover{background:rgba(224,30,90,.1)}
+.hub-action-btn.open{color:#4285f4}
+.hub-action-btn.open:hover{background:rgba(66,133,244,.1)}
+.hub-action-btn.chat{color:#667eea}
+.hub-action-btn.chat:hover{background:rgba(102,126,234,.1)}
+/* Reply Modal - Refined */
+.reply-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:200;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.reply-modal.show{display:flex;animation:modalIn .25s ease forwards}
+@keyframes modalIn{from{opacity:0}to{opacity:1}}
+.reply-modal-content{background:linear-gradient(180deg,#252836,#1e2030);border-radius:20px;padding:24px;width:90%;max-width:480px;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 48px rgba(0,0,0,.4);transform:scale(.95) translateY(10px);animation:modalContentIn .3s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes modalContentIn{to{transform:scale(1) translateY(0)}}
+.reply-modal-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.reply-modal-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(224,30,90,.2),rgba(74,21,75,.3));color:#e01e5a;display:flex;align-items:center;justify-content:center}
+.reply-modal-icon svg{width:22px;height:22px;fill:currentColor}
+.reply-modal-title{flex:1}
+.reply-modal-title h3{font-size:16px;font-weight:600;color:#fff;margin:0 0 4px;letter-spacing:-.3px}
+.reply-modal-title span{font-size:12px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:4px}
+.reply-modal-close{width:36px;height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.reply-modal-close:hover{background:rgba(255,255,255,.1);color:#fff;transform:rotate(90deg)}
+.reply-modal-close svg{width:18px;height:18px;fill:currentColor}
+.reply-textarea{width:100%;min-height:100px;padding:16px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:14px;color:#fff;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:all .2s}
+.reply-textarea:focus{border-color:rgba(224,30,90,.4);box-shadow:0 0 0 3px rgba(224,30,90,.1)}
+.reply-textarea::placeholder{color:rgba(255,255,255,.35)}
+.reply-modal-footer{display:flex;justify-content:flex-end;gap:12px;margin-top:16px}
+.reply-btn{padding:12px 24px;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px}
+.reply-btn-cancel{background:rgba(255,255,255,.06);color:rgba(255,255,255,.7)}
+.reply-btn-cancel:hover{background:rgba(255,255,255,.1);color:#fff}
+.reply-btn-send{background:linear-gradient(135deg,#e01e5a,#c01850);color:#fff;box-shadow:0 4px 12px rgba(224,30,90,.3)}
+.reply-btn-send:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(224,30,90,.4)}
+.reply-btn-send:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.reply-btn-send svg{width:16px;height:16px;fill:currentColor}
 .logo-clear{padding:10px;background:rgba(255,100,100,.15);border:none;border-radius:8px;color:#ff6b6b;cursor:pointer;font-size:12px}
 .logo-clear:hover{background:rgba(255,100,100,.25)}
+/* Chat Panel - Slack DM Interface */
+.chat-panel{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:200;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.chat-panel.show{display:flex;animation:modalIn .25s ease forwards}
+.chat-panel-content{background:linear-gradient(180deg,#1e2030,#181a24);border-radius:20px;width:90%;max-width:560px;height:70vh;max-height:600px;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 48px rgba(0,0,0,.5);display:flex;flex-direction:column;transform:scale(.95) translateY(10px);animation:modalContentIn .3s cubic-bezier(.34,1.56,.64,1) forwards}
+.chat-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+.chat-panel-user{display:flex;align-items:center;gap:12px}
+.chat-panel-avatar{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#fff;text-transform:uppercase}
+.chat-panel-info{display:flex;flex-direction:column;gap:2px}
+.chat-panel-name{font-size:15px;font-weight:600;color:#fff}
+.chat-panel-status{font-size:12px;color:rgba(255,255,255,.5)}
+.chat-panel-close{width:36px;height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.chat-panel-close:hover{background:rgba(255,255,255,.1);color:#fff;transform:rotate(90deg)}
+.chat-panel-close svg{width:18px;height:18px;fill:currentColor}
+.chat-panel-messages{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.chat-panel-messages::-webkit-scrollbar{width:6px}
+.chat-panel-messages::-webkit-scrollbar-track{background:transparent}
+.chat-panel-messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+.chat-msg{display:flex;flex-direction:column;gap:4px;max-width:80%}
+.chat-msg.them{align-self:flex-start}
+.chat-msg.me{align-self:flex-end}
+.chat-msg-bubble{padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;word-wrap:break-word}
+.chat-msg.them .chat-msg-bubble{background:rgba(255,255,255,.08);color:#fff;border-bottom-left-radius:4px}
+.chat-msg.me .chat-msg-bubble{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-bottom-right-radius:4px}
+.chat-msg-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.4)}
+.chat-msg.me .chat-msg-meta{justify-content:flex-end}
+.chat-msg-user{font-weight:500;color:rgba(255,255,255,.6)}
+.chat-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:rgba(255,255,255,.5);font-size:13px}
+.chat-panel-input{display:flex;align-items:flex-end;gap:12px;padding:16px 20px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}
+.chat-input{flex:1;padding:12px 16px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:14px;color:#fff;font-size:14px;font-family:inherit;resize:none;outline:none;line-height:1.5;max-height:120px;transition:all .2s}
+.chat-input:focus{border-color:rgba(102,126,234,.4);box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.chat-input::placeholder{color:rgba(255,255,255,.35)}
+.chat-send-btn{width:44px;height:44px;border-radius:12px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.chat-send-btn:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(102,126,234,.4)}
+.chat-send-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.chat-send-btn svg{width:20px;height:20px;fill:currentColor}
+.chat-empty{text-align:center;padding:40px;color:rgba(255,255,255,.4);font-size:13px}
+.chat-msg.root-msg .chat-msg-bubble{border-left:3px solid #667eea;padding-left:12px;background:rgba(102,126,234,.1)}
+.threads-list{display:flex;flex-direction:column;gap:2px}
+.thread-item{padding:14px 16px;background:rgba(255,255,255,.03);border-radius:10px;cursor:pointer;transition:all .15s}
+.thread-item:hover{background:rgba(255,255,255,.08)}
+.thread-root{font-size:13px;color:#fff;line-height:1.4;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread-root strong{color:rgba(255,255,255,.8)}
+.thread-meta{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.thread-unread-badge{background:#e01e5a;color:#fff;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:600}
+.thread-latest{font-size:12px;color:rgba(255,255,255,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -130,18 +412,56 @@ input[type="file"]{display:none}
 <div class="t" id="t">12<span class="ts">:</span>00</div>
 <div class="dt" id="d">Wednesday, January 28</div>
 <div class="sc" id="sc">
-<input type="text" class="si" id="s" placeholder="Search Google or your history..." autocomplete="off">
+<input type="text" class="si" id="s" placeholder="Search Google or your history..." autocomplete="off" autofocus>
 <div class="sg" id="r"></div>
 </div>
 <div class="ql" id="ql"></div>
+<div class="cal-container" id="cal-container">
+<div class="cal-in-call" id="cal-in-call" style="display:none" onclick="toggleCalendarExpand()">
+<div class="cal-in-call-info">
+<div class="cal-in-call-dot"></div>
+<div class="cal-in-call-text">In call: <strong id="cal-current-title"></strong></div>
 </div>
+<div class="cal-in-call-toggle"><span id="cal-upcoming-count"></span><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
+</div>
+<div class="cal-events" id="cal-events"></div>
+</div>
+<!-- Hub: Meeting Prep (Right Side) -->
+<div class="hub-prep-container minimized">
+<div class="hub-section collapsed" id="hub-prep" style="display:none">
+<div class="hub-collapsed-badge" id="hub-prep-collapsed-badge"></div>
+<div class="hub-header" onclick="toggleHubSection('prep')">
+<div class="hub-header-left">
+<div class="hub-header-icon prep"><svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="#4285f4"/></svg></div>
+<div class="hub-header-info">
+<div class="hub-header-title">Meeting Prep</div>
+<div class="hub-header-subtitle" id="hub-prep-subtitle">Get ready for your next call</div>
+</div>
+</div>
+<div class="hub-header-right">
+<div class="hub-header-badge" id="hub-prep-badge"></div>
+<div class="hub-toggle"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
+</div>
+</div>
+<div class="hub-content" id="hub-prep-content"></div>
+</div>
+</div>
+</div>
+
 <button class="edit-btn" id="edit-btn" onclick="openModal()" title="Customize">
 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
 </button>
 
 <div class="modal" id="modal">
 <div class="modal-content">
-<h2>Customize Start Page</h2>
+<h2>Settings</h2>
+<div class="settings-tabs">
+<button class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">General</button>
+<button class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">Appearance</button>
+<button class="settings-tab" data-tab="hub" onclick="switchSettingsTab('hub')">Hub</button>
+</div>
+
+<div id="settings-general" class="settings-panel active">
 <div class="modal-section">
 <label>Logo</label>
 <div class="logo-upload">
@@ -159,6 +479,29 @@ input[type="file"]{display:none}
 <label>Your Name</label>
 <input type="text" id="edit-name" placeholder="Enter your name">
 </div>
+<div class="modal-section">
+<label>Calendar</label>
+<div class="cal-toggle">
+<input type="checkbox" id="cal-enabled" onchange="toggleCalendar()">
+<span style="color:rgba(255,255,255,.7);font-size:13px">Show next meeting</span>
+<span style="color:rgba(255,255,255,.35);font-size:11px;margin-left:8px">(Google Calendar)</span>
+</div>
+<div id="cal-settings-fields" style="display:none">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+<span style="color:rgba(255,255,255,.5);font-size:12px">Show events within</span>
+<input type="number" id="cal-minutes" value="60" min="15" max="480" style="width:70px;padding:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:#fff;font-size:13px">
+<span style="color:rgba(255,255,255,.5);font-size:12px">minutes</span>
+</div>
+</div>
+</div>
+<div class="modal-section">
+<label>Quick Links</label>
+<div id="links-container"></div>
+<button class="add-link" onclick="addLink()">+ Add Link</button>
+</div>
+</div>
+
+<div id="settings-appearance" class="settings-panel">
 <div class="modal-section">
 <label>Background</label>
 <div class="bg-presets" id="bg-presets"></div>
@@ -179,7 +522,9 @@ input[type="file"]{display:none}
 <input type="file" id="bg-file" accept="image/*" onchange="handleBgUpload(this)">
 <button class="bg-clear" onclick="clearBg()">Reset</button>
 </div>
-<label style="margin-top:12px">UI Style</label>
+</div>
+<div class="modal-section">
+<label>UI Style</label>
 <div class="theme-toggle">
 <button class="theme-btn dark" id="theme-dark" onclick="setTheme('dark')">
 <div class="theme-preview"></div>
@@ -191,11 +536,56 @@ input[type="file"]{display:none}
 </button>
 </div>
 </div>
-<div class="modal-section">
-<label>Quick Links</label>
-<div id="links-container"></div>
-<button class="add-link" onclick="addLink()">+ Add Link</button>
 </div>
+
+<div id="settings-hub" class="settings-panel">
+<div class="modal-section">
+<div style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:rgba(255,255,255,.04);border-radius:10px;margin-bottom:16px">
+<input type="checkbox" id="hub-enabled" onchange="toggleHubSettings()" style="width:18px;height:18px;margin-top:2px;flex-shrink:0">
+<div style="flex:1">
+<div style="font-size:14px;color:rgba(255,255,255,.9)">Enable Meeting Prep</div>
+<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:4px">Show contextual data for upcoming meetings</div>
+</div>
+</div>
+<div id="hub-sources-container">
+<div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px 0">Data Sources</div>
+<div class="hub-sources" id="hub-sources">
+<div class="hub-source">
+<input type="checkbox" id="hub-ai-brief" checked>
+<div class="hub-source-info"><span class="hub-source-name">AI Brief</span></div>
+<span class="hub-source-status available">Available</span>
+</div>
+<div class="hub-source">
+<input type="checkbox" id="hub-jira" checked>
+<div class="hub-source-info"><span class="hub-source-name">Jira</span></div>
+<span class="hub-source-status" id="hub-jira-status">Checking...</span>
+</div>
+<div class="hub-source">
+<input type="checkbox" id="hub-confluence" checked>
+<div class="hub-source-info"><span class="hub-source-name">Confluence</span></div>
+<span class="hub-source-status" id="hub-confluence-status">Checking...</span>
+</div>
+<div class="hub-source">
+<input type="checkbox" id="hub-slack" checked>
+<div class="hub-source-info"><span class="hub-source-name">Slack</span></div>
+<span class="hub-source-status" id="hub-slack-status">Checking...</span>
+</div>
+<div class="hub-source">
+<input type="checkbox" id="hub-gmail" checked>
+<div class="hub-source-info"><span class="hub-source-name">Gmail</span></div>
+<span class="hub-source-status" id="hub-gmail-status">Checking...</span>
+</div>
+<div class="hub-source">
+<input type="checkbox" id="hub-drive" checked>
+<div class="hub-source-info"><span class="hub-source-name">Google Drive</span></div>
+<span class="hub-source-status available">Available</span>
+</div>
+</div>
+<div class="hub-setup-hint" id="hub-setup-hint" style="display:none"></div>
+</div>
+</div>
+</div>
+
 <div class="btn-row">
 <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
 <button class="btn btn-primary" onclick="saveSettings()">Save</button>
@@ -249,8 +639,9 @@ var gradients=[
 
 function getSettings(){
 var s=localStorage.getItem('startpage');
-if(s){try{var p=JSON.parse(s);if(!p.theme)p.theme='dark';return p;}catch(e){}}
-return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:''};
+var defaultHubSources={jira:true,confluence:true,slack:true,gmail:true,drive:true,aiBrief:true};
+if(s){try{var p=JSON.parse(s);if(!p.theme)p.theme='dark';if(p.hubEnabled===undefined)p.hubEnabled=true;if(!p.hubSources)p.hubSources=defaultHubSources;return p;}catch(e){}}
+return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:'',calEnabled:false,calUrl:'',calMinutes:60,hubEnabled:true,hubSources:defaultHubSources};
 }
 function saveToStorage(settings){localStorage.setItem('startpage',JSON.stringify(settings));}
 
@@ -287,6 +678,780 @@ document.body.style.background=bg;
 applyBg();
 applyTheme();
 
+// Calendar functions
+var calendarExpanded=false;
+var calendarCache=null;
+try{calendarCache=JSON.parse(localStorage.getItem('calCache'));}catch(e){}
+function renderCalendarData(data){
+var container=document.getElementById('cal-container');
+var inCallEl=document.getElementById('cal-in-call');
+var eventsEl=document.getElementById('cal-events');
+if(data.error){container.classList.remove('show');return;}
+container.classList.add('show');
+var events=data.events||[];
+var inMeeting=data.in_meeting;
+var currentMeeting=data.current_meeting;
+if(inMeeting&&currentMeeting){
+inCallEl.style.display='flex';
+document.getElementById('cal-current-title').textContent=currentMeeting.title;
+document.getElementById('cal-upcoming-count').textContent=events.length>0?events.length+' upcoming':'';
+eventsEl.classList.toggle('collapsed',!calendarExpanded);
+}else{
+inCallEl.style.display='none';
+eventsEl.classList.remove('collapsed');
+calendarExpanded=false;
+inCallEl.classList.remove('expanded');
+}
+if(events.length===0&&!inMeeting){eventsEl.innerHTML='<div class="cal-empty">No upcoming meetings</div>';return;}
+if(events.length===0){eventsEl.innerHTML='';return;}
+var html='';
+events.forEach(function(evt){
+var mins=evt.minutes_until;
+var countdownClass='cal-countdown';
+var countdownText='';
+if(mins<=0){countdownText='Now';countdownClass='cal-countdown now';}
+else if(mins<=5){countdownText='In '+mins+' min';countdownClass='cal-countdown soon';}
+else if(mins<60){countdownText='In '+mins+' min';}
+else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
+var joinHtml=evt.meet_link?'<a href="'+evt.meet_link+'" class="cal-join" target="_blank"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Join</a>':'';
+html+='<div class="cal-card"><div class="cal-card-inner">';
+html+='<div class="cal-icon"><svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg></div>';
+html+='<div class="cal-info"><div class="cal-title">'+evt.title+'</div>';
+html+='<div class="cal-meta"><span class="cal-time">'+evt.start_formatted+'</span><span class="'+countdownClass+'">'+countdownText+'</span></div></div>';
+html+=joinHtml+'</div></div>';
+});
+eventsEl.innerHTML=html;
+}
+function fetchCalendar(){
+if(!settings.calEnabled){return;}
+var container=document.getElementById('cal-container');
+var eventsEl=document.getElementById('cal-events');
+// Show cached data immediately, or loading indicator
+if(calendarCache){
+renderCalendarData(calendarCache);
+}else{
+container.classList.add('show');
+eventsEl.innerHTML='<div class="cal-loading"><div class="cal-spinner"></div><span class="cal-loading-text">Loading calendar...</span></div>';
+}
+var url=S+'/calendar?minutes='+(settings.calMinutes||180)+'&limit=3';
+fetch(url,{signal:AbortSignal.timeout(10000)})
+.then(function(r){return r.json();})
+.then(function(data){
+calendarCache=data;
+try{localStorage.setItem('calCache',JSON.stringify(data));}catch(e){}
+renderCalendarData(data);
+})
+.catch(function(e){
+console.log('Calendar error:',e);
+document.getElementById('cal-container').classList.remove('show');
+});
+}
+function toggleCalendarExpand(){
+calendarExpanded=!calendarExpanded;
+document.getElementById('cal-events').classList.toggle('collapsed',!calendarExpanded);
+document.getElementById('cal-in-call').classList.toggle('expanded',calendarExpanded);
+}
+function toggleCalendar(){
+var enabled=document.getElementById('cal-enabled').checked;
+settings.calEnabled=enabled;
+document.getElementById('cal-settings-fields').style.display=enabled?'block':'none';
+if(!enabled)document.getElementById('cal-container').classList.remove('show');
+}
+function switchSettingsTab(tab){
+document.querySelectorAll('.settings-tab').forEach(function(t){t.classList.remove('active');});
+document.querySelectorAll('.settings-panel').forEach(function(p){p.classList.remove('active');});
+document.querySelector('[data-tab="'+tab+'"]').classList.add('active');
+document.getElementById('settings-'+tab).classList.add('active');
+}
+function toggleHubSettings(){
+var enabled=document.getElementById('hub-enabled').checked;
+var container=document.getElementById('hub-sources-container');
+if(enabled){
+container.classList.remove('hub-sources-disabled');
+}else{
+container.classList.add('hub-sources-disabled');
+}
+}
+function populateHubSettings(){
+document.getElementById('hub-enabled').checked=settings.hubEnabled!==false;
+var sources=settings.hubSources||{};
+document.getElementById('hub-ai-brief').checked=sources.aiBrief!==false;
+document.getElementById('hub-jira').checked=sources.jira!==false;
+document.getElementById('hub-confluence').checked=sources.confluence!==false;
+document.getElementById('hub-slack').checked=sources.slack!==false;
+document.getElementById('hub-gmail').checked=sources.gmail!==false;
+document.getElementById('hub-drive').checked=sources.drive!==false;
+toggleHubSettings();
+fetchHubAuthStatus();
+}
+function fetchHubAuthStatus(){
+fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})
+.then(function(r){return r.json();})
+.then(function(status){
+var atlassian=status.atlassian||{};
+var slack=status.slack||{};
+var gmail=status.gmail||{};
+var needsSetup=[];
+updateSourceStatus('hub-jira-status',atlassian.authenticated,atlassian.configured);
+updateSourceStatus('hub-confluence-status',atlassian.authenticated,atlassian.configured);
+if(!atlassian.authenticated&&atlassian.configured)needsSetup.push('atlassian');
+else if(!atlassian.configured)needsSetup.push('atlassian-config');
+updateSourceStatus('hub-slack-status',slack.authenticated,slack.configured);
+if(!slack.authenticated&&slack.configured)needsSetup.push('slack');
+else if(!slack.configured)needsSetup.push('slack-config');
+updateSourceStatus('hub-gmail-status',gmail.authenticated,gmail.configured);
+if(!gmail.authenticated)needsSetup.push('gmail');
+showSetupHints(needsSetup);
+})
+.catch(function(){
+['hub-jira-status','hub-confluence-status','hub-slack-status','hub-gmail-status'].forEach(function(id){
+var el=document.getElementById(id);
+if(el){el.textContent='Unknown';el.className='hub-source-status warning';}
+});
+});
+}
+function updateSourceStatus(id,authenticated,configured){
+var el=document.getElementById(id);
+if(!el)return;
+if(authenticated){
+el.textContent='Connected';
+el.className='hub-source-status connected';
+}else if(configured){
+el.textContent='Setup needed';
+el.className='hub-source-status warning';
+}else{
+el.textContent='Not configured';
+el.className='hub-source-status warning';
+}
+}
+function showSetupHints(needsSetup){
+var hint=document.getElementById('hub-setup-hint');
+if(!hint)return;
+if(needsSetup.length===0){hint.style.display='none';return;}
+var html='<strong>Setup Instructions:</strong><br>';
+if(needsSetup.indexOf('gmail')>=0){
+html+='<br><strong>Gmail:</strong> Run <code>npx @anthropic/gmail-mcp-server auth</code> in terminal to authenticate.';
+}
+if(needsSetup.indexOf('atlassian')>=0){
+html+='<br><strong>Atlassian:</strong> <a href="http://127.0.0.1:18765/hub/atlassian/oauth" target="_blank">Click here to connect</a> your Atlassian account.';
+}
+if(needsSetup.indexOf('atlassian-config')>=0){
+html+='<br><strong>Atlassian:</strong> Add mcp-remote Atlassian server to <code>.devsai.json</code>. See README for details.';
+}
+if(needsSetup.indexOf('slack')>=0||needsSetup.indexOf('slack-config')>=0){
+html+='<br><strong>Slack:</strong> Add Slack MCP tokens to <code>.devsai.json</code>. Get tokens from Slack web app\'s localStorage.';
+}
+hint.innerHTML=html;
+hint.style.display='block';
+}
+if(settings.calEnabled){
+fetchCalendar();
+setInterval(fetchCalendar,60000);
+}
+
+// ============================================================================
+// Hub Functions
+// ============================================================================
+var hubExpanded={prep:true};
+var hubCache={prep:null};
+
+function toggleHubSection(section){
+var el=document.getElementById('hub-'+section);
+if(el){
+el.classList.toggle('collapsed');
+hubExpanded[section]=!el.classList.contains('collapsed');
+// Also toggle container minimized state
+var container=el.closest('.hub-container,.hub-prep-container');
+if(container){
+container.classList.toggle('minimized',el.classList.contains('collapsed'));
+}
+}
+}
+
+function relativeTime(isoString){
+if(!isoString)return '';
+var date=new Date(isoString);
+var now=new Date();
+var diff=Math.floor((now-date)/1000);
+if(diff<60)return 'just now';
+if(diff<3600)return Math.floor(diff/60)+'m ago';
+if(diff<86400)return Math.floor(diff/3600)+'h ago';
+if(diff<604800)return Math.floor(diff/86400)+'d ago';
+return date.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+// Generate consistent color from name
+function nameToColor(name){
+var colors=['#e91e63','#9c27b0','#673ab7','#3f51b5','#2196f3','#03a9f4','#00bcd4','#009688','#4caf50','#8bc34a','#ff9800','#ff5722','#795548','#607d8b'];
+var hash=0;
+for(var i=0;i<name.length;i++)hash=name.charCodeAt(i)+((hash<<5)-hash);
+return colors[Math.abs(hash)%colors.length];
+}
+
+// Get initials from name
+function getInitials(name){
+if(!name)return '?';
+var parts=name.trim().split(/\s+/);
+if(parts.length>=2)return(parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+return name.substring(0,2).toUpperCase();
+}
+
+function renderHubItem(item,type){
+var iconClass='';
+var icon='';
+var title=item.name||item.title||item.subject||item.text||'Untitled';
+var meta='';
+var link='';
+var time=item.time||item.timestamp?relativeTime(item.time||item.timestamp):'';
+var actions='';
+var useAvatar=false;
+var avatarInitials='';
+var avatarColor='';
+
+if(type==='slack'){
+// Slack message rendering - simplified for meeting prep context
+var channel=item.channel||'';
+var isDM=channel.startsWith('DM with')||channel==='DM'||channel==='Group DM';
+meta=item.from||item.user||channel||'';
+
+// Build Slack link
+link=item.slack_url||item.url||item.link||'';
+if(!link){
+var chId=item.channel_id||item.channelId||'';
+var msgTs=item.msg_id||item.msgid||item.thread_ts||item.ts||'';
+if(chId&&msgTs){
+var cleanTs=String(msgTs).replace('.','');
+var slackDomain=window.SLACK_WORKSPACE||'your-workspace';
+link='https://'+slackDomain+'.slack.com/archives/'+chId+'/p'+cleanTs;
+}else if(chId){
+var slackDomain=window.SLACK_WORKSPACE||'your-workspace';
+link='https://'+slackDomain+'.slack.com/archives/'+chId;
+}
+}
+
+if(isDM&&item.from){
+useAvatar=true;
+avatarInitials=getInitials(item.from);
+avatarColor=nameToColor(item.from);
+iconClass='avatar';
+}else{
+iconClass='slack';
+icon='<svg viewBox="0 0 127 127"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2S.8 87.3.8 80s5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/><path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2S39.7.6 47 .6s13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2H14c-7.3 0-13.2-5.9-13.2-13.2S6.7 33.7 14 33.7h33z" fill="#36C5F0"/><path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V14c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v32.9z" fill="#2EB67D"/><path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2s5.9-13.2 13.2-13.2h33c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2h-33z" fill="#ECB22E"/></svg>';
+}
+
+if(link){
+actions='<div class="hub-item-actions">';
+actions+='<a href="'+link+'" class="hub-action-btn open" target="_blank" title="Open in Slack"><svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg></a>';
+actions+='</div>';
+}
+}else if(type==='jira'){
+iconClass='jira';
+icon='<svg viewBox="0 -30.63 255.32 285.96"><defs><linearGradient id="jg1"><stop offset=".18" stop-color="#0052cc"/><stop offset="1" stop-color="#2684ff"/></linearGradient></defs><path d="M244.66 0H121.71a55.5 55.5 0 0 0 55.5 55.5h22.65v21.87c.02 30.63 24.84 55.45 55.47 55.47V10.67c0-5.89-4.78-10.67-10.67-10.67z" fill="#2684ff"/><path d="M183.82 61.26H60.87c.02 30.63 24.84 55.45 55.47 55.47h22.65v21.94c.04 30.62 24.88 55.43 55.5 55.43V71.93c0-5.89-4.78-10.67-10.67-10.67z" fill="url(#jg1)"/><path d="M122.95 122.49H0c0 30.65 24.85 55.5 55.5 55.5h22.72v21.87c.02 30.6 24.8 55.41 55.4 55.47V133.16c0-5.89-4.78-10.67-10.67-10.67z" fill="url(#jg1)"/></svg>';
+meta=item.key||item.status||'';
+link=item.url||'';
+}else if(type==='confluence'){
+iconClass='confluence';
+icon='<svg viewBox="-.02 .04 256.07 245.94"><defs><linearGradient id="cg1" x1="243.35" y1="261.62" x2="83.15" y2="169.55" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0052cc"/><stop offset=".92" stop-color="#2380fb"/><stop offset="1" stop-color="#2684ff"/></linearGradient><linearGradient id="cg2" x1="12.63" y1="-15.48" x2="172.87" y2="76.59" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0052cc"/><stop offset=".92" stop-color="#2380fb"/><stop offset="1" stop-color="#2684ff"/></linearGradient></defs><path d="M9.11 187.79c-2.64 4.3-5.63 9.34-7.99 13.33a8.13 8.13 0 0 0 1.44 8.76c.6.84 1.36 1.56 2.23 2.12l53.03 32.69a8.13 8.13 0 0 0 9.27-2.62c2.14-3.56 4.85-8.17 7.76-13.09 21.02-34.47 42.32-30.25 80.37-12.16l52.6 24.94a8.13 8.13 0 0 0 10.97-4.07l25.25-56.93a8.13 8.13 0 0 0-3.88-10.66c-11.09-5.22-33.16-15.49-52.94-25.17-71.95-34.71-132.66-32.42-179.12 42.99z" fill="url(#cg1)"/><path d="M246.88 58.38c2.67-4.3 5.66-9.33 7.99-13.32a8.13 8.13 0 0 0-1.53-8.93 8.09 8.09 0 0 0-2.33-2.11l-52.95-32.69a8.13 8.13 0 0 0-9.28 2.62c-2.09 3.56-4.85 8.17-7.76 13.09-21.1 34.63-42.2 30.41-80.29 12.32l-52.55-24.95a8.13 8.13 0 0 0-10.98 4.03l-25.25 57.09a8.19 8.19 0 0 0 3.88 10.69c11.13 5.23 33.2 15.49 52.94 25.18 71.76 34.7 132.66 32.42 179.09-43z" fill="url(#cg2)"/></svg>';
+meta=item.space||'';
+link=item.url||'';
+}else if(type==='drive'){
+iconClass='drive';
+icon='<svg viewBox="0 0 87.3 78"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>';
+meta=item.drive||'';
+link=item.full_path?'file://'+item.full_path:'';
+}else if(type==='gmail'){
+iconClass='gmail';
+icon='<svg viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg>';
+// Show sender and date
+var sender=item.from||'';
+if(sender.includes('<'))sender=sender.split('<')[0].trim();
+meta=sender+(item.date?' · '+item.date:'');
+// Build Gmail URL if not provided
+link=item.url||'';
+if(!link&&item.id){
+link='https://mail.google.com/mail/u/0/#inbox/'+item.id;
+}else if(!link){
+link='https://mail.google.com/mail/u/0/#inbox';
+}
+}
+
+// For Slack conversations, make entire row clickable
+var rowClick='';
+if(type==='slack'&&item.type==='conversation'){
+var convType=item.conv_type||'dm';
+var channelId=item.channel_id||'';
+if(convType==='thread'){
+rowClick=' onclick="openThreadsPanel()" style="cursor:pointer"';
+}else if(convType==='channel'){
+var chatData=JSON.stringify({channel_id:channelId,name:item.name||'Channel',type:'channel'}).replace(/"/g,'&quot;');
+rowClick=' onclick="openChatPanel('+chatData+')" style="cursor:pointer"';
+}else{
+// DM or group_dm
+var chatChannelId=convType==='dm'?'@'+(item.username||item.name):channelId;
+var chatData=JSON.stringify({channel_id:chatChannelId,name:item.name||'Chat',type:convType}).replace(/"/g,'&quot;');
+rowClick=' onclick="openChatPanel('+chatData+')" style="cursor:pointer"';
+}
+}
+
+var html='<div class="hub-item '+(useAvatar?'':iconClass)+'"'+rowClick+'>';
+if(useAvatar){
+html+='<div class="hub-item-icon avatar" style="background:'+avatarColor+'">'+avatarInitials+'</div>';
+}else{
+html+='<div class="hub-item-icon '+iconClass+'">'+icon+'</div>';
+}
+html+='<div class="hub-item-body">';
+// Make clickable if there's a link and either not slack OR slack without action buttons
+if(link&&(type!=='slack'||!actions)){
+html+='<a href="'+link+'" class="hub-item-link" target="_blank"><div class="hub-item-title">'+escapeHtml(title)+'</div></a>';
+}else{
+html+='<div class="hub-item-title">'+escapeHtml(title)+'</div>';
+}
+html+='<div class="hub-item-row">';
+if(meta)html+='<div class="hub-item-meta">'+escapeHtml(meta)+'</div>';
+if(time)html+='<div class="hub-item-time">'+time+'</div>';
+html+='</div>';
+html+='</div>';
+html+=actions;
+html+='</div>';
+return html;
+}
+
+function escapeHtml(str){
+if(!str)return '';
+return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatSummary(text){
+if(!text)return '';
+// Simple markdown to HTML conversion for the summary
+var html=escapeHtml(text);
+// Convert headers
+html=html.replace(/^## (.+)$/gm,'<h3 class="summary-h2">$1</h3>');
+html=html.replace(/^### (.+)$/gm,'<h4 class="summary-h3">$1</h4>');
+// Convert bullet points
+html=html.replace(/^- (.+)$/gm,'<li>$1</li>');
+// Wrap consecutive li elements in ul
+html=html.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+// Convert bold
+html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+// Convert newlines to br
+html=html.replace(/\n\n/g,'</p><p>');
+html=html.replace(/\n/g,'<br>');
+return '<div class="summary-text"><p>'+html+'</p></div>';
+}
+
+function renderMeetingPrep(data){
+var container=document.getElementById('hub-prep');
+var content=document.getElementById('hub-prep-content');
+var badge=document.getElementById('hub-prep-badge');
+var subtitle=document.getElementById('hub-prep-subtitle');
+
+if(!data||!data.meeting){
+container.style.display='none';
+return;
+}
+
+container.style.display='block';
+var meeting=data.meeting;
+var mins=meeting.minutes_until||0;
+var countdownClass='hub-prep-meeting-countdown';
+var countdownText='';
+if(mins<=0){countdownText='Starting now';countdownClass+=' now';}
+else if(mins<=15){countdownText='In '+mins+' min';countdownClass+=' soon';}
+else if(mins<60){countdownText='In '+mins+' min';}
+else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
+
+subtitle.textContent=meeting.title;
+
+var html='<div class="hub-prep-meeting">';
+html+='<div class="hub-prep-meeting-header">';
+html+='<div class="hub-prep-meeting-info">';
+html+='<div class="hub-prep-meeting-title">'+escapeHtml(meeting.title)+'</div>';
+html+='<div class="hub-prep-meeting-details">';
+html+='<div class="hub-prep-meeting-time"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>'+escapeHtml(meeting.start_formatted||'')+'</div>';
+html+='<div class="'+countdownClass+'">'+countdownText+'</div>';
+html+='</div></div>';
+if(meeting.meet_link){
+html+='<a href="'+meeting.meet_link+'" class="cal-join" target="_blank"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Join</a>';
+}
+html+='</div></div>';
+
+var totalItems=0;
+
+// Jira context
+if(data.jira&&Array.isArray(data.jira)&&data.jira.length>0){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Related Jira</div><div class="hub-items">';
+data.jira.forEach(function(item){html+=renderHubItem(item,'jira');});
+html+='</div></div>';
+totalItems+=data.jira.length;
+}
+
+// Confluence context
+if(data.confluence&&Array.isArray(data.confluence)&&data.confluence.length>0){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Related Docs</div><div class="hub-items">';
+data.confluence.forEach(function(item){html+=renderHubItem(item,'confluence');});
+html+='</div></div>';
+totalItems+=data.confluence.length;
+}
+
+// Google Drive context
+if(data.google_drive&&Array.isArray(data.google_drive)&&data.google_drive.length>0){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Related Files</div><div class="hub-items">';
+data.google_drive.forEach(function(item){html+=renderHubItem(item,'drive');});
+html+='</div></div>';
+totalItems+=data.google_drive.length;
+}
+
+// AI Insights summary
+if(data.insights){
+html+='<div class="hub-insights"><div class="hub-insights-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div><div class="hub-insights-text">'+escapeHtml(data.insights)+'</div></div>';
+}
+
+if(totalItems===0&&!data.insights){
+html+='<div class="hub-empty"><div class="hub-empty-icon"><svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-1 12H5c-.55 0-1-.45-1-1V9c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v8c0 .55-.45 1-1 1z"/></svg></div><div class="hub-empty-text">No related context found</div><div class="hub-empty-hint">Context appears based on meeting title keywords</div></div>';
+}
+
+badge.textContent=totalItems>0?totalItems:'';
+content.innerHTML=html;
+}
+
+// Meeting prep state for progressive loading
+var prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],summary:null,loading:{jira:true,confluence:true,drive:true,slack:true,gmail:true,summary:true}};
+
+function renderMeetingPrepProgressive(){
+var container=document.getElementById('hub-prep');
+var content=document.getElementById('hub-prep-content');
+var badge=document.getElementById('hub-prep-badge');
+var subtitle=document.getElementById('hub-prep-subtitle');
+
+if(!prepState.meeting){
+container.style.display='none';
+return;
+}
+
+container.style.display='block';
+var meeting=prepState.meeting;
+var mins=meeting.minutes_until||0;
+var countdownClass='hub-prep-meeting-countdown';
+var countdownText='';
+if(mins<=0){countdownText='Starting now';countdownClass+=' now';}
+else if(mins<=15){countdownText='In '+mins+' min';countdownClass+=' soon';}
+else if(mins<60){countdownText='In '+mins+' min';}
+else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
+
+subtitle.textContent=meeting.title;
+
+var html='<div class="hub-prep-meeting">';
+html+='<div class="hub-prep-meeting-header">';
+html+='<div class="hub-prep-meeting-info">';
+html+='<div class="hub-prep-meeting-title">'+escapeHtml(meeting.title)+'</div>';
+html+='<div class="hub-prep-meeting-details">';
+html+='<div class="hub-prep-meeting-time"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>'+escapeHtml(meeting.start_formatted||'')+'</div>';
+html+='<div class="'+countdownClass+'">'+countdownText+'</div>';
+html+='</div></div>';
+if(meeting.meet_link){
+html+='<a href="'+meeting.meet_link+'" class="cal-join" target="_blank"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Join</a>';
+}
+html+='</div></div>';
+
+var totalItems=0;
+var atlassianAuth=hubAuthStatus.atlassian||{};
+var slackAuth=hubAuthStatus.slack||{};
+var sources=settings.hubSources||{};
+
+// AI Summary section (at top) - collapsible
+if(sources.aiBrief!==false){
+var summaryCollapsed=localStorage.getItem('hub-summary-collapsed')==='true';
+var hasContent=prepState.summary||prepState.loading.summary;
+html+='<div class="hub-prep-section hub-prep-summary'+(summaryCollapsed?' collapsed':'')+'">';
+html+='<div class="hub-prep-section-title'+(hasContent&&!summaryCollapsed?' has-content':'')+'" onclick="toggleSummary()">AI Brief</div>';
+html+='<div class="hub-summary-body">';
+if(prepState.loading.summary){
+html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Generating summary...</span></div>';
+}else if(prepState.summary){
+html+='<div class="hub-summary-content">'+formatSummary(prepState.summary)+'</div>';
+}else{
+html+='<div class="hub-section-empty"><span>No summary available</span><button class="hub-retry-btn" onclick="retrySource(\'summary\')">Try again</button></div>';
+}
+html+='</div></div>';
+}
+
+// Jira section
+if(sources.jira!==false){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Jira</div>';
+if(!atlassianAuth.configured){
+html+='<div class="hub-section-empty">Not configured</div>';
+}else if(atlassianAuth.error==='oauth_required'){
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Authentication required</span><button class="hub-auth-btn" onclick="window.open(\'http://127.0.0.1:18765/hub/atlassian/oauth\',\'_blank\')">Connect Atlassian</button></div>';
+}else if(!atlassianAuth.authenticated&&atlassianAuth.error){
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">⚠️</span><span>Auth error: '+escapeHtml(atlassianAuth.error)+'</span></div>';
+}else if(prepState.loading.jira){
+html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+}else if(prepState.jira.length>0){
+html+='<div class="hub-items">';
+prepState.jira.forEach(function(item){html+=renderHubItem(item,'jira');});
+html+='</div>';
+totalItems+=prepState.jira.length;
+}else{
+html+='<div class="hub-section-empty"><span>No related issues found</span><button class="hub-retry-btn" onclick="retrySource(\'jira\')">Try again</button></div>';
+}
+html+='</div>';
+}
+
+// Confluence section
+if(sources.confluence!==false){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Confluence</div>';
+if(!atlassianAuth.configured){
+html+='<div class="hub-section-empty">Not configured</div>';
+}else if(atlassianAuth.error==='oauth_required'){
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Authentication required</span><button class="hub-auth-btn" onclick="window.open(\'http://127.0.0.1:18765/hub/atlassian/oauth\',\'_blank\')">Connect Atlassian</button></div>';
+}else if(!atlassianAuth.authenticated&&atlassianAuth.error){
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">⚠️</span><span>Auth error: '+escapeHtml(atlassianAuth.error)+'</span></div>';
+}else if(prepState.loading.confluence){
+html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+}else if(prepState.confluence.length>0){
+html+='<div class="hub-items">';
+prepState.confluence.forEach(function(item){html+=renderHubItem(item,'confluence');});
+html+='</div>';
+totalItems+=prepState.confluence.length;
+}else{
+html+='<div class="hub-section-empty"><span>No related pages found</span><button class="hub-retry-btn" onclick="retrySource(\'confluence\')">Try again</button></div>';
+}
+html+='</div>';
+}
+
+// Google Drive section
+if(sources.drive!==false){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Google Drive</div>';
+if(prepState.loading.drive){
+html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+}else if(prepState.google_drive.length>0){
+html+='<div class="hub-items">';
+prepState.google_drive.forEach(function(item){html+=renderHubItem(item,'drive');});
+html+='</div>';
+totalItems+=prepState.google_drive.length;
+}else{
+html+='<div class="hub-section-empty"><span>No related files found</span><button class="hub-retry-btn" onclick="retrySource(\'drive\')">Try again</button></div>';
+}
+html+='</div>';
+}
+
+// Slack section (meeting-related messages)
+if(sources.slack!==false){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Slack</div>';
+if(!slackAuth.configured){
+html+='<div class="hub-section-empty">Not configured</div>';
+}else if(!slackAuth.authenticated&&slackAuth.error){
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Token expired or invalid</span><div class="hub-auth-instructions">Get tokens from Slack in browser: <code>localStorage.localConfig_v2</code> → copy xoxc and xoxd tokens to MCP config</div></div>';
+}else if(prepState.loading.slack){
+html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+}else if(prepState.slack.length>0){
+html+='<div class="hub-items">';
+prepState.slack.forEach(function(item){html+=renderHubItem(item,'slack');});
+html+='</div>';
+totalItems+=prepState.slack.length;
+}else{
+html+='<div class="hub-section-empty"><span>No related messages found</span><button class="hub-retry-btn" onclick="retrySource(\'slack\')">Try again</button></div>';
+}
+html+='</div>';
+}
+
+// Gmail section (meeting-related emails)
+if(sources.gmail!==false){
+html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Gmail</div>';
+if(prepState.loading.gmail){
+html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+}else if(prepState.gmail.length>0){
+html+='<div class="hub-items">';
+prepState.gmail.forEach(function(item){html+=renderHubItem(item,'gmail');});
+html+='</div>';
+totalItems+=prepState.gmail.length;
+}else{
+html+='<div class="hub-section-empty"><span>No related emails found</span><button class="hub-retry-btn" onclick="retrySource(\'gmail\')">Try again</button></div>';
+}
+html+='</div>';
+}
+
+badge.textContent=totalItems>0?totalItems:'';
+// Update collapsed badge
+var collapsedBadge=document.getElementById('hub-prep-collapsed-badge');
+if(collapsedBadge){
+collapsedBadge.textContent=totalItems>0?totalItems:'';
+collapsedBadge.classList.toggle('has-items',totalItems>0);
+}
+content.innerHTML=html;
+}
+
+function fetchMeetingPrep(){
+var container=document.getElementById('hub-prep');
+var content=document.getElementById('hub-prep-content');
+var sources=settings.hubSources||{};
+
+// Reset state - set loading based on which sources are enabled
+prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],summary:null,loading:{
+jira:sources.jira!==false,
+confluence:sources.confluence!==false,
+drive:sources.drive!==false,
+slack:sources.slack!==false,
+gmail:sources.gmail!==false,
+summary:sources.aiBrief!==false
+}};
+
+// Show loading state
+container.style.display='block';
+content.innerHTML='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Loading meeting...</span></div>';
+
+// 1. First get meeting info
+fetch(S+'/hub/prep/meeting',{signal:AbortSignal.timeout(10000)})
+.then(function(r){return r.json();})
+.then(function(data){
+if(!data.meeting){
+container.style.display='none';
+return;
+}
+prepState.meeting=data.meeting;
+renderMeetingPrepProgressive();
+
+// 2. Then fetch each enabled source in parallel
+if(sources.jira!==false){
+fetch(S+'/hub/prep/jira',{signal:AbortSignal.timeout(90000)})
+.then(function(r){return r.json();})
+.then(function(d){prepState.jira=Array.isArray(d)?d:[];prepState.loading.jira=false;renderMeetingPrepProgressive();})
+.catch(function(){prepState.loading.jira=false;renderMeetingPrepProgressive();});
+}
+
+if(sources.confluence!==false){
+fetch(S+'/hub/prep/confluence',{signal:AbortSignal.timeout(90000)})
+.then(function(r){return r.json();})
+.then(function(d){prepState.confluence=Array.isArray(d)?d:[];prepState.loading.confluence=false;renderMeetingPrepProgressive();})
+.catch(function(){prepState.loading.confluence=false;renderMeetingPrepProgressive();});
+}
+
+if(sources.drive!==false){
+fetch(S+'/hub/prep/drive',{signal:AbortSignal.timeout(90000)})
+.then(function(r){return r.json();})
+.then(function(d){prepState.google_drive=Array.isArray(d)?d:[];prepState.loading.drive=false;renderMeetingPrepProgressive();})
+.catch(function(){prepState.loading.drive=false;renderMeetingPrepProgressive();});
+}
+
+if(sources.slack!==false){
+fetch(S+'/hub/prep/slack',{signal:AbortSignal.timeout(90000)})
+.then(function(r){return r.json();})
+.then(function(d){prepState.slack=Array.isArray(d)?d:[];prepState.loading.slack=false;renderMeetingPrepProgressive();})
+.catch(function(){prepState.loading.slack=false;renderMeetingPrepProgressive();});
+}
+
+if(sources.gmail!==false){
+fetch(S+'/hub/prep/gmail',{signal:AbortSignal.timeout(90000)})
+.then(function(r){return r.json();})
+.then(function(d){prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();})
+.catch(function(){prepState.loading.gmail=false;renderMeetingPrepProgressive();});
+}
+
+// Fetch AI-generated summary (searches all sources and reads content)
+if(sources.aiBrief!==false){
+fetch(S+'/hub/prep/summary',{signal:AbortSignal.timeout(150000)})
+.then(function(r){return r.json();})
+.then(function(d){prepState.summary=d.summary||null;prepState.loading.summary=false;renderMeetingPrepProgressive();})
+.catch(function(){prepState.loading.summary=false;renderMeetingPrepProgressive();});
+}
+})
+.catch(function(e){
+console.log('Meeting prep error:',e);
+container.style.display='none';
+});
+}
+
+function toggleSummary(){
+var el=document.querySelector('.hub-prep-summary');
+if(!el)return;
+var isCollapsed=el.classList.toggle('collapsed');
+localStorage.setItem('hub-summary-collapsed',isCollapsed);
+// Update title margin based on collapsed state
+var title=el.querySelector('.hub-prep-section-title');
+if(title){
+if(isCollapsed){
+title.classList.remove('has-content');
+}else if(prepState.summary||prepState.loading.summary){
+title.classList.add('has-content');
+}
+}
+}
+
+function retrySource(source){
+// Map source to prepState key and endpoint
+var sourceMap={
+'jira':{key:'jira',endpoint:'/hub/prep/jira'},
+'confluence':{key:'confluence',endpoint:'/hub/prep/confluence'},
+'drive':{key:'google_drive',endpoint:'/hub/prep/drive'},
+'slack':{key:'slack',endpoint:'/hub/prep/slack'},
+'gmail':{key:'gmail',endpoint:'/hub/prep/gmail'},
+'summary':{key:'summary',endpoint:'/hub/prep/summary'}
+};
+var cfg=sourceMap[source];
+if(!cfg)return;
+
+// Set loading state
+var loadingKey=source==='drive'?'drive':source;
+prepState.loading[loadingKey]=true;
+renderMeetingPrepProgressive();
+
+// Fetch with refresh=1 to bypass cache
+fetch(S+cfg.endpoint+'?refresh=1',{signal:AbortSignal.timeout(source==='summary'?150000:90000)})
+.then(function(r){return r.json();})
+.then(function(d){
+if(source==='summary'){
+prepState.summary=d.summary||null;
+}else{
+prepState[cfg.key]=Array.isArray(d)?d:[];
+}
+prepState.loading[loadingKey]=false;
+renderMeetingPrepProgressive();
+})
+.catch(function(){
+prepState.loading[loadingKey]=false;
+renderMeetingPrepProgressive();
+});
+}
+
+var hubAuthStatus={slack:null,atlassian:null};
+
+function initHub(){
+// Check if hub is enabled in settings
+if(settings.hubEnabled===false){
+var hubPanel=document.getElementById('hub-prep');
+if(hubPanel)hubPanel.style.display='none';
+return;
+}
+// Check hub status first
+fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})
+.then(function(r){return r.json();})
+.then(function(status){
+console.log('Hub status:',status);
+// Store auth status globally
+hubAuthStatus.slack=status.slack||{};
+hubAuthStatus.atlassian=status.atlassian||{};
+
+// Check if any sources are available (authenticated or configured)
+var slackOk=status.slack&&(status.slack.authenticated||status.slack.configured);
+var atlassianOk=status.atlassian&&(status.atlassian.authenticated||status.atlassian.configured);
+var driveOk=status.google_drive;
+
+// Only fetch if calendar is enabled and we have at least one source
+if(settings.calEnabled&&(slackOk||atlassianOk||driveOk)){
+fetchMeetingPrep();
+}
+})
+.catch(function(e){
+console.log('Hub status error:',e);
+});
+}
+
+// Initialize hub after a short delay to not block page load
+setTimeout(initHub,1000);
+
+// REMOVED: Slack Reply and Chat Panel Functions (using native Slack app instead)
+
 function renderLogo(){
 var logoEl=document.getElementById('logo');
 var logoImg=logoEl.querySelector('img');
@@ -317,7 +1482,12 @@ var greeting=(h>=5&&h<12?'Good morning':h>=12&&h<17?'Good afternoon':h>=17&&h<21
 g.textContent=settings.name?greeting+', '+settings.name:greeting;
 d.textContent=W[n.getDay()]+', '+M[n.getMonth()]+' '+n.getDate();}
 
-renderLinks();u();setInterval(u,1000);s.focus();
+renderLinks();u();setInterval(u,1000);
+// Aggressive focus to steal from browser URL bar
+s.focus();
+setTimeout(function(){s.focus();},50);
+setTimeout(function(){s.focus();},150);
+setTimeout(function(){s.focus();},300);
 
 function R(a,q){if(!q){r.innerHTML='';r.classList.remove('a');return;}
 var h='<a href="https://www.google.com/search?q='+encodeURIComponent(q)+'" class="su sug"><svg class="sui" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><span class="sut">Search Google for "'+q.replace(/</g,'&lt;')+'"</span><span class="suy">Google</span></a>';
@@ -337,16 +1507,22 @@ else if(e.key==='Escape'){r.classList.remove('a');I=-1;}};
 document.onclick=function(e){if(!e.target.closest('.sc')&&!e.target.closest('.modal'))r.classList.remove('a');};
 document.onkeydown=function(e){
 if(e.key==='Escape'&&document.getElementById('modal').classList.contains('show')){closeModal();return;}
-if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&document.activeElement!==s&&!document.getElementById('modal').classList.contains('show'))s.focus();
+var replyOpen=document.getElementById('reply-modal').classList.contains('show');
+if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&document.activeElement!==s&&!document.getElementById('modal').classList.contains('show')&&!replyOpen&&document.activeElement.tagName!=='TEXTAREA')s.focus();
 };
 
 function openModal(){
 document.getElementById('modal').classList.add('show');
 document.getElementById('edit-name').value=settings.name||'';
+document.getElementById('cal-enabled').checked=settings.calEnabled||false;
+document.getElementById('cal-minutes').value=settings.calMinutes||60;
+document.getElementById('cal-settings-fields').style.display=settings.calEnabled?'block':'none';
 renderLogoPreview();
 renderBgPresets();
 updateThemeButtons();
 renderLinkEditor();
+populateHubSettings();
+switchSettingsTab('general');
 }
 function renderLogoPreview(){
 var preview=document.getElementById('logo-preview');
@@ -471,10 +1647,37 @@ renderLinkEditor();
 }
 function saveSettings(){
 settings.name=document.getElementById('edit-name').value.trim();
+settings.calEnabled=document.getElementById('cal-enabled').checked;
+settings.calMinutes=parseInt(document.getElementById('cal-minutes').value)||60;
+settings.hubEnabled=document.getElementById('hub-enabled').checked;
+settings.hubSources={
+jira:document.getElementById('hub-jira').checked,
+confluence:document.getElementById('hub-confluence').checked,
+slack:document.getElementById('hub-slack').checked,
+gmail:document.getElementById('hub-gmail').checked,
+drive:document.getElementById('hub-drive').checked,
+aiBrief:document.getElementById('hub-ai-brief').checked
+};
 saveToStorage(settings);
 renderLinks();
 u();
+if(settings.calEnabled){
+fetchCalendar();
+}else{
+document.getElementById('cal-container').classList.remove('show');
+}
+applyHubSettings();
 closeModal();
+}
+function applyHubSettings(){
+var hubPanel=document.getElementById('hub-prep');
+if(hubPanel){
+if(settings.hubEnabled){
+initHub();
+}else{
+hubPanel.style.display='none';
+}
+}
 }
 </script>
 </body>
