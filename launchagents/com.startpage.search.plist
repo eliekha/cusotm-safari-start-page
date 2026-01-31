@@ -9,13 +9,6 @@
         <string>/usr/bin/python3</string>
         <string>HOME_DIR/.local/share/safari_start_page/search-server.py</string>
     </array>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>SLACK_WORKSPACE</key>
-        <string>your-workspace</string>
-        <key>ATLASSIAN_DOMAIN</key>
-        <string>your-domain.atlassian.net</string>
-    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

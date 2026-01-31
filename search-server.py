@@ -998,8 +998,28 @@ def extract_mcp_content(result):
     return result
 
 
-SLACK_WORKSPACE = os.environ.get("SLACK_WORKSPACE", "your-workspace")  # Set via env or change default
-ATLASSIAN_DOMAIN = os.environ.get("ATLASSIAN_DOMAIN", "your-domain.atlassian.net")  # Set via env or change default
+# Load config from file or environment variables
+def load_config():
+    config = {"slack_workspace": "your-workspace", "atlassian_domain": "your-domain.atlassian.net"}
+    config_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json'),
+        os.path.expanduser('~/.config/safari_start_page/config.json')
+    ]
+    for path in config_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    config.update(json.load(f))
+                break
+            except: pass
+    # Environment variables override config file
+    config['slack_workspace'] = os.environ.get("SLACK_WORKSPACE", config.get('slack_workspace', 'your-workspace'))
+    config['atlassian_domain'] = os.environ.get("ATLASSIAN_DOMAIN", config.get('atlassian_domain', 'your-domain.atlassian.net'))
+    return config
+
+_config = load_config()
+SLACK_WORKSPACE = _config['slack_workspace']
+ATLASSIAN_DOMAIN = _config['atlassian_domain']
 
 
 def format_slack_channel(channel, sender_name=''):
