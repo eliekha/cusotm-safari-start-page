@@ -22,3 +22,4 @@
 # Personal files (not included in repo)
 logo.png
 .devsai.json
+__pycache__/
