@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "mcpServers": {
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "slack-mcp-server"],
+      "env": {
+        "SLACK_MCP_XOXC_TOKEN": "xoxc-your-token-here",
+        "SLACK_MCP_XOXD_TOKEN": "xoxd-your-token-here",
+        "SLACK_MCP_ADD_MESSAGE_TOOL": "true"
+      }
+    },
+    "atlassian": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
+    },
+    "gmail": {
+      "command": "npx",
+      "args": ["-y", "@monsoft/mcp-gmail"]
+    }
+  },
+  "systemPromptAddition": "This is a Safari start page project that serves as a productivity hub. It integrates with Slack, Jira, Confluence, Google Calendar, Google Drive, and Gmail to help prepare for meetings."
+}
