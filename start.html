@@ -188,6 +188,7 @@ input[type="file"]{display:none}
 .hub-container.minimized{width:auto;left:20px;padding:0}
 .hub-prep-container{position:fixed;top:50%;right:28px;transform:translateY(-50%);width:400px;max-height:75vh;z-index:50;overflow:visible;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent;transition:all .3s ease;padding:10px 0}
 .hub-prep-container.minimized{width:auto;right:20px;overflow:visible;padding:0}
+.hub-prep-container.minimized .day-tabs{display:none !important}
 .hub-prep-container::-webkit-scrollbar{width:5px}
 .hub-prep-container::-webkit-scrollbar-track{background:transparent}
 .hub-prep-container::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:4px}
@@ -228,6 +229,22 @@ input[type="file"]{display:none}
 .hub-filter-toggle svg{width:12px;height:12px;fill:currentColor}
 .hub-header-badge{font-size:11px;font-weight:600;color:var(--text-secondary);padding:4px 10px;background:var(--bg-card-hover);border-radius:20px;min-width:24px;text-align:center;transition:all .2s ease}
 .hub-header-badge.has-unread{background:#e01e5a;color:#fff;font-weight:700}
+.meeting-nav{display:none;align-items:center;gap:4px;margin-right:8px}
+.meeting-nav.show{display:flex}
+.meeting-nav-btn{width:24px;height:24px;border:none;background:var(--bg-card-hover);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:all .15s ease}
+.meeting-nav-btn:hover:not(:disabled){background:var(--bg-card);color:var(--text-primary)}
+.meeting-nav-btn:disabled{opacity:.3;cursor:not-allowed}
+.meeting-nav-btn svg{width:14px;height:14px;fill:currentColor}
+.meeting-nav-indicator{font-size:11px;color:var(--text-muted);font-weight:500;min-width:32px;text-align:center}
+.day-tabs{display:flex;gap:6px;padding:8px 12px;background:var(--bg-card);border-radius:12px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none}
+.day-tabs::-webkit-scrollbar{display:none}
+.day-tab{flex:0 0 auto;padding:6px 12px;border-radius:8px;border:none;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s ease;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:48px}
+.day-tab:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+.day-tab.active{background:rgba(66,133,244,.15);color:#4285f4}
+.day-tab.has-meetings .day-count{display:flex}
+.day-tab-name{font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.day-tab-date{font-size:13px;font-weight:600}
+.day-count{display:none;width:16px;height:16px;border-radius:50%;background:#4285f4;color:#fff;font-size:9px;font-weight:700;align-items:center;justify-content:center;margin-top:2px}
 .hub-collapsed-badge.has-unread{background:#e01e5a!important;color:#fff!important}
 .hub-toggle{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all .3s cubic-bezier(.4,0,.2,1);border-radius:6px}
 .hub-header:hover .hub-toggle{color:var(--text-secondary)}
@@ -428,6 +445,7 @@ input[type="file"]{display:none}
 </div>
 <!-- Hub: Meeting Prep (Right Side) -->
 <div class="hub-prep-container minimized">
+<div class="day-tabs" id="day-tabs" style="display:none"></div>
 <div class="hub-section collapsed" id="hub-prep" style="display:none">
 <div class="hub-collapsed-badge" id="hub-prep-collapsed-badge"></div>
 <div class="hub-header" onclick="toggleHubSection('prep')">
@@ -439,6 +457,11 @@ input[type="file"]{display:none}
 </div>
 </div>
 <div class="hub-header-right">
+<div class="meeting-nav" id="meeting-nav">
+<button class="meeting-nav-btn" id="meeting-prev" onclick="event.stopPropagation();navigateMeeting(-1)" title="Previous meeting"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg></button>
+<span class="meeting-nav-indicator" id="meeting-nav-indicator">1/1</span>
+<button class="meeting-nav-btn" id="meeting-next" onclick="event.stopPropagation();navigateMeeting(1)" title="Next meeting"><svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg></button>
+</div>
 <div class="hub-header-badge" id="hub-prep-badge"></div>
 <div class="hub-toggle"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
 </div>
@@ -469,6 +492,7 @@ input[type="file"]{display:none}
 <button class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">General</button>
 <button class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">Appearance</button>
 <button class="settings-tab" data-tab="hub" onclick="switchSettingsTab('hub')">Hub</button>
+<button class="settings-tab" data-tab="status" onclick="switchSettingsTab('status');fetchPrefetchStatus()">Status</button>
 </div>
 
 <div id="settings-general" class="settings-panel active">
@@ -592,6 +616,22 @@ input[type="file"]{display:none}
 </div>
 </div>
 <div class="hub-setup-hint" id="hub-setup-hint" style="display:none"></div>
+</div>
+</div>
+</div>
+
+<div id="settings-status" class="settings-panel">
+<div class="modal-section">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+<span style="font-size:14px;color:rgba(255,255,255,.9)">Prefetch Activity</span>
+<button onclick="fetchPrefetchStatus()" style="padding:6px 12px;background:rgba(255,255,255,.1);border:none;border-radius:6px;color:rgba(255,255,255,.8);cursor:pointer;font-size:12px">Refresh</button>
+</div>
+<div id="prefetch-status-current" style="padding:12px;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:12px">
+<div style="font-size:12px;color:rgba(255,255,255,.5)">Loading...</div>
+</div>
+<div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:8px">Activity Log</div>
+<div id="prefetch-activity-log" style="max-height:300px;overflow-y:auto;background:rgba(0,0,0,.2);border-radius:8px;padding:8px">
+<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:20px">Click Refresh to load activity</div>
 </div>
 </div>
 </div>
@@ -1127,6 +1167,120 @@ content.innerHTML=html;
 
 // Meeting prep state for progressive loading
 var prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],summary:null,loading:{jira:true,confluence:true,drive:true,slack:true,gmail:true,summary:true}};
+// Meeting navigation state
+var allMeetings=[];
+var currentMeetingIndex=0;
+// Week view state
+var weekData=[];
+var selectedDate=null;
+
+function updateMeetingNav(){
+var nav=document.getElementById('meeting-nav');
+var indicator=document.getElementById('meeting-nav-indicator');
+var prevBtn=document.getElementById('meeting-prev');
+var nextBtn=document.getElementById('meeting-next');
+if(allMeetings.length>1){
+nav.classList.add('show');
+indicator.textContent=(currentMeetingIndex+1)+'/'+allMeetings.length;
+prevBtn.disabled=currentMeetingIndex===0;
+nextBtn.disabled=currentMeetingIndex>=allMeetings.length-1;
+}else{
+nav.classList.remove('show');
+}
+}
+
+function navigateMeeting(direction){
+var newIndex=currentMeetingIndex+direction;
+if(newIndex<0||newIndex>=allMeetings.length)return;
+currentMeetingIndex=newIndex;
+updateMeetingNav();
+fetchMeetingPrepForIndex(currentMeetingIndex);
+}
+
+function fetchPrefetchStatus(){
+fetch(S+'/hub/prefetch-status')
+.then(function(r){return r.json();})
+.then(function(data){
+var currentEl=document.getElementById('prefetch-status-current');
+var logEl=document.getElementById('prefetch-activity-log');
+// Update current status
+var statusHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
+statusHtml+='<div><span style="color:rgba(255,255,255,.5)">Status:</span> <span style="color:'+(data.running?'#4ade80':'rgba(255,255,255,.7)')+'">'+( data.running?'Running':'Idle')+'</span></div>';
+statusHtml+='<div><span style="color:rgba(255,255,255,.5)">Meetings:</span> <span style="color:rgba(255,255,255,.7)">'+data.meetings_processed+'/'+data.meetings_in_queue+'</span></div>';
+if(data.current_meeting){
+statusHtml+='<div style="grid-column:1/-1"><span style="color:rgba(255,255,255,.5)">Meeting:</span> <span style="color:#60a5fa">'+data.current_meeting+'</span></div>';
+}
+if(data.current_source){
+statusHtml+='<div style="grid-column:1/-1"><span style="color:rgba(255,255,255,.5)">Source:</span> <span style="color:#fbbf24">'+data.current_source+'</span></div>';
+}
+statusHtml+='</div>';
+currentEl.innerHTML=statusHtml;
+// Update activity log
+if(data.activity_log&&data.activity_log.length>0){
+var logHtml='';
+data.activity_log.forEach(function(entry){
+var time=new Date(entry.timestamp*1000).toLocaleTimeString();
+var statusColor=entry.status==='success'?'#4ade80':entry.status==='error'?'#f87171':entry.status==='warning'?'#fbbf24':'rgba(255,255,255,.5)';
+var icon=entry.status==='success'?'✓':entry.status==='error'?'✗':entry.status==='warning'?'⚠':'•';
+logHtml+='<div style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px">';
+logHtml+='<div style="display:flex;gap:8px;align-items:flex-start">';
+logHtml+='<span style="color:'+statusColor+';min-width:12px">'+icon+'</span>';
+logHtml+='<span style="color:rgba(255,255,255,.4);min-width:65px">'+time+'</span>';
+logHtml+='<div style="flex:1">';
+logHtml+='<span style="color:rgba(255,255,255,.8)">'+entry.message+'</span>';
+if(entry.meeting)logHtml+='<div style="color:rgba(255,255,255,.4);font-size:10px;margin-top:2px">'+entry.meeting+'</div>';
+logHtml+='</div>';
+if(entry.source)logHtml+='<span style="color:#60a5fa;font-size:10px">'+entry.source+'</span>';
+logHtml+='</div></div>';
+});
+logEl.innerHTML=logHtml;
+}else{
+logEl.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:20px">No activity yet</div>';
+}
+})
+.catch(function(e){
+console.error('Prefetch status error:',e);
+document.getElementById('prefetch-status-current').innerHTML='<div style="color:#f87171;font-size:12px">Error: '+(e.message||'Failed to fetch')+'</div>';
+});
+}
+
+function fetchWeekData(){
+fetch(S+'/hub/prep/week',{signal:AbortSignal.timeout(10000)})
+.then(function(r){return r.json();})
+.then(function(data){
+if(data.error||!data.days)return;
+weekData=data.days;
+renderDayTabs();
+// Auto-select today or first day with meetings
+var dayToSelect=weekData.find(function(d){return d.meeting_count>0;})||weekData[0];
+if(dayToSelect)selectDay(dayToSelect.date);
+})
+.catch(function(e){console.log('Week fetch error:',e);});
+}
+
+function renderDayTabs(){
+var container=document.getElementById('day-tabs');
+if(!weekData.length){container.style.display='none';return;}
+container.style.display='flex';
+var html='';
+weekData.forEach(function(day){
+var activeClass=day.date===selectedDate?' active':'';
+var hasMeetings=day.meeting_count>0?' has-meetings':'';
+html+='<button class="day-tab'+activeClass+hasMeetings+'" onclick="selectDay(\''+day.date+'\')">';
+html+='<span class="day-tab-name">'+day.day_name+'</span>';
+html+='<span class="day-tab-date">'+day.day_short+'</span>';
+if(day.meeting_count>0)html+='<span class="day-count">'+day.meeting_count+'</span>';
+html+='</button>';
+});
+container.innerHTML=html;
+}
+
+function selectDay(date){
+selectedDate=date;
+currentMeetingIndex=0;
+renderDayTabs();
+fetchMeetingPrepForIndex(0);
+}
 
 function renderMeetingPrepProgressive(){
 var container=document.getElementById('hub-prep');
@@ -1293,6 +1447,13 @@ content.innerHTML=html;
 }
 
 function fetchMeetingPrep(){
+currentMeetingIndex=0;
+selectedDate=null;
+// Fetch week data first, which will then load the first day's meetings
+fetchWeekData();
+}
+
+function fetchMeetingPrepForIndex(index){
 var container=document.getElementById('hub-prep');
 var content=document.getElementById('hub-prep-content');
 var sources=settings.hubSources||{};
@@ -1311,22 +1472,30 @@ summary:sources.aiBrief!==false
 container.style.display='block';
 content.innerHTML='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Loading meeting...</span></div>';
 
-// 1. First get meeting info
-fetch(S+'/hub/prep/meeting',{signal:AbortSignal.timeout(10000)})
+// 1. First get meeting info (with index and date parameters)
+var dateParam=selectedDate?'&date='+selectedDate:'';
+fetch(S+'/hub/prep/meeting?index='+index+dateParam,{signal:AbortSignal.timeout(10000)})
 .then(function(r){return r.json();})
 .then(function(data){
 if(!data.meeting){
 container.style.display='none';
+allMeetings=[];
+updateMeetingNav();
 return;
 }
+// Store all meetings and update navigation
+allMeetings=data.all_meetings||[data.meeting];
+currentMeetingIndex=data.index||0;
+updateMeetingNav();
+
 prepState.meeting=data.meeting;
 renderMeetingPrepProgressive();
 
-// Get meeting_id for cache lookup
+// Get meeting_id for API calls (no refresh=1 - use cache if available)
 var mid = data.meeting.id || '';
 var midParam = mid ? '?meeting_id=' + encodeURIComponent(mid) : '';
 
-// 2. Then fetch each enabled source in parallel (with meeting_id for cache lookup)
+// 2. Then fetch each enabled source in parallel (cache will be used if available)
 if(sources.jira!==false){
 fetch(S+'/hub/prep/jira'+midParam,{signal:AbortSignal.timeout(90000)})
 .then(function(r){return r.json();})
@@ -1410,8 +1579,13 @@ var loadingKey=source==='drive'?'drive':source;
 prepState.loading[loadingKey]=true;
 renderMeetingPrepProgressive();
 
+// Build URL with meeting_id and refresh=1
+var mid=prepState.meeting&&prepState.meeting.id?prepState.meeting.id:'';
+var url=S+cfg.endpoint+'?refresh=1';
+if(mid)url+='&meeting_id='+encodeURIComponent(mid);
+
 // Fetch with refresh=1 to bypass cache
-fetch(S+cfg.endpoint+'?refresh=1',{signal:AbortSignal.timeout(source==='summary'?150000:90000)})
+fetch(url)
 .then(function(r){return r.json();})
 .then(function(d){
 if(source==='summary'){

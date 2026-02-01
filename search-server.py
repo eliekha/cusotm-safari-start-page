@@ -23,7 +23,7 @@ from urllib.parse import urlparse, parse_qs
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Setup logging to file
-LOG_FILE = "/tmp/safari-hub-server.log"
+LOG_FILE = "/tmp/briefdesk-server.log"
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -45,7 +45,7 @@ except ImportError:
     GOOGLE_API_AVAILABLE = False
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-CONFIG_DIR = os.path.expanduser("~/.local/share/safari_start_page")
+CONFIG_DIR = os.path.expanduser("~/.local/share/briefdesk")
 TOKEN_PATH = os.path.join(CONFIG_DIR, "google_token.pickle")
 CREDENTIALS_PATH = os.path.join(CONFIG_DIR, "google_credentials.json")
 
@@ -1082,7 +1082,7 @@ def load_config():
     config = {"slack_workspace": "your-workspace", "atlassian_domain": "your-domain.atlassian.net"}
     config_paths = [
         os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json'),
-        os.path.expanduser('~/.config/safari_start_page/config.json')
+        os.path.expanduser('~/.config/briefdesk/config.json')
     ]
     for path in config_paths:
         if os.path.exists(path):
@@ -1632,7 +1632,7 @@ Return [] only if nothing found."""
             env['BROWSER'] = 'false'
             
             # Run from project dir to use local .devsai.json config
-            project_dir = os.path.expanduser('~/.local/share/safari_start_page')
+            project_dir = os.path.expanduser('~/.local/share/briefdesk')
             
             logger.debug(f"[CLI] devsai_path: {devsai_path}, cwd: {project_dir}")
             
@@ -1760,6 +1760,24 @@ Return ONLY the formatted summary text, nothing else."""
         # Strip ANSI color codes from CLI output
         output = re.sub(r'\x1b\[[0-9;]*m', '', output)
         
+        # Filter out CLI progress/status messages
+        filtered_lines = []
+        skip_patterns = [
+            'Connecting to MCP',
+            'MCP server(s) connected',
+            '[mcp_',
+            '✓ Output delivered',
+            'Output delivered',
+            '✓ MCP',
+            'Loading MCP',
+            'Starting MCP',
+        ]
+        for line in output.split('\n'):
+            line_stripped = line.strip()
+            if not any(pattern in line_stripped for pattern in skip_patterns):
+                filtered_lines.append(line)
+        output = '\n'.join(filtered_lines).strip()
+        
         # Return the summary text
         if output:
             return {'summary': output, 'status': 'success'}
@@ -1805,6 +1823,101 @@ _meeting_prep_cache_lock = threading.Lock()
 PREP_CACHE_TTL = 1800  # 30 minutes for individual source data
 SUMMARY_CACHE_TTL = 2700  # 45 minutes for summaries (expensive to generate)
 PREFETCH_INTERVAL = 600  # 10 minutes between prefetch cycles (must be < TTL)
+PREP_CACHE_FILE = os.path.expanduser('~/.local/share/briefdesk/prep_cache.json')
+
+def save_prep_cache_to_disk():
+    """Save the prep cache to disk for persistence across restarts."""
+    try:
+        with _meeting_prep_cache_lock:
+            cache_copy = dict(_meeting_prep_cache)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(PREP_CACHE_FILE), exist_ok=True)
+        
+        # Write atomically using temp file
+        temp_file = PREP_CACHE_FILE + '.tmp'
+        with open(temp_file, 'w') as f:
+            json.dump(cache_copy, f)
+        os.replace(temp_file, PREP_CACHE_FILE)
+        
+    except Exception as e:
+        logger.error(f"[Cache] Failed to save prep cache to disk: {e}")
+
+def load_prep_cache_from_disk():
+    """Load the prep cache from disk on startup."""
+    global _meeting_prep_cache
+    try:
+        if os.path.exists(PREP_CACHE_FILE):
+            with open(PREP_CACHE_FILE, 'r') as f:
+                loaded = json.load(f)
+            
+            # Validate and load into memory
+            with _meeting_prep_cache_lock:
+                _meeting_prep_cache = loaded
+            
+            # Count valid (non-expired) entries
+            import time
+            now = time.time()
+            valid_meetings = 0
+            valid_sources = 0
+            for meeting_id, sources in loaded.items():
+                has_valid = False
+                for source, data in sources.items():
+                    if isinstance(data, dict) and 'timestamp' in data:
+                        ttl = SUMMARY_CACHE_TTL if source == 'summary' else PREP_CACHE_TTL
+                        if now - data['timestamp'] < ttl:
+                            valid_sources += 1
+                            has_valid = True
+                if has_valid:
+                    valid_meetings += 1
+            
+            print(f"[Cache] Loaded prep cache from disk: {valid_meetings} meetings, {valid_sources} valid sources", flush=True)
+            return True
+    except json.JSONDecodeError as e:
+        logger.error(f"[Cache] Corrupted cache file, starting fresh: {e}")
+    except Exception as e:
+        logger.error(f"[Cache] Failed to load prep cache from disk: {e}")
+    return False
+
+# Prefetch activity status tracking
+_prefetch_status = {
+    'running': False,
+    'current_meeting': None,
+    'current_source': None,
+    'last_cycle_start': None,
+    'meetings_in_queue': 0,
+    'meetings_processed': 0,
+    'activity_log': []  # List of recent activities (max 50)
+}
+_prefetch_status_lock = threading.Lock()
+MAX_ACTIVITY_LOG = 50
+
+def add_prefetch_activity(activity_type, message, meeting=None, source=None, status='info', items=None):
+    """Add an activity entry to the prefetch status log."""
+    import time
+    with _prefetch_status_lock:
+        entry = {
+            'timestamp': time.time(),
+            'type': activity_type,
+            'message': message,
+            'meeting': meeting[:40] if meeting else None,
+            'source': source,
+            'status': status,  # info, success, error, warning
+            'items': items
+        }
+        _prefetch_status['activity_log'].insert(0, entry)
+        # Keep only last N entries
+        _prefetch_status['activity_log'] = _prefetch_status['activity_log'][:MAX_ACTIVITY_LOG]
+
+def update_prefetch_status(**kwargs):
+    """Update prefetch status fields."""
+    with _prefetch_status_lock:
+        _prefetch_status.update(kwargs)
+
+def get_prefetch_status():
+    """Get current prefetch status."""
+    with _prefetch_status_lock:
+        return dict(_prefetch_status)
 
 # Legacy cache (for backward compatibility during transition)
 _prep_cache = {
@@ -1849,6 +1962,8 @@ def set_meeting_cache(meeting_id, source, data):
             'data': data,
             'timestamp': time.time()
         }
+    # Persist to disk (outside lock to avoid blocking)
+    save_prep_cache_to_disk()
 
 def is_cache_valid(meeting_id, source):
     """Check if cache for a meeting/source is still valid."""
@@ -1868,6 +1983,52 @@ def get_cached_data(meeting_id, source):
         with _meeting_prep_cache_lock:
             return _meeting_prep_cache[meeting_id][source]['data']
     return None
+
+def get_meeting_by_id(event_id):
+    """Fetch a specific calendar event by ID from Google Calendar."""
+    if not GOOGLE_API_AVAILABLE:
+        return None
+    
+    if not os.path.exists(TOKEN_PATH):
+        return None
+    
+    try:
+        with open(TOKEN_PATH, 'rb') as token:
+            creds = pickle.load(token)
+        
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            with open(TOKEN_PATH, 'wb') as token:
+                pickle.dump(creds, token)
+        
+        service = build('calendar', 'v3', credentials=creds)
+        event = service.events().get(calendarId='primary', eventId=event_id).execute()
+        
+        if not event:
+            return None
+        
+        # Format attendees
+        attendees = []
+        for a in event.get('attendees', []):
+            attendees.append({
+                'name': a.get('displayName', ''),
+                'email': a.get('email', ''),
+                'self': a.get('self', False)
+            })
+        
+        return {
+            'id': event.get('id'),
+            'title': event.get('summary', 'No title'),
+            'start': event.get('start', {}).get('dateTime', event.get('start', {}).get('date', '')),
+            'end': event.get('end', {}).get('dateTime', event.get('end', {}).get('date', '')),
+            'description': event.get('description', ''),
+            'location': event.get('location', ''),
+            'attendees': attendees,
+            'htmlLink': event.get('htmlLink', '')
+        }
+    except Exception as e:
+        logger.error(f"[Calendar] Error fetching event {event_id}: {e}")
+        return None
 
 def cleanup_old_caches():
     """Remove cache entries for meetings more than 3 hours old."""
@@ -2008,13 +2169,17 @@ def prefetch_meeting_data(meeting):
     else:
         logger.info("[Prefetch] Skipping Gmail - not authenticated")
     
-    # Fetch sources in PARALLEL for speed (auth is already verified above)
-    logger.info(f"[Prefetch] Sources to fetch (parallel): {sources_to_fetch}")
+    # Fetch sources SEQUENTIALLY to avoid overloading CLI/MCP servers
+    logger.info(f"[Prefetch] Sources to fetch (sequential): {sources_to_fetch}")
     
-    def fetch_source(source):
-        """Fetch a single source and return (source, result)."""
+    for source in sources_to_fetch:
+        if not _prefetch_running:
+            break
         try:
+            update_prefetch_status(current_source=source)
+            add_prefetch_activity('fetch_start', f'Fetching {source}...', meeting=title, source=source, status='info')
             logger.info(f"[Prefetch] Starting {source}...")
+            
             # All sources use CLI (Drive uses find command, others use MCPs)
             # Drive gets longer timeout since file search can take time
             timeout = 90 if source == 'drive' else 60
@@ -2022,20 +2187,22 @@ def prefetch_meeting_data(meeting):
             
             if isinstance(result, list):
                 logger.info(f"[Prefetch] {source} for '{title[:30]}': {len(result)} items")
-                return (source, result)
+                set_meeting_cache(meeting_id, source, result)
+                add_prefetch_activity('fetch_complete', f'{source}: {len(result)} items', meeting=title, source=source, status='success', items=len(result))
             else:
                 logger.warning(f"[Prefetch] {source} returned non-list: {type(result)}")
-                return (source, [])
+                set_meeting_cache(meeting_id, source, [])
+                error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(type(result))
+                add_prefetch_activity('fetch_error', f'{source}: {error_msg}', meeting=title, source=source, status='error')
         except Exception as e:
             logger.error(f"[Prefetch] Error fetching {source}: {e}")
-            return (source, [])
+            set_meeting_cache(meeting_id, source, [])
+            add_prefetch_activity('fetch_error', f'{source}: {str(e)[:50]}', meeting=title, source=source, status='error')
+        
+        # Small delay between sources to avoid overwhelming CLI
+        time.sleep(2)
     
-    # Run all sources in parallel (limit to 3 workers to avoid resource contention)
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {executor.submit(fetch_source, source): source for source in sources_to_fetch}
-        for future in as_completed(futures):
-            source, result = future.result()
-            set_meeting_cache(meeting_id, source, result)
+    update_prefetch_status(current_source=None)
     
     # Only fetch summary if we have some data sources authenticated
     if auth_status.get('atlassian') or auth_status.get('slack') or auth_status.get('gmail'):
@@ -2084,7 +2251,7 @@ def get_calendar_events_standalone(minutes_ahead=120, limit=5):
             calendarId='primary',
             timeMin=time_min,
             timeMax=time_max,
-            maxResults=10,
+            maxResults=limit,
             singleEvents=True,
             orderBy='startTime'
         ).execute()
@@ -2157,23 +2324,30 @@ def background_prefetch_loop():
         try:
             print("[Prefetch] Starting prefetch cycle...", flush=True)
             
-            # Get upcoming meetings in next 2 hours using standalone function
+            # Get upcoming meetings for next 7 days using standalone function
             try:
-                events = get_calendar_events_standalone(minutes_ahead=120, limit=5)
-                print(f"[Prefetch] Calendar returned {len(events)} events", flush=True)
+                events = get_calendar_events_standalone(minutes_ahead=10080, limit=30)
+                print(f"[Prefetch] Calendar returned {len(events)} events for week", flush=True)
             except Exception as cal_err:
                 print(f"[Prefetch] Calendar error: {cal_err}", flush=True)
                 events = []
             
             if events:
                 print(f"[Prefetch] Found {len(events)} upcoming meetings to prefetch", flush=True)
+                add_prefetch_activity('cycle_start', f'Found {len(events)} meetings for week', status='info')
+                update_prefetch_status(meetings_in_queue=len(events), meetings_processed=0, last_cycle_start=time.time())
                 
-                for meeting in events:
+                # Process max 5 meetings per batch, then short pause and continue
+                meetings_processed_total = 0
+                batch_size = 5
+                has_uncached_meetings = False
+                
+                for i, meeting in enumerate(events):
                     if not _prefetch_running:
                         break
                     
                     meeting_id = meeting.get('id') or meeting.get('title')
-                    print(f"[Prefetch] Processing meeting: {meeting.get('title', 'unknown')[:40]}", flush=True)
+                    meeting_title = meeting.get('title', 'unknown')
                     
                     # Skip if all data is already cached
                     all_cached = all(
@@ -2182,20 +2356,52 @@ def background_prefetch_loop():
                     )
                     
                     if not all_cached:
+                        has_uncached_meetings = True
+                        print(f"[Prefetch] Processing meeting {meetings_processed_total + 1}: {meeting_title[:40]}", flush=True)
+                        update_prefetch_status(current_meeting=meeting_title, running=True)
+                        add_prefetch_activity('meeting_start', f'Processing meeting', meeting=meeting_title, status='info')
                         prefetch_meeting_data(meeting)
+                        meetings_processed_total += 1
+                        update_prefetch_status(meetings_processed=meetings_processed_total)
+                        add_prefetch_activity('meeting_complete', f'Completed', meeting=meeting_title, status='success')
+                        
+                        # Short pause between meetings
+                        if i < len(events) - 1:
+                            print(f"[Prefetch] Waiting 5s before next meeting...", flush=True)
+                            time.sleep(5)
+                        
+                        # After each batch, take a slightly longer pause (30s) to avoid rate limits
+                        if meetings_processed_total % batch_size == 0 and i < len(events) - 1:
+                            print(f"[Prefetch] Batch of {batch_size} done, short 30s pause...", flush=True)
+                            add_prefetch_activity('batch_pause', f'Short pause after {meetings_processed_total} meetings', status='info')
+                            time.sleep(30)
                     else:
-                        print(f"[Prefetch] Skipping '{meeting.get('title', '')[:30]}' - already cached", flush=True)
+                        print(f"[Prefetch] Skipping '{meeting_title[:30]}' - already cached", flush=True)
+                        add_prefetch_activity('meeting_skip', f'Already cached', meeting=meeting_title, status='info')
                 
+                update_prefetch_status(current_meeting=None, running=False)
                 # Cleanup old caches
                 cleanup_old_caches()
+                
+                # Determine wait time: short if we processed meetings, long if all cached
+                if has_uncached_meetings:
+                    # Processed some meetings, wait shorter before checking again
+                    wait_time = 60  # 1 minute
+                    print(f"[Prefetch] Cycle complete, processed {meetings_processed_total} meetings. Waiting {wait_time}s...", flush=True)
+                else:
+                    # All meetings already cached, wait longer
+                    wait_time = PREFETCH_INTERVAL
+                    print(f"[Prefetch] All meetings cached. Waiting {wait_time}s before refresh check...", flush=True)
             else:
-                print("[Prefetch] No upcoming meetings found in next 2 hours", flush=True)
+                print("[Prefetch] No upcoming meetings found in next 7 days", flush=True)
+                wait_time = PREFETCH_INTERVAL
             
         except Exception as e:
             print(f"[Prefetch] Error in prefetch loop: {e}", flush=True)
+            wait_time = 60  # Short wait on error to retry
         
-        # Wait before next prefetch cycle (interval must be < TTL to keep cache fresh)
-        for _ in range(PREFETCH_INTERVAL):
+        # Wait before next prefetch cycle
+        for _ in range(wait_time):
             if not _prefetch_running:
                 break
             time.sleep(1)
@@ -2358,7 +2564,7 @@ class SearchHandler(BaseHTTPRequestHandler):
             elif not os.path.exists(CREDENTIALS_PATH):
                 self.send_json({"status": "not_configured", "message": "Place google_credentials.json in " + CONFIG_DIR})
             elif not os.path.exists(TOKEN_PATH):
-                self.send_json({"status": "not_authenticated", "message": "Run: python3 ~/.local/share/safari_start_page/search-server.py --auth"})
+                self.send_json({"status": "not_authenticated", "message": "Run: python3 ~/.local/share/briefdesk/search-server.py --auth"})
             else:
                 self.send_json({"status": "ready"})
             
@@ -2391,23 +2597,83 @@ class SearchHandler(BaseHTTPRequestHandler):
         # NOTE: Slack panel endpoints removed - using native Slack app instead
         # Keeping only meeting prep endpoints
         
-        elif parsed.path == "/hub/meeting-prep" or parsed.path == "/hub/prep/meeting":
-            # Get just the meeting info (no context search)
+        elif parsed.path == "/hub/prep/week":
+            # Get all meetings for the next 7 days, grouped by date
             try:
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                # Fetch a week of meetings (7 days * 24 hours * 60 minutes = 10080 minutes)
+                calendar_data = self.get_upcoming_events_google(minutes_ahead=10080, limit=50)
                 events = calendar_data.get('events', [])
                 
-                if not events:
-                    self.send_json({"meeting": None, "message": "No upcoming meetings"})
-                    return
+                # Group meetings by date (YYYY-MM-DD)
+                by_date = {}
+                for evt in events:
+                    start = evt.get('start', '')
+                    if 'T' in start:
+                        date_str = start.split('T')[0]
+                    else:
+                        date_str = start[:10] if len(start) >= 10 else ''
+                    if date_str:
+                        if date_str not in by_date:
+                            by_date[date_str] = []
+                        by_date[date_str].append(evt)
                 
-                next_meeting = events[0]
-                attendees = next_meeting.get('attendees', [])
-                attendee_names = [a.get('name', a.get('email', '')) for a in attendees]
+                # Generate list of next 7 days
+                from datetime import date, timedelta
+                today = date.today()
+                days = []
+                for i in range(7):
+                    d = today + timedelta(days=i)
+                    date_str = d.isoformat()
+                    day_meetings = by_date.get(date_str, [])
+                    days.append({
+                        'date': date_str,
+                        'day_name': 'Today' if i == 0 else d.strftime('%a'),
+                        'day_short': d.strftime('%d'),
+                        'meeting_count': len(day_meetings),
+                        'meetings': day_meetings
+                    })
                 
                 self.send_json({
-                    "meeting": next_meeting,
-                    "attendees_str": ', '.join(attendee_names[:5])
+                    'days': days,
+                    'total_meetings': len(events)
+                })
+                
+            except Exception as e:
+                self.send_json({"error": str(e)})
+        
+        elif parsed.path == "/hub/meeting-prep" or parsed.path == "/hub/prep/meeting":
+            # Get meeting info with support for multiple/overlapping meetings
+            try:
+                # Get parameters
+                index = int(parse_qs(parsed.query).get("index", ["0"])[0])
+                date_filter = parse_qs(parsed.query).get("date", [None])[0]  # YYYY-MM-DD
+                
+                # Fetch a week of meetings
+                calendar_data = self.get_upcoming_events_google(minutes_ahead=10080, limit=50)
+                events = calendar_data.get('events', [])
+                
+                # Filter by date if specified
+                if date_filter:
+                    events = [e for e in events if e.get('start', '').startswith(date_filter)]
+                
+                if not events:
+                    self.send_json({"meeting": None, "all_meetings": [], "total": 0, "index": 0, "date": date_filter, "message": "No meetings" + (f" on {date_filter}" if date_filter else "")})
+                    return
+                
+                # Clamp index to valid range
+                index = max(0, min(index, len(events) - 1))
+                selected_meeting = events[index]
+                attendees = selected_meeting.get('attendees', [])
+                attendee_names = [a.get('name', a.get('email', '')) for a in attendees]
+                
+                # Return all meetings for navigation
+                self.send_json({
+                    "meeting": selected_meeting,
+                    "attendees_str": ', '.join(attendee_names[:5]),
+                    "all_meetings": events,
+                    "total": len(events),
+                    "index": index,
+                    "date": date_filter
                 })
                 
             except Exception as e:
@@ -2430,14 +2696,23 @@ class SearchHandler(BaseHTTPRequestHandler):
                         self.send_json(cached)
                         return
                 
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
-                events = calendar_data.get('events', [])
+                # Get meeting info - either by ID or from upcoming calendar
+                meeting = None
+                if meeting_id_param:
+                    # Fetch specific meeting by ID
+                    meeting = get_meeting_by_id(meeting_id_param)
                 
-                if not events:
+                if not meeting:
+                    # Fall back to next upcoming meeting
+                    calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                    events = calendar_data.get('events', [])
+                    if events:
+                        meeting = events[0]
+                
+                if not meeting:
                     self.send_json([])
                     return
                 
-                meeting = events[0]
                 meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
@@ -2476,14 +2751,21 @@ class SearchHandler(BaseHTTPRequestHandler):
                         self.send_json(cached)
                         return
                 
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
-                events = calendar_data.get('events', [])
+                # Get meeting info - either by ID or from upcoming calendar
+                meeting = None
+                if meeting_id_param:
+                    meeting = get_meeting_by_id(meeting_id_param)
                 
-                if not events:
+                if not meeting:
+                    calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                    events = calendar_data.get('events', [])
+                    if events:
+                        meeting = events[0]
+                
+                if not meeting:
                     self.send_json([])
                     return
                 
-                meeting = events[0]
                 meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
@@ -2522,14 +2804,21 @@ class SearchHandler(BaseHTTPRequestHandler):
                         self.send_json(cached)
                         return
                 
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
-                events = calendar_data.get('events', [])
+                # Get meeting info - either by ID or from upcoming calendar
+                meeting = None
+                if meeting_id_param:
+                    meeting = get_meeting_by_id(meeting_id_param)
                 
-                if not events:
+                if not meeting:
+                    calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                    events = calendar_data.get('events', [])
+                    if events:
+                        meeting = events[0]
+                
+                if not meeting:
                     self.send_json([])
                     return
                 
-                meeting = events[0]
                 meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
@@ -2563,14 +2852,21 @@ class SearchHandler(BaseHTTPRequestHandler):
                         self.send_json(cached)
                         return
                 
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
-                events = calendar_data.get('events', [])
+                # Get meeting info - either by ID or from upcoming calendar
+                meeting = None
+                if meeting_id_param:
+                    meeting = get_meeting_by_id(meeting_id_param)
                 
-                if not events:
+                if not meeting:
+                    calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                    events = calendar_data.get('events', [])
+                    if events:
+                        meeting = events[0]
+                
+                if not meeting:
                     self.send_json([])
                     return
                 
-                meeting = events[0]
                 meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
@@ -2609,14 +2905,21 @@ class SearchHandler(BaseHTTPRequestHandler):
                         self.send_json(cached)
                         return
                 
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
-                events = calendar_data.get('events', [])
+                # Get meeting info - either by ID or from upcoming calendar
+                meeting = None
+                if meeting_id_param:
+                    meeting = get_meeting_by_id(meeting_id_param)
                 
-                if not events:
+                if not meeting:
+                    calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                    events = calendar_data.get('events', [])
+                    if events:
+                        meeting = events[0]
+                
+                if not meeting:
                     self.send_json([])
                     return
                 
-                meeting = events[0]
                 # Use meeting_id_param if provided, otherwise derive from meeting
                 meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
@@ -2657,14 +2960,21 @@ class SearchHandler(BaseHTTPRequestHandler):
                         self.send_json(cached)
                         return
                 
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
-                events = calendar_data.get('events', [])
+                # Get meeting info - either by ID or from upcoming calendar
+                meeting = None
+                if meeting_id_param:
+                    meeting = get_meeting_by_id(meeting_id_param)
                 
-                if not events:
+                if not meeting:
+                    calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
+                    events = calendar_data.get('events', [])
+                    if events:
+                        meeting = events[0]
+                
+                if not meeting:
                     self.send_json({"status": "no_meeting", "summary": ""})
                     return
                 
-                meeting = events[0]
                 meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
@@ -2784,6 +3094,11 @@ class SearchHandler(BaseHTTPRequestHandler):
                                    for k, v in cache.items() if k not in ['meeting_info', 'last_access']}
                     }
             self.send_json({"cache": cache_summary})
+        
+        elif parsed.path == "/hub/prefetch-status":
+            # Get prefetch activity status for the UI
+            status = get_prefetch_status()
+            self.send_json(status)
         
         elif parsed.path == "/hub/status":
             # Check hub configuration and auth status
@@ -3563,10 +3878,14 @@ if __name__ == "__main__":
         authenticate_google()
     else:
         logger.info(f"Starting search server, logging to {LOG_FILE}")
+        
+        # Load cached prep data from disk (survives restarts)
+        load_prep_cache_from_disk()
+        
         server = ThreadedHTTPServer(("127.0.0.1", 18765), SearchHandler)
         logger.info("Search server running on http://127.0.0.1:18765 (multi-threaded)")
         
         # Start background prefetch thread for meeting prep data
         start_prefetch_thread()
-        print("Background meeting prep prefetch enabled (2-hour lookahead)")
+        print("Background meeting prep prefetch enabled (7-day lookahead)")
         server.serve_forever()

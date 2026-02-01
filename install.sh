@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Safari Start Page Installer"
-echo "==============================="
+echo "🚀 BriefDesk Installer"
+echo "======================"
 echo ""
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALL_DIR="$HOME/.local/share/safari_start_page"
+INSTALL_DIR="$HOME/.local/share/briefdesk"
 LAUNCHAGENTS_DIR="$HOME/Library/LaunchAgents"
 DEVSAI_DIR="$HOME/.local/share/devsai"
 
@@ -83,14 +83,14 @@ fi
 echo ""
 echo "⚙️  Installing LaunchAgents..."
 
-# Create static server plist (uses system Python - no FDA needed for serving files)
-cat > "$LAUNCHAGENTS_DIR/com.elias.startpage.plist" << EOF
+# Create static server plist
+cat > "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.elias.startpage</string>
+    <string>com.briefdesk.static</string>
     <key>ProgramArguments</key>
     <array>
         <string>$INSTALL_DIR/python3</string>
@@ -107,21 +107,21 @@ cat > "$LAUNCHAGENTS_DIR/com.elias.startpage.plist" << EOF
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/tmp/startpage-static.log</string>
+    <string>/tmp/briefdesk-static.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/startpage-static.log</string>
+    <string>/tmp/briefdesk-static.log</string>
 </dict>
 </plist>
 EOF
 
 # Create search server plist
-cat > "$LAUNCHAGENTS_DIR/com.startpage.search.plist" << EOF
+cat > "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.startpage.search</string>
+    <string>com.briefdesk.server</string>
     <key>ProgramArguments</key>
     <array>
         <string>$INSTALL_DIR/python3</string>
@@ -139,9 +139,9 @@ cat > "$LAUNCHAGENTS_DIR/com.startpage.search.plist" << EOF
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/tmp/startpage-search.log</string>
+    <string>/tmp/briefdesk-server.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/startpage-search.log</string>
+    <string>/tmp/briefdesk-server.log</string>
 </dict>
 </plist>
 EOF
@@ -153,12 +153,15 @@ echo "   ✓ LaunchAgents created"
 # ============================================
 echo ""
 echo "🔄 Starting services..."
+launchctl bootout gui/$(id -u)/com.briefdesk.static 2>/dev/null || true
+launchctl bootout gui/$(id -u)/com.briefdesk.server 2>/dev/null || true
+# Also remove old startpage services if they exist
 launchctl bootout gui/$(id -u)/com.elias.startpage 2>/dev/null || true
 launchctl bootout gui/$(id -u)/com.startpage.search 2>/dev/null || true
 sleep 1
 
-launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.elias.startpage.plist"
-launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.startpage.search.plist"
+launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist"
+launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist"
 sleep 2
 
 # ============================================
@@ -231,10 +234,10 @@ echo "     (Required for Google Drive search in Hub)"
 echo ""
 fi
 echo "After adding, restart the services:"
-echo "  launchctl kickstart -k gui/\$(id -u)/com.startpage.search"
+echo "  launchctl kickstart -k gui/\$(id -u)/com.briefdesk.server"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📋 Set Safari Homepage"
+echo "📋 Set Browser Homepage"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "Safari → Settings → General"

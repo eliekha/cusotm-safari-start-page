@@ -3,25 +3,19 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.startpage.static</string>
+    <string>com.briefdesk.server</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>-m</string>
-        <string>http.server</string>
-        <string>8765</string>
-        <string>--bind</string>
-        <string>127.0.0.1</string>
-        <string>--directory</string>
-        <string>HOME_DIR/.local/share/safari_start_page</string>
+        <string>HOME_DIR/.local/share/briefdesk/search-server.py</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/tmp/startpage-static.log</string>
+    <string>/tmp/briefdesk-server.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/startpage-static.log</string>
+    <string>/tmp/briefdesk-server.log</string>
 </dict>
 </plist>

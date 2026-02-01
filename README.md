@@ -1,6 +1,6 @@
-# Custom Start Page
+# BriefDesk
 
-A beautiful, fast, customizable start page with real-time history search and Google Calendar integration.
+A beautiful, fast productivity hub with meeting prep, real-time history search, and Google Calendar integration.
 
 ![Screenshot](screenshot.png)
 
@@ -20,13 +20,17 @@ A beautiful, fast, customizable start page with real-time history search and Goo
 - **No external requests** - 100% local, privacy-focused
 
 ### Productivity Hub (Meeting Prep)
+- **Week View** - Browse all meetings for the week with day tabs (Today, Mon, Tue, etc.)
+- **Meeting Selector** - Click any meeting to load its prep data; navigate with arrows
 - **AI Brief** - AI-generated meeting summary that reads and synthesizes content from all sources
 - **Jira Integration** - Automatically finds related tickets based on meeting context
 - **Confluence Integration** - Surfaces relevant wiki pages and documentation
 - **Slack Integration** - Shows recent discussions related to meeting topics/attendees
 - **Gmail Integration** - Finds relevant email threads with meeting participants
 - **Google Drive** - Searches local Drive files for meeting-related documents
-- **Background Prefetching** - Pre-caches data for upcoming meetings (30-min cache, 10-min refresh)
+- **7-Day Prefetching** - Pre-caches data for up to 30 meetings across the entire week
+- **Persistent Cache** - Prefetched data survives server restarts (stored in JSON)
+- **Status Dashboard** - Monitor prefetch activity in Settings → Status tab
 - **Collapsible Sections** - Each source can be collapsed; state persists across sessions
 
 ## Requirements
@@ -51,7 +55,7 @@ chmod +x install.sh
 ```
 
 The install script will:
-1. Copy files to `~/.local/share/safari_start_page/`
+1. Copy files to `~/.local/share/briefdesk/`
 2. Create local Python and Node binaries for Full Disk Access
 3. Set up LaunchAgents to start servers on login
 4. Create wrapper scripts for the devsai CLI
@@ -62,16 +66,16 @@ The install script will:
 
 1. **Copy files:**
    ```bash
-   mkdir -p ~/.local/share/safari_start_page
-   cp start.html search-server.py ~/.local/share/safari_start_page/
+   mkdir -p ~/.local/share/briefdesk
+   cp start.html search-server.py ~/.local/share/briefdesk/
    ```
 
 2. **Install LaunchAgents:**
    ```bash
    cp launchagents/*.plist ~/Library/LaunchAgents/
    # Edit plists to replace HOME_DIR with your home directory path
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.startpage.static.plist
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.startpage.search.plist
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.briefdesk.static.plist
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.briefdesk.search.plist
    ```
 
 3. **Grant Full Disk Access** (required for Safari history and Google Drive):
@@ -80,7 +84,7 @@ The install script will:
    
    | Binary | Path | Purpose |
    |--------|------|---------|
-   | Python | `~/.local/share/safari_start_page/python3` | Safari history search |
+   | Python | `~/.local/share/briefdesk/python3` | Safari history search |
    | Node | `~/.local/share/devsai/node` | Google Drive search (Hub) |
    
    The install script copies these binaries locally so FDA permissions persist across updates
@@ -116,16 +120,16 @@ To show your upcoming meetings on the start page:
 pip3 install google-auth-oauthlib google-api-python-client
 
 # Save credentials file
-cp ~/Downloads/client_secret_*.json ~/.local/share/safari_start_page/google_credentials.json
+cp ~/Downloads/client_secret_*.json ~/.local/share/briefdesk/google_credentials.json
 
 # Authenticate (opens browser)
-python3 ~/.local/share/safari_start_page/search-server.py --auth
+python3 ~/.local/share/briefdesk/search-server.py --auth
 ```
 
 ### 3. Rebuild the binary (if using standalone binary)
 
 ```bash
-cd ~/.local/share/safari_start_page
+cd ~/.local/share/briefdesk
 pip3 install pyinstaller
 pyinstaller --onefile --name search-server --distpath . \
   --hidden-import=google.auth.transport.requests \
@@ -136,7 +140,7 @@ pyinstaller --onefile --name search-server --distpath . \
 rm -rf build *.spec
 
 # Restart server
-launchctl kickstart -k gui/$(id -u)/com.startpage.search
+launchctl kickstart -k gui/$(id -u)/com.briefdesk.search
 ```
 
 ### 4. Enable in settings
@@ -202,10 +206,10 @@ devsai -p "Hello, what can you do?" --output text
 
 ### Step 2: Configure MCP Servers
 
-Create a `.devsai.json` file in the safari_start_page directory:
+Create a `.devsai.json` file in the briefdesk directory:
 
 ```bash
-cd ~/.local/share/safari_start_page
+cd ~/.local/share/briefdesk
 touch .devsai.json
 ```
 
@@ -344,7 +348,7 @@ Google Drive search uses the devsai CLI to intelligently search your locally syn
 
 ### Complete MCP Config Example
 
-Create `~/.local/share/safari_start_page/.devsai.json` with all your services:
+Create `~/.local/share/briefdesk/.devsai.json` with all your services:
 
 ```json
 {
@@ -370,7 +374,7 @@ Create `~/.local/share/safari_start_page/.devsai.json` with all your services:
 ```
 
 **Config locations** (checked in order):
-1. `~/.local/share/safari_start_page/.devsai.json` (project-specific, recommended)
+1. `~/.local/share/briefdesk/.devsai.json` (project-specific, recommended)
 2. `~/.devsai/mcp.json` (global)
 
 ---
@@ -382,13 +386,26 @@ Create `~/.local/share/safari_start_page/.devsai.json` with all your services:
 2. Reading the actual content (not just titles)
 3. Synthesizing a concise brief with key context, recent activity, and talking points
 
-**Background Prefetching** keeps data ready:
-- Runs every **10 minutes** in the background
-- Pre-loads data for meetings in the next **2 hours**
+**Week-Long Prefetching** keeps all your meetings ready:
+- Fetches data for up to **30 meetings** across the next **7 days**
+- Processes meetings continuously with short pauses between batches
+- **5 seconds** between each meeting, **30 second** pause every 5 meetings
+- Only waits **10 minutes** when all meetings are already cached
 - Cache TTL: **30 minutes** (sources), **45 minutes** (AI summaries)
-- Zero CPU usage between cycles
 
-**"Try again" buttons** - If a source returns no results, click to retry with a fresh fetch.
+**Persistent Cache** survives restarts:
+- Cache stored in `~/.local/share/briefdesk/prep_cache.json`
+- Automatically loaded on server startup
+- Typical size: **100-200KB** for 30 meetings
+- No need to re-fetch after server restart or system reboot
+
+**Status Dashboard** (Settings → Status tab):
+- View current prefetch activity in real-time
+- See which meeting/source is being fetched
+- Activity log shows recent fetches with success/error status
+- Click Refresh to update status
+
+**"Try again" buttons** - If a source returns no results, click to retry with a fresh fetch (bypasses cache).
 
 ---
 
@@ -396,13 +413,17 @@ Create `~/.local/share/safari_start_page/.devsai.json` with all your services:
 
 | Feature | Status | Method |
 |---------|--------|--------|
+| Week view with day tabs | ✅ Working | Google Calendar API |
+| Meeting selector | ✅ Working | Click/arrows to navigate |
 | Jira ticket search | ✅ Working | CLI + Atlassian MCP |
 | Confluence page search | ✅ Working | CLI + Atlassian MCP |
 | Slack message search | ✅ Working | CLI + Slack MCP |
 | Gmail email search | ✅ Working | CLI + Gmail MCP |
 | Google Drive file search | ✅ Working | CLI + `find` command |
 | AI-generated meeting brief | ✅ Working | CLI + all sources |
-| Background prefetching | ✅ Working | 10-min intervals |
+| 7-day prefetching | ✅ Working | Continuous background |
+| Persistent cache | ✅ Working | JSON file storage |
+| Status dashboard | ✅ Working | Settings → Status tab |
 | GitHub PR notifications | ⬜ Planned | - |
 
 ### Reliability & Error Handling
@@ -414,9 +435,11 @@ The Hub includes several reliability mechanisms:
 | **Retry logic** | Failed CLI calls retry up to 2 times |
 | **Timeouts** | 60s for most sources, 90s for Drive |
 | **Graceful degradation** | If a source fails, others still work |
-| **Background prefetch** | Data pre-loaded for upcoming meetings |
-| **Cache** | 30-min cache prevents repeated failures |
-| **"Try again" buttons** | Manual retry for failed sources |
+| **7-day prefetch** | All meetings pre-loaded in background |
+| **Persistent cache** | Data survives server restarts |
+| **Cache TTL** | 30-min for sources, 45-min for summaries |
+| **"Try again" buttons** | Manual retry bypasses cache |
+| **Meeting ID fetch** | Fetches specific meetings by ID (not just "next") |
 
 **Known limitations:**
 - Slack tokens (xoxc/xoxd) expire when you sign out - re-extract from browser
@@ -436,7 +459,7 @@ npm install -g devsai
 cp -r $(npm root -g)/devsai/dist ~/.local/share/devsai/
 
 # Restart server to pick up changes
-launchctl kickstart -k gui/$(id -u)/com.startpage.search
+launchctl kickstart -k gui/$(id -u)/com.briefdesk.search
 ```
 
 Or simply re-run `./install.sh` which handles this automatically
@@ -466,10 +489,12 @@ Two lightweight servers run in the background:
 - Cleans up temp files after each query
 
 ### Productivity Hub
-- **Background thread** runs every 10 minutes to prefetch meeting data
+- **Week view** shows meetings grouped by day with clickable tabs
+- **Background prefetch thread** processes all meetings for the week continuously
 - Calls `devsai` CLI with prompts to search each MCP source
 - Caches results for 30 minutes (45 min for AI summaries)
-- Only fetches for meetings in the next 2 hours
+- **Persistent cache** stored in JSON file - survives server restarts
+- Fetches specific meetings by ID from Google Calendar API
 - Skips sources that aren't authenticated (won't trigger OAuth prompts)
 
 ### Calendar
@@ -509,7 +534,7 @@ grep -E "error|timeout|failed" /tmp/safari-hub-server.log | tail -10
    ```
 
 **Slack/Gmail/Jira not working:**
-- Check credentials in `~/.local/share/safari_start_page/.devsai.json`
+- Check credentials in `~/.local/share/briefdesk/.devsai.json`
 - Slack tokens expire when you sign out - re-extract from browser
 - Atlassian may need re-auth: `npx mcp-remote https://mcp.atlassian.com/v1/sse`
 
@@ -531,13 +556,13 @@ Add that path to Full Disk Access in System Settings.
 **Most stable fix:** Build a standalone binary (path never changes):
 ```bash
 pip3 install pyinstaller
-cd ~/.local/share/safari_start_page
+cd ~/.local/share/briefdesk
 pyinstaller --onefile --name search-server --distpath . search-server.py
 rm -rf build *.spec
 ```
 Then update your LaunchAgent plist to use the binary directly (no Python path needed):
 ```xml
-<string>/Users/YOURNAME/.local/share/safari_start_page/search-server</string>
+<string>/Users/YOURNAME/.local/share/briefdesk/search-server</string>
 ```
 Grant FDA to the binary once - it will never change.
 
@@ -549,29 +574,34 @@ curl http://127.0.0.1:8765/start.html
 
 ### Restart servers
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.startpage.static
-launchctl kickstart -k gui/$(id -u)/com.startpage.search
+launchctl kickstart -k gui/$(id -u)/com.briefdesk.static
+launchctl kickstart -k gui/$(id -u)/com.briefdesk.search
 ```
 
 ### Uninstall
 ```bash
-launchctl bootout gui/$(id -u)/com.startpage.static
-launchctl bootout gui/$(id -u)/com.startpage.search
-rm ~/Library/LaunchAgents/com.startpage.*.plist
-rm -rf ~/.local/share/safari_start_page
+launchctl bootout gui/$(id -u)/com.briefdesk.static
+launchctl bootout gui/$(id -u)/com.briefdesk.search
+rm ~/Library/LaunchAgents/com.briefdesk.*.plist
+rm -rf ~/.local/share/briefdesk
 ```
 
 ## Files
 
 ```
-safari_start_page/
+briefdesk/
 ├── start.html           # Main start page (customizable)
-├── search-server.py     # History search server
+├── search-server.py     # History search + Hub server
 ├── install.sh           # Installation script
 ├── launchagents/
-│   ├── com.startpage.static.plist
-│   └── com.startpage.search.plist
+│   ├── com.briefdesk.static.plist
+│   └── com.briefdesk.search.plist
 └── README.md
+
+# Runtime files (in ~/.local/share/briefdesk/)
+├── prep_cache.json      # Persistent prefetch cache (~100-200KB)
+├── google_credentials.json  # Google OAuth credentials
+└── token.pickle         # Google auth token
 ```
 
 ## Privacy
