@@ -2,7 +2,6 @@
 
 A beautiful, fast productivity hub with meeting prep, real-time history search, and Google Calendar integration.
 
-![Screenshot](screenshot.png)
 
 ## Features
 
