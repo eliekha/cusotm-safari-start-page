@@ -2679,6 +2679,38 @@ class SearchHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"error": str(e)})
         
+        elif parsed.path == "/hub/prep/all":
+            # Return ALL cached data for a meeting in a single response (fast!)
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
+            
+            if not meeting_id_param:
+                self.send_json({"error": "meeting_id required", "cached": False})
+                return
+            
+            try:
+                # Get all cached data for this meeting
+                sources = ['jira', 'confluence', 'slack', 'gmail', 'drive', 'summary']
+                result = {"meeting_id": meeting_id_param, "cached": True}
+                all_cached = True
+                
+                for source in sources:
+                    cached = get_cached_data(meeting_id_param, source)
+                    if cached is not None:
+                        if source == 'summary':
+                            # Summary is stored as dict with 'summary' key
+                            result[source] = cached.get('summary') if isinstance(cached, dict) else cached
+                        else:
+                            result[source] = cached
+                    else:
+                        result[source] = None
+                        all_cached = False
+                
+                result["all_cached"] = all_cached
+                self.send_json(result)
+                
+            except Exception as e:
+                self.send_json({"error": str(e), "cached": False})
+        
         elif parsed.path == "/hub/prep/jira":
             # Search Jira for meeting context (CLI-powered)
             import time
@@ -3717,7 +3749,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                 calendarId='primary',
                 timeMin=time_min,
                 timeMax=time_max,
-                maxResults=10,
+                maxResults=limit,
                 singleEvents=True,
                 orderBy='startTime'
             ).execute()

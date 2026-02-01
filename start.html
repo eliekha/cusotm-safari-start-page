@@ -277,6 +277,20 @@ input[type="file"]{display:none}
 .hub-item-icon.group{background:rgba(46,182,125,.12)}
 .hub-item-icon.jira{background:rgba(0,82,204,.12)}
 .hub-item-icon.confluence{background:rgba(0,101,255,.12)}
+/* Skeleton loading */
+.skeleton{background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.06) 75%);background-size:200% 100%;animation:skeletonShimmer 1.5s ease-in-out infinite;border-radius:6px}
+@keyframes skeletonShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton-item{display:flex;gap:14px;padding:14px 16px;background:rgba(15,20,35,.5);border-radius:14px;border:1px solid var(--border-color)}
+.skeleton-icon{width:32px;height:32px;border-radius:8px}
+.skeleton-content{flex:1;display:flex;flex-direction:column;gap:8px}
+.skeleton-title{height:14px;width:70%;border-radius:4px}
+.skeleton-text{height:11px;width:90%;border-radius:3px}
+.skeleton-text.short{width:50%}
+.skeleton-summary{display:flex;flex-direction:column;gap:10px;padding:8px 0}
+.skeleton-summary-line{height:12px;border-radius:4px}
+.skeleton-summary-line:nth-child(1){width:95%}
+.skeleton-summary-line:nth-child(2){width:88%}
+.skeleton-summary-line:nth-child(3){width:75%}
 .hub-item-icon.drive{background:rgba(66,133,244,.12)}
 .hub-item-icon.gmail{background:rgba(234,67,53,.12)}
 .hub-item-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
@@ -1295,6 +1309,7 @@ return;
 
 container.style.display='block';
 var meeting=prepState.meeting;
+var isLoading=meeting.id==='_loading_';
 var mins=meeting.minutes_until||0;
 var countdownClass='hub-prep-meeting-countdown';
 var countdownText='';
@@ -1303,17 +1318,23 @@ else if(mins<=15){countdownText='In '+mins+' min';countdownClass+=' soon';}
 else if(mins<60){countdownText='In '+mins+' min';}
 else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
 
-subtitle.textContent=meeting.title;
+subtitle.textContent=isLoading?'':meeting.title;
 
 var html='<div class="hub-prep-meeting">';
 html+='<div class="hub-prep-meeting-header">';
 html+='<div class="hub-prep-meeting-info">';
+if(isLoading){
+html+='<div class="skeleton" style="height:18px;width:200px;margin-bottom:8px"></div>';
+html+='<div class="skeleton" style="height:14px;width:120px"></div>';
+}else{
 html+='<div class="hub-prep-meeting-title">'+escapeHtml(meeting.title)+'</div>';
 html+='<div class="hub-prep-meeting-details">';
 html+='<div class="hub-prep-meeting-time"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>'+escapeHtml(meeting.start_formatted||'')+'</div>';
 html+='<div class="'+countdownClass+'">'+countdownText+'</div>';
-html+='</div></div>';
-if(meeting.meet_link){
+html+='</div>';
+}
+html+='</div>';
+if(meeting.meet_link&&!isLoading){
 html+='<a href="'+meeting.meet_link+'" class="cal-join" target="_blank"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Join</a>';
 }
 html+='</div></div>';
@@ -1331,13 +1352,22 @@ html+='<div class="hub-prep-section hub-prep-summary'+(summaryCollapsed?' collap
 html+='<div class="hub-prep-section-title'+(hasContent&&!summaryCollapsed?' has-content':'')+'" onclick="toggleSummary()">AI Brief</div>';
 html+='<div class="hub-summary-body">';
 if(prepState.loading.summary){
-html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Generating summary...</span></div>';
+html+='<div class="skeleton-summary"><div class="skeleton skeleton-summary-line"></div><div class="skeleton skeleton-summary-line"></div><div class="skeleton skeleton-summary-line"></div></div>';
 }else if(prepState.summary){
 html+='<div class="hub-summary-content">'+formatSummary(prepState.summary)+'</div>';
 }else{
 html+='<div class="hub-section-empty"><span>No summary available</span><button class="hub-retry-btn" onclick="retrySource(\'summary\')">Try again</button></div>';
 }
 html+='</div></div>';
+}
+
+// Helper for skeleton items
+function renderSkeletonItems(count){
+var s='<div class="hub-items">';
+for(var i=0;i<count;i++){
+s+='<div class="skeleton-item"><div class="skeleton skeleton-icon"></div><div class="skeleton-content"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-text"></div></div></div>';
+}
+return s+'</div>';
 }
 
 // Jira section
@@ -1350,7 +1380,7 @@ html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>
 }else if(!atlassianAuth.authenticated&&atlassianAuth.error){
 html+='<div class="hub-auth-error"><span class="hub-auth-icon">⚠️</span><span>Auth error: '+escapeHtml(atlassianAuth.error)+'</span></div>';
 }else if(prepState.loading.jira){
-html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+html+=renderSkeletonItems(3);
 }else if(prepState.jira.length>0){
 html+='<div class="hub-items">';
 prepState.jira.forEach(function(item){html+=renderHubItem(item,'jira');});
@@ -1372,7 +1402,7 @@ html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>
 }else if(!atlassianAuth.authenticated&&atlassianAuth.error){
 html+='<div class="hub-auth-error"><span class="hub-auth-icon">⚠️</span><span>Auth error: '+escapeHtml(atlassianAuth.error)+'</span></div>';
 }else if(prepState.loading.confluence){
-html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+html+=renderSkeletonItems(3);
 }else if(prepState.confluence.length>0){
 html+='<div class="hub-items">';
 prepState.confluence.forEach(function(item){html+=renderHubItem(item,'confluence');});
@@ -1388,7 +1418,7 @@ html+='</div>';
 if(sources.drive!==false){
 html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Google Drive</div>';
 if(prepState.loading.drive){
-html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+html+=renderSkeletonItems(2);
 }else if(prepState.google_drive.length>0){
 html+='<div class="hub-items">';
 prepState.google_drive.forEach(function(item){html+=renderHubItem(item,'drive');});
@@ -1408,7 +1438,7 @@ html+='<div class="hub-section-empty">Not configured</div>';
 }else if(!slackAuth.authenticated&&slackAuth.error){
 html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Token expired or invalid</span><div class="hub-auth-instructions">Get tokens from Slack in browser: <code>localStorage.localConfig_v2</code> → copy xoxc and xoxd tokens to MCP config</div></div>';
 }else if(prepState.loading.slack){
-html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+html+=renderSkeletonItems(2);
 }else if(prepState.slack.length>0){
 html+='<div class="hub-items">';
 prepState.slack.forEach(function(item){html+=renderHubItem(item,'slack');});
@@ -1424,7 +1454,7 @@ html+='</div>';
 if(sources.gmail!==false){
 html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Gmail</div>';
 if(prepState.loading.gmail){
-html+='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Searching...</span></div>';
+html+=renderSkeletonItems(2);
 }else if(prepState.gmail.length>0){
 html+='<div class="hub-items">';
 prepState.gmail.forEach(function(item){html+=renderHubItem(item,'gmail');});
@@ -1468,9 +1498,11 @@ gmail:sources.gmail!==false,
 summary:sources.aiBrief!==false
 }};
 
-// Show loading state
+// Show skeleton loading state immediately (no UI jump)
 container.style.display='block';
-content.innerHTML='<div class="hub-loading"><div class="hub-loading-spinner"></div><span class="hub-loading-text">Loading meeting...</span></div>';
+// Create a placeholder meeting for skeleton rendering
+prepState.meeting={title:'Loading...',start_formatted:'',minutes_until:0,id:'_loading_'};
+renderMeetingPrepProgressive();
 
 // 1. First get meeting info (with index and date parameters)
 var dateParam=selectedDate?'&date='+selectedDate:'';
@@ -1491,58 +1523,81 @@ updateMeetingNav();
 prepState.meeting=data.meeting;
 renderMeetingPrepProgressive();
 
-// Get meeting_id for API calls (no refresh=1 - use cache if available)
+// Get meeting_id for API calls - also used to prevent race conditions
 var mid = data.meeting.id || '';
 var midParam = mid ? '?meeting_id=' + encodeURIComponent(mid) : '';
 
-// 2. Then fetch each enabled source in parallel (cache will be used if available)
+// Helper to check if response is still for current meeting (prevents race conditions)
+function isStillCurrentMeeting(){return prepState.meeting&&prepState.meeting.id===mid&&mid!=='_loading_';}
+
+// Try batch endpoint first (single request for all cached data - instant!)
+if(mid){
+fetch(S+'/hub/prep/all'+midParam)
+.then(function(r){return r.json();})
+.then(function(cached){
+if(!isStillCurrentMeeting())return; // Switched meetings - ignore stale response
+if(cached.all_cached){
+// All data is cached - instant load!
+if(sources.jira!==false){prepState.jira=cached.jira||[];prepState.loading.jira=false;}
+if(sources.confluence!==false){prepState.confluence=cached.confluence||[];prepState.loading.confluence=false;}
+if(sources.drive!==false){prepState.google_drive=cached.drive||[];prepState.loading.drive=false;}
+if(sources.slack!==false){prepState.slack=cached.slack||[];prepState.loading.slack=false;}
+if(sources.gmail!==false){prepState.gmail=cached.gmail||[];prepState.loading.gmail=false;}
+if(sources.aiBrief!==false){prepState.summary=cached.summary||null;prepState.loading.summary=false;}
+renderMeetingPrepProgressive();
+}else{
+// Some sources not cached - fetch missing ones individually
 if(sources.jira!==false){
-fetch(S+'/hub/prep/jira'+midParam,{signal:AbortSignal.timeout(90000)})
-.then(function(r){return r.json();})
-.then(function(d){prepState.jira=Array.isArray(d)?d:[];prepState.loading.jira=false;renderMeetingPrepProgressive();})
-.catch(function(){prepState.loading.jira=false;renderMeetingPrepProgressive();});
+if(cached.jira!==null){prepState.jira=cached.jira;prepState.loading.jira=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/jira'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.jira=Array.isArray(d)?d:[];prepState.loading.jira=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.jira=false;renderMeetingPrepProgressive();});}
 }
-
 if(sources.confluence!==false){
-fetch(S+'/hub/prep/confluence'+midParam,{signal:AbortSignal.timeout(90000)})
-.then(function(r){return r.json();})
-.then(function(d){prepState.confluence=Array.isArray(d)?d:[];prepState.loading.confluence=false;renderMeetingPrepProgressive();})
-.catch(function(){prepState.loading.confluence=false;renderMeetingPrepProgressive();});
+if(cached.confluence!==null){prepState.confluence=cached.confluence;prepState.loading.confluence=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/confluence'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.confluence=Array.isArray(d)?d:[];prepState.loading.confluence=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.confluence=false;renderMeetingPrepProgressive();});}
 }
-
 if(sources.drive!==false){
-fetch(S+'/hub/prep/drive'+midParam,{signal:AbortSignal.timeout(90000)})
-.then(function(r){return r.json();})
-.then(function(d){prepState.google_drive=Array.isArray(d)?d:[];prepState.loading.drive=false;renderMeetingPrepProgressive();})
-.catch(function(){prepState.loading.drive=false;renderMeetingPrepProgressive();});
+if(cached.drive!==null){prepState.google_drive=cached.drive;prepState.loading.drive=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/drive'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.google_drive=Array.isArray(d)?d:[];prepState.loading.drive=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.drive=false;renderMeetingPrepProgressive();});}
 }
-
 if(sources.slack!==false){
-fetch(S+'/hub/prep/slack'+midParam,{signal:AbortSignal.timeout(90000)})
-.then(function(r){return r.json();})
-.then(function(d){prepState.slack=Array.isArray(d)?d:[];prepState.loading.slack=false;renderMeetingPrepProgressive();})
-.catch(function(){prepState.loading.slack=false;renderMeetingPrepProgressive();});
+if(cached.slack!==null){prepState.slack=cached.slack;prepState.loading.slack=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/slack'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.slack=Array.isArray(d)?d:[];prepState.loading.slack=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.slack=false;renderMeetingPrepProgressive();});}
 }
-
 if(sources.gmail!==false){
-fetch(S+'/hub/prep/gmail'+midParam,{signal:AbortSignal.timeout(90000)})
-.then(function(r){return r.json();})
-.then(function(d){prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();})
-.catch(function(){prepState.loading.gmail=false;renderMeetingPrepProgressive();});
+if(cached.gmail!==null){prepState.gmail=cached.gmail;prepState.loading.gmail=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/gmail'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.gmail=false;renderMeetingPrepProgressive();});}
 }
-
-// Fetch AI-generated summary (searches all sources and reads content)
 if(sources.aiBrief!==false){
-fetch(S+'/hub/prep/summary'+midParam,{signal:AbortSignal.timeout(150000)})
-.then(function(r){return r.json();})
-.then(function(d){prepState.summary=d.summary||null;prepState.loading.summary=false;renderMeetingPrepProgressive();})
-.catch(function(){prepState.loading.summary=false;renderMeetingPrepProgressive();});
+if(cached.summary!==null){prepState.summary=cached.summary;prepState.loading.summary=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/summary'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.summary=d.summary||null;prepState.loading.summary=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.summary=false;renderMeetingPrepProgressive();});}
+}
+}
+})
+.catch(function(){
+if(!isStillCurrentMeeting())return;
+// Batch endpoint failed - fall back to individual fetches
+fetchSourcesIndividually(midParam,sources,isStillCurrentMeeting);
+});
+}else{
+// No meeting_id - fetch individually
+fetchSourcesIndividually(midParam,sources,function(){return true;});
 }
 })
 .catch(function(e){
 console.log('Meeting prep error:',e);
 container.style.display='none';
 });
+}
+
+function fetchSourcesIndividually(midParam,sources,isStillCurrent){
+// Fallback: fetch each source individually with race condition protection
+var check=isStillCurrent||function(){return true;};
+if(sources.jira!==false){fetch(S+'/hub/prep/jira'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.jira=Array.isArray(d)?d:[];prepState.loading.jira=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.jira=false;renderMeetingPrepProgressive();});}
+if(sources.confluence!==false){fetch(S+'/hub/prep/confluence'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.confluence=Array.isArray(d)?d:[];prepState.loading.confluence=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.confluence=false;renderMeetingPrepProgressive();});}
+if(sources.drive!==false){fetch(S+'/hub/prep/drive'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.google_drive=Array.isArray(d)?d:[];prepState.loading.drive=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.drive=false;renderMeetingPrepProgressive();});}
+if(sources.slack!==false){fetch(S+'/hub/prep/slack'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.slack=Array.isArray(d)?d:[];prepState.loading.slack=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.slack=false;renderMeetingPrepProgressive();});}
+if(sources.gmail!==false){fetch(S+'/hub/prep/gmail'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.gmail=false;renderMeetingPrepProgressive();});}
+if(sources.aiBrief!==false){fetch(S+'/hub/prep/summary'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.summary=d.summary||null;prepState.loading.summary=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.summary=false;renderMeetingPrepProgressive();});}
 }
 
 function toggleSummary(){
@@ -1574,20 +1629,33 @@ var sourceMap={
 var cfg=sourceMap[source];
 if(!cfg)return;
 
+// Don't retry if meeting is still loading
+var mid=prepState.meeting&&prepState.meeting.id?prepState.meeting.id:'';
+if(!mid||mid==='_loading_'){
+console.log('Cannot refresh - meeting still loading');
+return;
+}
+
 // Set loading state
 var loadingKey=source==='drive'?'drive':source;
 prepState.loading[loadingKey]=true;
 renderMeetingPrepProgressive();
 
 // Build URL with meeting_id and refresh=1
-var mid=prepState.meeting&&prepState.meeting.id?prepState.meeting.id:'';
-var url=S+cfg.endpoint+'?refresh=1';
-if(mid)url+='&meeting_id='+encodeURIComponent(mid);
+var url=S+cfg.endpoint+'?refresh=1&meeting_id='+encodeURIComponent(mid);
+
+// Capture meeting ID at request time for race condition check
+var requestMid=mid;
 
 // Fetch with refresh=1 to bypass cache
 fetch(url)
 .then(function(r){return r.json();})
 .then(function(d){
+// Only update if still on same meeting
+if(prepState.meeting&&prepState.meeting.id!==requestMid){
+console.log('Refresh response ignored - meeting changed');
+return;
+}
 if(source==='summary'){
 prepState.summary=d.summary||null;
 }else{
@@ -1596,7 +1664,9 @@ prepState[cfg.key]=Array.isArray(d)?d:[];
 prepState.loading[loadingKey]=false;
 renderMeetingPrepProgressive();
 })
-.catch(function(){
+.catch(function(e){
+console.error('Refresh error for '+source+':',e);
+if(prepState.meeting&&prepState.meeting.id!==requestMid)return;
 prepState.loading[loadingKey]=false;
 renderMeetingPrepProgressive();
 });
