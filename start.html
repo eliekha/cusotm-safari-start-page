@@ -321,8 +321,14 @@ input[type="file"]{display:none}
 .hub-prep-meeting-countdown.soon{background:rgba(251,188,4,.15);color:#f9a825}
 .hub-prep-meeting-countdown.now{background:rgba(52,168,83,.15);color:#34a853}
 .hub-prep-section{margin-top:16px}
-.hub-prep-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;padding-left:4px;display:flex;align-items:center;gap:6px}
+.hub-prep-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;padding-left:4px;display:flex;align-items:center;gap:6px;position:relative}
 .hub-prep-section-title::after{content:'';flex:1;height:1px;background:var(--border-color)}
+.hub-section-refresh{opacity:0;width:18px;height:18px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all .15s;padding:0;margin-left:auto;margin-right:4px}
+.hub-section-refresh svg{width:12px;height:12px;fill:currentColor}
+.hub-prep-section:hover .hub-section-refresh{opacity:.5}
+.hub-section-refresh:hover{opacity:1!important;background:var(--bg-card-hover);color:var(--text-secondary)}
+.hub-section-refresh.loading{opacity:1;animation:spin .8s linear infinite}
+.hub-section-refresh.loading svg{opacity:.5}
 .hub-section-empty{font-size:12px;color:var(--text-muted);padding:12px 4px;font-style:italic;opacity:.7;display:flex;align-items:center;justify-content:space-between}
 .hub-retry-btn{font-size:11px;padding:4px 10px;background:var(--surface-hover);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-style:normal;opacity:1;transition:all .15s}
 .hub-retry-btn:hover{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}
@@ -361,30 +367,6 @@ input[type="file"]{display:none}
 .hub-action-btn.open:hover{background:rgba(66,133,244,.1)}
 .hub-action-btn.chat{color:#667eea}
 .hub-action-btn.chat:hover{background:rgba(102,126,234,.1)}
-/* Reply Modal - Refined */
-.reply-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:200;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
-.reply-modal.show{display:flex;animation:modalIn .25s ease forwards}
-@keyframes modalIn{from{opacity:0}to{opacity:1}}
-.reply-modal-content{background:linear-gradient(180deg,#252836,#1e2030);border-radius:20px;padding:24px;width:90%;max-width:480px;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 48px rgba(0,0,0,.4);transform:scale(.95) translateY(10px);animation:modalContentIn .3s cubic-bezier(.34,1.56,.64,1) forwards}
-@keyframes modalContentIn{to{transform:scale(1) translateY(0)}}
-.reply-modal-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06)}
-.reply-modal-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(224,30,90,.2),rgba(74,21,75,.3));color:#e01e5a;display:flex;align-items:center;justify-content:center}
-.reply-modal-icon svg{width:22px;height:22px;fill:currentColor}
-.reply-modal-title{flex:1}
-.reply-modal-title h3{font-size:16px;font-weight:600;color:#fff;margin:0 0 4px;letter-spacing:-.3px}
-.reply-modal-title span{font-size:12px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:4px}
-.reply-modal-close{width:36px;height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.reply-modal-close:hover{background:rgba(255,255,255,.1);color:#fff;transform:rotate(90deg)}
-.reply-modal-close svg{width:18px;height:18px;fill:currentColor}
-.reply-textarea{width:100%;min-height:100px;padding:16px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:14px;color:#fff;font-size:14px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:all .2s}
-.reply-textarea:focus{border-color:rgba(224,30,90,.4);box-shadow:0 0 0 3px rgba(224,30,90,.1)}
-.reply-textarea::placeholder{color:rgba(255,255,255,.35)}
-.reply-modal-footer{display:flex;justify-content:flex-end;gap:12px;margin-top:16px}
-.reply-btn{padding:12px 24px;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px}
-.reply-btn-cancel{background:rgba(255,255,255,.06);color:rgba(255,255,255,.7)}
-.reply-btn-cancel:hover{background:rgba(255,255,255,.1);color:#fff}
-.reply-btn-send{background:linear-gradient(135deg,#e01e5a,#c01850);color:#fff;box-shadow:0 4px 12px rgba(224,30,90,.3)}
-.reply-btn-send:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(224,30,90,.4)}
 .reply-btn-send:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .reply-btn-send svg{width:16px;height:16px;fill:currentColor}
 .logo-clear{padding:10px;background:rgba(255,100,100,.15);border:none;border-radius:8px;color:#ff6b6b;cursor:pointer;font-size:12px}
@@ -507,6 +489,7 @@ input[type="file"]{display:none}
 <button class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">Appearance</button>
 <button class="settings-tab" data-tab="hub" onclick="switchSettingsTab('hub')">Hub</button>
 <button class="settings-tab" data-tab="status" onclick="switchSettingsTab('status');fetchPrefetchStatus()">Status</button>
+<button class="settings-tab" data-tab="prompts" onclick="switchSettingsTab('prompts');loadPrompts()">Prompts</button>
 </div>
 
 <div id="settings-general" class="settings-panel active">
@@ -646,6 +629,21 @@ input[type="file"]{display:none}
 <div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:8px">Activity Log</div>
 <div id="prefetch-activity-log" style="max-height:300px;overflow-y:auto;background:rgba(0,0,0,.2);border-radius:8px;padding:8px">
 <div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:20px">Click Refresh to load activity</div>
+</div>
+</div>
+</div>
+
+<div id="settings-prompts" class="settings-panel">
+<div class="modal-section">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<span style="font-size:14px;color:rgba(255,255,255,.9)">Customize AI Prompts</span>
+<button onclick="loadPrompts()" style="padding:6px 12px;background:rgba(255,255,255,.1);border:none;border-radius:6px;color:rgba(255,255,255,.8);cursor:pointer;font-size:12px">Refresh</button>
+</div>
+<div style="font-size:11px;color:rgba(255,255,255,.4);margin-bottom:16px">
+Customize prompts for each data source. Variables: <code style="background:rgba(255,255,255,.1);padding:2px 4px;border-radius:3px">{meeting_context}</code> <code style="background:rgba(255,255,255,.1);padding:2px 4px;border-radius:3px">{meeting_title}</code>
+</div>
+<div id="prompts-container" style="display:flex;flex-direction:column;gap:16px">
+<div style="font-size:12px;color:rgba(255,255,255,.5);text-align:center;padding:20px">Loading prompts...</div>
 </div>
 </div>
 </div>
@@ -1217,6 +1215,22 @@ fetchMeetingPrepForIndex(currentMeetingIndex);
 },200);
 }
 
+function toggleAggressivePrefetch(currentlyForced){
+if(!currentlyForced){
+// Turning ON force mode - require confirmation
+if(!confirm('Force mode will refresh ALL meetings regardless of cache.\n\nThis may take a while and use more resources.\n\nContinue?')){
+return;
+}
+}
+fetch(S+'/hub/prefetch-force')
+.then(function(r){return r.json();})
+.then(function(d){
+console.log('Prefetch mode:',d.message);
+fetchPrefetchStatus(); // Refresh status display
+})
+.catch(function(e){console.error('Toggle error:',e);});
+}
+
 function fetchPrefetchStatus(){
 fetch(S+'/hub/prefetch-status')
 .then(function(r){return r.json();})
@@ -1227,6 +1241,12 @@ var logEl=document.getElementById('prefetch-activity-log');
 var statusHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
 statusHtml+='<div><span style="color:rgba(255,255,255,.5)">Status:</span> <span style="color:'+(data.running?'#4ade80':'rgba(255,255,255,.7)')+'">'+( data.running?'Running':'Idle')+'</span></div>';
 statusHtml+='<div><span style="color:rgba(255,255,255,.5)">Meetings:</span> <span style="color:rgba(255,255,255,.7)">'+data.meetings_processed+'/'+data.meetings_in_queue+'</span></div>';
+var modeColor=data.mode==='aggressive'?'#4ade80':'#fbbf24';
+statusHtml+='<div><span style="color:rgba(255,255,255,.5)">Mode:</span> <span style="color:'+modeColor+'">'+data.mode+'</span> <span style="color:rgba(255,255,255,.3);font-size:10px">('+data.mode_reason+')</span></div>';
+statusHtml+='<div><button onclick="toggleAggressivePrefetch('+data.force_aggressive+')" style="font-size:10px;padding:2px 8px;background:'+(data.force_aggressive?'#4ade80':'rgba(255,255,255,.1)')+';border:none;border-radius:4px;color:'+(data.force_aggressive?'#000':'rgba(255,255,255,.7)')+';cursor:pointer">'+(data.force_aggressive?'Force ON':'Force Refresh')+'</button></div>';
+if(data.day_mode_note){
+statusHtml+='<div style="grid-column:1/-1;color:#fbbf24;font-size:10px;padding:4px 0">⚠ '+data.day_mode_note+'</div>';
+}
 if(data.current_meeting){
 statusHtml+='<div style="grid-column:1/-1"><span style="color:rgba(255,255,255,.5)">Meeting:</span> <span style="color:#60a5fa">'+data.current_meeting+'</span></div>';
 }
@@ -1262,6 +1282,89 @@ logEl.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.4);text-alig
 console.error('Prefetch status error:',e);
 document.getElementById('prefetch-status-current').innerHTML='<div style="color:#f87171;font-size:12px">Error: '+(e.message||'Failed to fetch')+'</div>';
 });
+}
+
+var _promptsData={};
+function loadPrompts(){
+var container=document.getElementById('prompts-container');
+container.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.5);text-align:center;padding:20px">Loading...</div>';
+fetch(S+'/hub/prompts')
+.then(function(r){return r.json();})
+.then(function(data){
+_promptsData=data.prompts||{};
+var html='';
+var sourceNames={jira:'Jira',confluence:'Confluence',slack:'Slack',gmail:'Gmail',drive:'Google Drive',summary:'AI Summary'};
+Object.keys(_promptsData).forEach(function(source){
+var p=_promptsData[source];
+var name=sourceNames[source]||source;
+var isCustom=p.is_custom;
+html+='<div class="prompt-item" style="background:rgba(255,255,255,.04);border-radius:8px;padding:12px">';
+html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+html+='<span style="font-size:13px;color:rgba(255,255,255,.9)">'+name+'</span>';
+html+='<div style="display:flex;gap:8px;align-items:center">';
+if(isCustom)html+='<span style="font-size:10px;color:#4ade80;background:rgba(74,222,128,.15);padding:2px 6px;border-radius:4px">Custom</span>';
+html+='<button onclick="resetPrompt(\''+source+'\')" style="font-size:10px;padding:4px 8px;background:rgba(255,255,255,.1);border:none;border-radius:4px;color:rgba(255,255,255,.6);cursor:pointer">Reset</button>';
+html+='</div></div>';
+html+='<textarea id="prompt-'+source+'" style="width:100%;min-height:120px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:10px;color:rgba(255,255,255,.8);font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box" onchange="markPromptChanged(\''+source+'\')">'+escapeHtml(p.current)+'</textarea>';
+html+='<button id="save-prompt-'+source+'" onclick="savePrompt(\''+source+'\')" style="display:none;margin-top:8px;padding:6px 12px;background:#6366f1;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer">Save Changes</button>';
+html+='</div>';
+});
+container.innerHTML=html;
+})
+.catch(function(e){
+container.innerHTML='<div style="color:#f87171;font-size:12px">Error: '+e.message+'</div>';
+});
+}
+
+function escapeHtml(str){
+return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function markPromptChanged(source){
+document.getElementById('save-prompt-'+source).style.display='inline-block';
+}
+
+function savePrompt(source){
+var textarea=document.getElementById('prompt-'+source);
+var prompt=textarea.value;
+var btn=document.getElementById('save-prompt-'+source);
+btn.textContent='Saving...';
+btn.disabled=true;
+fetch(S+'/hub/prompts',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({source:source,prompt:prompt})
+})
+.then(function(r){return r.json();})
+.then(function(data){
+if(data.error){
+alert('Error: '+data.error);
+btn.textContent='Save Changes';
+btn.disabled=false;
+}else{
+btn.style.display='none';
+btn.textContent='Save Changes';
+btn.disabled=false;
+loadPrompts(); // Reload to show updated state
+}
+})
+.catch(function(e){
+alert('Error saving: '+e.message);
+btn.textContent='Save Changes';
+btn.disabled=false;
+});
+}
+
+function resetPrompt(source){
+if(!confirm('Reset '+source+' prompt to default?'))return;
+fetch(S+'/hub/prompts',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({source:source,prompt:''})
+})
+.then(function(r){return r.json();})
+.then(function(){loadPrompts();})
+.catch(function(e){alert('Error: '+e.message);});
 }
 
 function fetchWeekData(){
@@ -1382,9 +1485,15 @@ s+='<div class="skeleton-item"><div class="skeleton skeleton-icon"></div><div cl
 return s+'</div>';
 }
 
+// Helper for section title with subtle refresh button
+function sectionTitle(name,source,loading){
+var refreshIcon='<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+return '<div class="hub-prep-section-title">'+name+'<button class="hub-section-refresh'+(loading?' loading':'')+'" onclick="event.stopPropagation();retrySource(\''+source+'\')" title="Refresh">'+refreshIcon+'</button></div>';
+}
+
 // Jira section
 if(sources.jira!==false){
-html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Jira</div>';
+html+='<div class="hub-prep-section">'+sectionTitle('Jira','jira',prepState.loading.jira);
 if(!atlassianAuth.configured){
 html+='<div class="hub-section-empty">Not configured</div>';
 }else if(atlassianAuth.error==='oauth_required'){
@@ -1406,7 +1515,7 @@ html+='</div>';
 
 // Confluence section
 if(sources.confluence!==false){
-html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Confluence</div>';
+html+='<div class="hub-prep-section">'+sectionTitle('Confluence','confluence',prepState.loading.confluence);
 if(!atlassianAuth.configured){
 html+='<div class="hub-section-empty">Not configured</div>';
 }else if(atlassianAuth.error==='oauth_required'){
@@ -1428,7 +1537,7 @@ html+='</div>';
 
 // Google Drive section
 if(sources.drive!==false){
-html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Google Drive</div>';
+html+='<div class="hub-prep-section">'+sectionTitle('Google Drive','drive',prepState.loading.drive);
 if(prepState.loading.drive){
 html+=renderSkeletonItems(2);
 }else if(prepState.google_drive.length>0){
@@ -1444,7 +1553,7 @@ html+='</div>';
 
 // Slack section (meeting-related messages)
 if(sources.slack!==false){
-html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Slack</div>';
+html+='<div class="hub-prep-section">'+sectionTitle('Slack','slack',prepState.loading.slack);
 if(!slackAuth.configured){
 html+='<div class="hub-section-empty">Not configured</div>';
 }else if(!slackAuth.authenticated&&slackAuth.error){
@@ -1464,7 +1573,7 @@ html+='</div>';
 
 // Gmail section (meeting-related emails)
 if(sources.gmail!==false){
-html+='<div class="hub-prep-section"><div class="hub-prep-section-title">Gmail</div>';
+html+='<div class="hub-prep-section">'+sectionTitle('Gmail','gmail',prepState.loading.gmail);
 if(prepState.loading.gmail){
 html+=renderSkeletonItems(2);
 }else if(prepState.gmail.length>0){
@@ -1684,7 +1793,7 @@ renderMeetingPrepProgressive();
 });
 }
 
-var hubAuthStatus={slack:null,atlassian:null};
+var hubAuthStatus={slack:{},atlassian:{}};
 
 function initHub(){
 // Check if hub is enabled in settings
@@ -1693,32 +1802,29 @@ var hubPanel=document.getElementById('hub-prep');
 if(hubPanel)hubPanel.style.display='none';
 return;
 }
-// Check hub status first
-fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})
+
+// Start loading prep widget immediately (don't wait for auth status)
+if(settings.calEnabled){
+fetchMeetingPrep();
+}
+
+// Fetch auth status in parallel (for error messages only)
+fetch(S+'/hub/status')
 .then(function(r){return r.json();})
 .then(function(status){
 console.log('Hub status:',status);
-// Store auth status globally
 hubAuthStatus.slack=status.slack||{};
 hubAuthStatus.atlassian=status.atlassian||{};
-
-// Check if any sources are available (authenticated or configured)
-var slackOk=status.slack&&(status.slack.authenticated||status.slack.configured);
-var atlassianOk=status.atlassian&&(status.atlassian.authenticated||status.atlassian.configured);
-var driveOk=status.google_drive;
-
-// Only fetch if calendar is enabled and we have at least one source
-if(settings.calEnabled&&(slackOk||atlassianOk||driveOk)){
-fetchMeetingPrep();
-}
+// Re-render to show any auth errors
+if(prepState.meeting)renderMeetingPrepProgressive();
 })
 .catch(function(e){
 console.log('Hub status error:',e);
 });
 }
 
-// Initialize hub after a short delay to not block page load
-setTimeout(initHub,1000);
+// Initialize hub immediately (async calls won't block page render)
+setTimeout(initHub,50);
 
 // REMOVED: Slack Reply and Chat Panel Functions (using native Slack app instead)
 
@@ -1777,8 +1883,7 @@ else if(e.key==='Escape'){r.classList.remove('a');I=-1;}};
 document.onclick=function(e){if(!e.target.closest('.sc')&&!e.target.closest('.modal'))r.classList.remove('a');};
 document.onkeydown=function(e){
 if(e.key==='Escape'&&document.getElementById('modal').classList.contains('show')){closeModal();return;}
-var replyOpen=document.getElementById('reply-modal').classList.contains('show');
-if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&document.activeElement!==s&&!document.getElementById('modal').classList.contains('show')&&!replyOpen&&document.activeElement.tagName!=='TEXTAREA')s.focus();
+if(e.key.length===1&&!e.metaKey&&!e.ctrlKey&&document.activeElement!==s&&!document.getElementById('modal').classList.contains('show')&&document.activeElement.tagName!=='TEXTAREA')s.focus();
 };
 
 function openModal(){

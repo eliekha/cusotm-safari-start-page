@@ -1528,93 +1528,34 @@ def call_cli_for_source(source, meeting_title, attendees_str, description='', ti
     if description:
         meeting_context += f"\nDescription: {description[:300]}"
     
-    # Build source-specific prompts - give AI full context, let it decide what to search
-    if source == 'jira':
-        prompt = f"""Find Jira tickets related to this meeting.
-
-{meeting_context}
-
-Use mcp_atlassian_search with keywords extracted from the meeting title, attendees, or description.
-Try multiple searches if needed (individual words, related terms).
-Return up to 5 Jira issues (URLs containing /browse/) as JSON: [{{"title":"...","key":"PROJ-123","url":"https://..."}}]
-Return [] only if search returns nothing."""
+    # Get prompt template (custom or default)
+    prompt_template = get_prompt(source)
+    if not prompt_template:
+        return []
     
-    elif source == 'confluence':
-        prompt = f"""Find Confluence pages related to this meeting.
-
-{meeting_context}
-
-Use mcp_atlassian_search with keywords extracted from the meeting title, attendees, or description.
-Try multiple searches if needed (individual words, related terms).
-Return up to 5 Confluence pages (URLs containing /wiki/) as JSON: [{{"title":"...","url":"https://..."}}]
-Return [] only if search returns nothing."""
-    
-    elif source == 'drive':
-        # Use CLI's shell tool to search Google Drive local sync folder
-        # Prefer paths without timestamps (older backup folders have timestamps)
+    # Handle drive-specific variables
+    if source == 'drive':
         drive_paths = glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*"))
-        # Filter to prefer paths that don't have timestamps in parentheses
         main_paths = [p for p in drive_paths if '(' not in p]
         drive_path_str = main_paths[0] if main_paths else (drive_paths[0] if drive_paths else None)
-        
-        # If no Google Drive folder found, return empty result
         if not drive_path_str:
             return []
-        
-        # Extract key terms from meeting title
         title_words = [w for w in meeting_title.replace('-', ' ').replace(':', ' ').split() if len(w) > 3]
-        keywords = title_words[:3] if title_words else ['meeting']
-        
-        prompt = f"""Search Google Drive for files related to: {meeting_title}
-
-Execute this EXACT shell command using run_command:
-find "{drive_path_str}" -iname "*{keywords[0]}*" -type f 2>/dev/null | head -5
-
-DO NOT run ls or any other command. Run the find command above.
-
-After getting file paths from find, output ONLY this JSON array format:
-[{{"name":"filename.ext","path":"/full/path/to/file"}}]
-
-Return [] if find returns no results."""
-    
-    elif source == 'slack':
-        prompt = f"""Find Slack messages related to this meeting.
-
-{meeting_context}
-
-Use mcp_slack_search_messages with keywords extracted from the meeting title, attendees, or description.
-
-IMPORTANT: The Slack search results include a "permalink" field with the direct URL to each message.
-Use that permalink directly - do NOT try to construct the URL yourself.
-
-Return up to 5 messages as JSON array:
-[{{"title":"message preview...","channel":"#channel-name","user":"Name","url":"THE_PERMALINK_FROM_SEARCH_RESULT"}}]
-
-Return [] only if nothing found."""
-    
-    elif source == 'gmail':
-        prompt = f"""Find Gmail emails related to this meeting.
-
-{meeting_context}
-
-Use the gmail_list_emails tool with a query parameter to search. Gmail query syntax examples:
-- from:john@example.com
-- to:jane@example.com  
-- subject:quarterly review
-- keyword1 keyword2
-
-Try searches like:
-1. Search for meeting-related keywords from the title
-2. Search for emails from attendees if their email addresses are known
-
-The tool returns messages with id, snippet, and other fields.
-
-Return up to 5 relevant emails as JSON array:
-[{{"subject":"Email subject...","from":"sender@example.com","date":"2025-01-30","snippet":"Preview of email content...","url":"https://mail.google.com/mail/u/0/#inbox/MESSAGE_ID"}}]
-
-Return [] only if nothing found."""
+        keywords = title_words[0] if title_words else 'meeting'
+        prompt = prompt_template.format(
+            meeting_context=meeting_context,
+            meeting_title=meeting_title,
+            drive_path=drive_path_str,
+            keywords=keywords
+        )
     else:
-        return []
+        # Standard variable substitution
+        prompt = prompt_template.format(
+            meeting_context=meeting_context,
+            meeting_title=meeting_title,
+            drive_path='',
+            keywords=''
+        )
     
     last_error = None
     for attempt in range(max_retries):
@@ -1696,43 +1637,14 @@ def call_cli_for_meeting_summary(meeting_title, attendees_str, attendee_emails, 
     if description:
         meeting_context += f"\nDescription: {description[:500]}"
     
-    prompt = f"""You are preparing a meeting brief. Generate a comprehensive summary for this meeting.
-
-{meeting_context}
-
-## Your Task
-
-Search and READ content from multiple sources to prepare for this meeting:
-
-1. **Jira** - Use mcp_atlassian_search to find related tickets. Read the ticket details.
-2. **Confluence** - Use mcp_atlassian_search to find related pages. Read the page content.
-3. **Slack** - Use mcp_slack_search_messages to find recent relevant discussions.
-4. **Gmail** - Use gmail_list_emails and gmail_read_email to find and read relevant emails.
-5. **Google Drive** - If there are relevant files, use read_file to read them (files are in ~/Library/CloudStorage/GoogleDrive-*/My Drive/).
-
-## Output Format
-
-After gathering information, provide a concise meeting prep summary in this format:
-
-```
-## Meeting Brief: [Meeting Title]
-
-### Key Context
-[2-3 sentences summarizing the main topic/purpose based on what you found]
-
-### Recent Activity
-- [Bullet points of relevant recent discussions, decisions, or updates you found]
-
-### Open Items
-- [Any pending tasks, open questions, or action items found in Jira/emails/Slack]
-
-### Talking Points
-- [Suggested topics to discuss based on your research]
-```
-
-If a source returns nothing relevant, skip it. Focus on providing actionable insights.
-
-Return ONLY the formatted summary text, nothing else."""
+    # Get prompt template (custom or default)
+    prompt_template = get_prompt('summary')
+    prompt = prompt_template.format(
+        meeting_context=meeting_context,
+        meeting_title=meeting_title,
+        drive_path='',
+        keywords=''
+    )
     
     try:
         env = os.environ.copy()
@@ -1824,6 +1736,169 @@ PREP_CACHE_TTL = 14400  # 4 hours for individual source data (prefetch keeps it 
 SUMMARY_CACHE_TTL = 21600  # 6 hours for summaries (expensive to generate)
 PREFETCH_INTERVAL = 600  # 10 minutes between prefetch cycles (must be < TTL)
 PREP_CACHE_FILE = os.path.expanduser('~/.local/share/briefdesk/prep_cache.json')
+PROMPTS_FILE = os.path.expanduser('~/.local/share/briefdesk/prompts.json')
+
+# Default prompts for each source - users can override these
+# Available variables: {meeting_context}, {meeting_title}, {drive_path}, {keywords}
+DEFAULT_PROMPTS = {
+    'jira': """Find Jira tickets related to this meeting.
+
+{meeting_context}
+
+Use mcp_atlassian_search with keywords extracted from the meeting title, attendees, or description.
+Try multiple searches if needed (individual words, related terms).
+Return up to 5 Jira issues (URLs containing /browse/) as JSON: [{{"title":"...","key":"PROJ-123","url":"https://..."}}]
+Return [] only if search returns nothing.""",
+
+    'confluence': """Find Confluence pages related to this meeting.
+
+{meeting_context}
+
+Use mcp_atlassian_search with keywords extracted from the meeting title, attendees, or description.
+Try multiple searches if needed (individual words, related terms).
+Return up to 5 Confluence pages (URLs containing /wiki/) as JSON: [{{"title":"...","url":"https://..."}}]
+Return [] only if search returns nothing.""",
+
+    'slack': """Find Slack messages related to this meeting.
+
+{meeting_context}
+
+Use mcp_slack_search_messages with keywords extracted from the meeting title, attendees, or description.
+
+IMPORTANT: The Slack search results include a "permalink" field with the direct URL to each message.
+Use that permalink directly - do NOT try to construct the URL yourself.
+
+Return up to 5 messages as JSON array:
+[{{"title":"message preview...","channel":"#channel-name","user":"Name","url":"THE_PERMALINK_FROM_SEARCH_RESULT"}}]
+
+Return [] only if nothing found.""",
+
+    'gmail': """Find Gmail emails related to this meeting.
+
+{meeting_context}
+
+Use the gmail_list_emails tool with a query parameter to search. Gmail query syntax examples:
+- from:john@example.com
+- to:jane@example.com  
+- subject:quarterly review
+- keyword1 keyword2
+
+Try searches like:
+1. Search for meeting-related keywords from the title
+2. Search for emails from attendees if their email addresses are known
+
+Return up to 5 relevant emails as JSON array:
+[{{"subject":"...","from":"...","date":"...","url":"https://mail.google.com/mail/u/0/#inbox/MESSAGE_ID"}}]
+
+Return [] only if nothing found.""",
+
+    'drive': """Search Google Drive for files related to: {meeting_title}
+
+Execute this EXACT shell command using run_command:
+find "{drive_path}" -iname "*{keywords}*" -type f 2>/dev/null | head -5
+
+DO NOT run ls or any other command. Run the find command above.
+
+After getting file paths from find, output ONLY this JSON array format:
+[{{"name":"filename.ext","path":"/full/path/to/file"}}]
+
+Return [] if find returns no results.""",
+
+    'summary': """You are preparing a meeting brief. Generate a comprehensive summary for this meeting.
+
+{meeting_context}
+
+## Your Task
+
+Search and READ content from multiple sources to prepare for this meeting:
+
+1. **Jira** - Use mcp_atlassian_search to find related tickets. Read the ticket details.
+2. **Confluence** - Use mcp_atlassian_search to find related pages. Read the page content.
+3. **Slack** - Use mcp_slack_search_messages to find recent relevant discussions.
+4. **Gmail** - Use gmail_list_emails and gmail_read_email to find and read relevant emails.
+5. **Google Drive** - If there are relevant files, use read_file to read them (files are in ~/Library/CloudStorage/GoogleDrive-*/My Drive/).
+
+## Output Format
+
+After gathering information, provide a concise meeting prep summary in this format:
+
+```
+## Meeting Brief: [Meeting Title]
+
+### Key Context
+[2-3 sentences summarizing the main topic/purpose based on what you found]
+
+### Recent Activity
+- [Bullet points of relevant recent discussions, decisions, or updates you found]
+
+### Open Items
+- [Any pending tasks, open questions, or action items found in Jira/emails/Slack]
+
+### Talking Points
+- [Suggested topics to discuss based on your research]
+```
+
+If a source returns nothing relevant, skip it. Focus on providing actionable insights.
+
+Return ONLY the formatted summary text, nothing else."""
+}
+
+# Custom prompts storage
+_custom_prompts = {}
+_custom_prompts_lock = threading.Lock()
+
+def load_custom_prompts():
+    """Load custom prompts from disk."""
+    global _custom_prompts
+    try:
+        if os.path.exists(PROMPTS_FILE):
+            with open(PROMPTS_FILE, 'r') as f:
+                _custom_prompts = json.load(f)
+            print(f"[Prompts] Loaded {len(_custom_prompts)} custom prompts", flush=True)
+    except Exception as e:
+        print(f"[Prompts] Error loading: {e}", flush=True)
+        _custom_prompts = {}
+
+def save_custom_prompts():
+    """Save custom prompts to disk."""
+    try:
+        os.makedirs(os.path.dirname(PROMPTS_FILE), exist_ok=True)
+        with _custom_prompts_lock:
+            with open(PROMPTS_FILE, 'w') as f:
+                json.dump(_custom_prompts, f, indent=2)
+        print(f"[Prompts] Saved {len(_custom_prompts)} custom prompts", flush=True)
+    except Exception as e:
+        print(f"[Prompts] Error saving: {e}", flush=True)
+
+def get_prompt(source):
+    """Get prompt for a source, using custom if available, else default."""
+    with _custom_prompts_lock:
+        if source in _custom_prompts and _custom_prompts[source]:
+            return _custom_prompts[source]
+    return DEFAULT_PROMPTS.get(source, '')
+
+def set_custom_prompt(source, prompt):
+    """Set a custom prompt for a source. Pass empty string to reset to default."""
+    global _custom_prompts
+    with _custom_prompts_lock:
+        if prompt and prompt.strip():
+            _custom_prompts[source] = prompt.strip()
+        elif source in _custom_prompts:
+            del _custom_prompts[source]
+    save_custom_prompts()
+
+def get_all_prompts():
+    """Get all prompts with their current values and whether they're customized."""
+    result = {}
+    with _custom_prompts_lock:
+        for source in DEFAULT_PROMPTS:
+            is_custom = source in _custom_prompts and _custom_prompts[source]
+            result[source] = {
+                'current': _custom_prompts.get(source) if is_custom else DEFAULT_PROMPTS[source],
+                'default': DEFAULT_PROMPTS[source],
+                'is_custom': is_custom
+            }
+    return result
 
 def save_prep_cache_to_disk():
     """Save the prep cache to disk for persistence across restarts."""
@@ -1966,7 +2041,7 @@ def set_meeting_cache(meeting_id, source, data):
     save_prep_cache_to_disk()
 
 def is_cache_valid(meeting_id, source):
-    """Check if cache for a meeting/source is still valid."""
+    """Check if cache for a meeting/source is still valid (for prefetch decisions)."""
     import time
     with _meeting_prep_cache_lock:
         if meeting_id not in _meeting_prep_cache:
@@ -1977,12 +2052,21 @@ def is_cache_valid(meeting_id, source):
         ttl = SUMMARY_CACHE_TTL if source == 'summary' else PREP_CACHE_TTL
         return (time.time() - cache.get('timestamp', 0)) < ttl
 
+def has_cached_data(meeting_id, source):
+    """Check if any cached data exists (ignoring TTL)."""
+    with _meeting_prep_cache_lock:
+        if meeting_id not in _meeting_prep_cache:
+            return False
+        cache = _meeting_prep_cache[meeting_id].get(source, {})
+        return cache.get('data') is not None
+
 def get_cached_data(meeting_id, source):
-    """Get cached data for a meeting/source if valid."""
-    if is_cache_valid(meeting_id, source):
-        with _meeting_prep_cache_lock:
-            return _meeting_prep_cache[meeting_id][source]['data']
-    return None
+    """Get cached data for a meeting/source (ignoring TTL - always return if exists)."""
+    with _meeting_prep_cache_lock:
+        if meeting_id not in _meeting_prep_cache:
+            return None
+        cache = _meeting_prep_cache[meeting_id].get(source, {})
+        return cache.get('data')
 
 def get_meeting_by_id(event_id):
     """Fetch a specific calendar event by ID from Google Calendar."""
@@ -2312,6 +2396,28 @@ def get_calendar_events_standalone(minutes_ahead=120, limit=5):
         return []
 
 
+def is_night_hours():
+    """Check if current time is during night hours (10pm - 6am) or weekend - best time for prefetch."""
+    from datetime import datetime
+    now = datetime.now()
+    hour = now.hour
+    is_weekend = now.weekday() >= 5  # Saturday = 5, Sunday = 6
+    is_night = hour >= 22 or hour < 6
+    return is_night or is_weekend
+
+# Global flag to force aggressive prefetch (can be toggled via API)
+_force_aggressive_prefetch = False
+
+def set_force_aggressive_prefetch(action):
+    """Set the force aggressive prefetch flag."""
+    global _force_aggressive_prefetch
+    if action == "on":
+        _force_aggressive_prefetch = True
+    elif action == "off":
+        _force_aggressive_prefetch = False
+    else:
+        _force_aggressive_prefetch = not _force_aggressive_prefetch
+
 def background_prefetch_loop():
     """Background loop that pre-fetches data for upcoming meetings."""
     global _prefetch_running
@@ -2322,11 +2428,16 @@ def background_prefetch_loop():
     
     while _prefetch_running:
         try:
-            print("[Prefetch] Starting prefetch cycle...", flush=True)
+            is_night = is_night_hours() or _force_aggressive_prefetch
+            mode = "force-all" if _force_aggressive_prefetch else ("aggressive" if is_night else "day (skipping cached)")
+            
+            # Aggressive/force modes: no limit. Day mode: limit to 30 to reduce load
+            meeting_limit = 500 if is_night else 30
+            print(f"[Prefetch] Starting prefetch cycle... [{mode}] (limit: {meeting_limit})", flush=True)
             
             # Get upcoming meetings for next 7 days using standalone function
             try:
-                events = get_calendar_events_standalone(minutes_ahead=10080, limit=30)
+                events = get_calendar_events_standalone(minutes_ahead=10080, limit=meeting_limit)
                 print(f"[Prefetch] Calendar returned {len(events)} events for week", flush=True)
             except Exception as cal_err:
                 print(f"[Prefetch] Calendar error: {cal_err}", flush=True)
@@ -2334,10 +2445,9 @@ def background_prefetch_loop():
             
             if events:
                 print(f"[Prefetch] Found {len(events)} upcoming meetings to prefetch", flush=True)
-                add_prefetch_activity('cycle_start', f'Found {len(events)} meetings for week', status='info')
+                add_prefetch_activity('cycle_start', f'Found {len(events)} meetings [{mode}]', status='info')
                 update_prefetch_status(meetings_in_queue=len(events), meetings_processed=0, last_cycle_start=time.time())
                 
-                # Process max 5 meetings per batch, then short pause and continue
                 meetings_processed_total = 0
                 batch_size = 5
                 has_uncached_meetings = False
@@ -2349,13 +2459,26 @@ def background_prefetch_loop():
                     meeting_id = meeting.get('id') or meeting.get('title')
                     meeting_title = meeting.get('title', 'unknown')
                     
-                    # Skip if all data is already cached
-                    all_cached = all(
-                        is_cache_valid(meeting_id, source) 
-                        for source in ['jira', 'confluence', 'slack', 'gmail', 'drive', 'summary']
-                    )
+                    # During day: only fetch if data is MISSING (not just expired)
+                    # During night/weekend: refresh expired data too (full refresh)
+                    # Force mode: refresh everything regardless of TTL
+                    if _force_aggressive_prefetch:
+                        # Force mode: refresh ALL meetings (ignore TTL completely)
+                        needs_fetch = True
+                    elif is_night:
+                        # Night/weekend mode: refresh if TTL expired
+                        needs_fetch = not all(
+                            is_cache_valid(meeting_id, source) 
+                            for source in ['jira', 'confluence', 'slack', 'gmail', 'drive', 'summary']
+                        )
+                    else:
+                        # Day mode: only fetch if data is completely missing
+                        needs_fetch = not all(
+                            has_cached_data(meeting_id, source) 
+                            for source in ['jira', 'confluence', 'slack', 'gmail', 'drive', 'summary']
+                        )
                     
-                    if not all_cached:
+                    if needs_fetch:
                         has_uncached_meetings = True
                         print(f"[Prefetch] Processing meeting {meetings_processed_total + 1}: {meeting_title[:40]}", flush=True)
                         update_prefetch_status(current_meeting=meeting_title, running=True)
@@ -2365,40 +2488,39 @@ def background_prefetch_loop():
                         update_prefetch_status(meetings_processed=meetings_processed_total)
                         add_prefetch_activity('meeting_complete', f'Completed', meeting=meeting_title, status='success')
                         
-                        # Short pause between meetings
+                        # Shorter pauses at night, longer during day
+                        pause_between = 3 if is_night else 5
                         if i < len(events) - 1:
-                            print(f"[Prefetch] Waiting 5s before next meeting...", flush=True)
-                            time.sleep(5)
+                            print(f"[Prefetch] Waiting {pause_between}s before next meeting...", flush=True)
+                            time.sleep(pause_between)
                         
-                        # After each batch, take a slightly longer pause (30s) to avoid rate limits
+                        # Batch pause
+                        batch_pause = 15 if is_night else 30
                         if meetings_processed_total % batch_size == 0 and i < len(events) - 1:
-                            print(f"[Prefetch] Batch of {batch_size} done, short 30s pause...", flush=True)
+                            print(f"[Prefetch] Batch of {batch_size} done, {batch_pause}s pause...", flush=True)
                             add_prefetch_activity('batch_pause', f'Short pause after {meetings_processed_total} meetings', status='info')
-                            time.sleep(30)
+                            time.sleep(batch_pause)
                     else:
                         print(f"[Prefetch] Skipping '{meeting_title[:30]}' - already cached", flush=True)
                         add_prefetch_activity('meeting_skip', f'Already cached', meeting=meeting_title, status='info')
                 
                 update_prefetch_status(current_meeting=None, running=False)
-                # Cleanup old caches
                 cleanup_old_caches()
                 
-                # Determine wait time: short if we processed meetings, long if all cached
+                # Wait times: shorter at night for faster refresh cycles
                 if has_uncached_meetings:
-                    # Processed some meetings, wait shorter before checking again
-                    wait_time = 60  # 1 minute
+                    wait_time = 30 if is_night else 60
                     print(f"[Prefetch] Cycle complete, processed {meetings_processed_total} meetings. Waiting {wait_time}s...", flush=True)
                 else:
-                    # All meetings already cached, wait longer
-                    wait_time = PREFETCH_INTERVAL
-                    print(f"[Prefetch] All meetings cached. Waiting {wait_time}s before refresh check...", flush=True)
+                    wait_time = 300 if is_night else PREFETCH_INTERVAL  # 5 min at night, 10 min during day
+                    print(f"[Prefetch] All meetings cached. Waiting {wait_time}s...", flush=True)
             else:
                 print("[Prefetch] No upcoming meetings found in next 7 days", flush=True)
                 wait_time = PREFETCH_INTERVAL
             
         except Exception as e:
             print(f"[Prefetch] Error in prefetch loop: {e}", flush=True)
-            wait_time = 60  # Short wait on error to retry
+            wait_time = 60
         
         # Wait before next prefetch cycle
         for _ in range(wait_time):
@@ -2601,7 +2723,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             # Get all meetings for the next 7 days, grouped by date
             try:
                 # Fetch a week of meetings (7 days * 24 hours * 60 minutes = 10080 minutes)
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=10080, limit=50)
+                # Use high limit to ensure we get all meetings for the full week
+                calendar_data = self.get_upcoming_events_google(minutes_ahead=10080, limit=200)
                 events = calendar_data.get('events', [])
                 
                 # Group meetings by date (YYYY-MM-DD)
@@ -2649,7 +2772,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                 date_filter = parse_qs(parsed.query).get("date", [None])[0]  # YYYY-MM-DD
                 
                 # Fetch a week of meetings
-                calendar_data = self.get_upcoming_events_google(minutes_ahead=10080, limit=50)
+                calendar_data = self.get_upcoming_events_google(minutes_ahead=10080, limit=200)
                 events = calendar_data.get('events', [])
                 
                 # Filter by date if specified
@@ -3130,7 +3253,38 @@ class SearchHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/hub/prefetch-status":
             # Get prefetch activity status for the UI
             status = get_prefetch_status()
+            is_aggressive = is_night_hours() or _force_aggressive_prefetch
+            status['mode'] = 'force-all' if _force_aggressive_prefetch else ('aggressive' if is_aggressive else 'day')
+            status['mode_reason'] = 'user override' if _force_aggressive_prefetch else ('night/weekend' if is_night_hours() else 'weekday daytime')
+            status['force_aggressive'] = _force_aggressive_prefetch
+            if _force_aggressive_prefetch:
+                status['day_mode_note'] = 'Force mode: refreshing ALL meetings regardless of cache.'
+            elif not is_aggressive:
+                status['day_mode_note'] = 'Day mode skips cached meetings. Toggle force to refresh all.'
+            else:
+                status['day_mode_note'] = None
             self.send_json(status)
+        
+        elif parsed.path == "/hub/prefetch-force":
+            # Toggle aggressive prefetch mode
+            action = parse_qs(parsed.query).get("action", ["toggle"])[0]
+            set_force_aggressive_prefetch(action)
+            self.send_json({
+                "force_aggressive": _force_aggressive_prefetch,
+                "message": f"Aggressive prefetch {'enabled' if _force_aggressive_prefetch else 'disabled'}"
+            })
+        
+        elif parsed.path == "/hub/prompts":
+            # Get all prompts with their current/default values
+            self.send_json({
+                "prompts": get_all_prompts(),
+                "variables": {
+                    "meeting_context": "Meeting title, attendees, description (auto-generated)",
+                    "meeting_title": "Just the meeting title",
+                    "drive_path": "Google Drive sync folder path (drive only)",
+                    "keywords": "Extracted keywords from title (drive only)"
+                }
+            })
         
         elif parsed.path == "/hub/status":
             # Check hub configuration and auth status
@@ -3220,6 +3374,30 @@ class SearchHandler(BaseHTTPRequestHandler):
         
         if parsed.path == "/chat/stream":
             self.handle_chat_stream()
+        elif parsed.path == "/hub/prompts":
+            # Update a custom prompt
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body) if body else {}
+                
+                source = data.get('source', '').strip()
+                prompt = data.get('prompt', '')  # Empty string = reset to default
+                
+                if source not in DEFAULT_PROMPTS:
+                    self.send_json({"error": f"Invalid source: {source}. Valid: {list(DEFAULT_PROMPTS.keys())}"})
+                    return
+                
+                set_custom_prompt(source, prompt)
+                
+                self.send_json({
+                    "success": True,
+                    "source": source,
+                    "is_custom": bool(prompt and prompt.strip()),
+                    "message": f"Prompt for {source} {'updated' if prompt else 'reset to default'}"
+                })
+            except Exception as e:
+                self.send_json({"error": str(e)})
         else:
             self.send_error(404)
     
@@ -3913,6 +4091,9 @@ if __name__ == "__main__":
         
         # Load cached prep data from disk (survives restarts)
         load_prep_cache_from_disk()
+        
+        # Load custom prompts
+        load_custom_prompts()
         
         server = ThreadedHTTPServer(("127.0.0.1", 18765), SearchHandler)
         logger.info("Search server running on http://127.0.0.1:18765 (multi-threaded)")
