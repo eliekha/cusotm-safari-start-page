@@ -1203,12 +1203,18 @@ nav.classList.remove('show');
 }
 }
 
+var _navigateDebounceTimer=null;
 function navigateMeeting(direction){
 var newIndex=currentMeetingIndex+direction;
 if(newIndex<0||newIndex>=allMeetings.length)return;
 currentMeetingIndex=newIndex;
 updateMeetingNav();
+// Debounce: wait 200ms after last click before fetching
+if(_navigateDebounceTimer)clearTimeout(_navigateDebounceTimer);
+_navigateDebounceTimer=setTimeout(function(){
+_navigateDebounceTimer=null;
 fetchMeetingPrepForIndex(currentMeetingIndex);
+},200);
 }
 
 function fetchPrefetchStatus(){
@@ -1289,11 +1295,17 @@ html+='</button>';
 container.innerHTML=html;
 }
 
+var _selectDayDebounceTimer=null;
 function selectDay(date){
 selectedDate=date;
 currentMeetingIndex=0;
 renderDayTabs();
+// Debounce: wait 150ms after last click before fetching
+if(_selectDayDebounceTimer)clearTimeout(_selectDayDebounceTimer);
+_selectDayDebounceTimer=setTimeout(function(){
+_selectDayDebounceTimer=null;
 fetchMeetingPrepForIndex(0);
+},150);
 }
 
 function renderMeetingPrepProgressive(){

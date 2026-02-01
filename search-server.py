@@ -1820,8 +1820,8 @@ def get_meeting_info():
 # Structure: { meeting_id: { 'jira': {...}, 'confluence': {...}, ... } }
 _meeting_prep_cache = {}
 _meeting_prep_cache_lock = threading.Lock()
-PREP_CACHE_TTL = 1800  # 30 minutes for individual source data
-SUMMARY_CACHE_TTL = 2700  # 45 minutes for summaries (expensive to generate)
+PREP_CACHE_TTL = 14400  # 4 hours for individual source data (prefetch keeps it fresh)
+SUMMARY_CACHE_TTL = 21600  # 6 hours for summaries (expensive to generate)
 PREFETCH_INTERVAL = 600  # 10 minutes between prefetch cycles (must be < TTL)
 PREP_CACHE_FILE = os.path.expanduser('~/.local/share/briefdesk/prep_cache.json')
 
