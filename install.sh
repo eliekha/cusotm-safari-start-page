@@ -9,16 +9,38 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.local/share/safari_start_page"
 LAUNCHAGENTS_DIR="$HOME/Library/LaunchAgents"
+DEVSAI_DIR="$HOME/.local/share/devsai"
 
-echo "📁 Creating installation directory..."
+echo "📁 Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$LAUNCHAGENTS_DIR"
+mkdir -p "$DEVSAI_DIR"
 
 echo "📄 Copying files..."
 cp "$SCRIPT_DIR/start.html" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/search-server.py" "$INSTALL_DIR/"
 
+# Copy example configs if they exist
+[ -f "$SCRIPT_DIR/devsai.example.json" ] && cp "$SCRIPT_DIR/devsai.example.json" "$INSTALL_DIR/"
+[ -f "$SCRIPT_DIR/config.example.json" ] && cp "$SCRIPT_DIR/config.example.json" "$INSTALL_DIR/"
+
+# ============================================
+# Create local Python binary for Full Disk Access
+# ============================================
+echo ""
+echo "🐍 Setting up Python binary for Full Disk Access..."
+SYSTEM_PYTHON=$(python3 -c "import sys; print(sys.executable)" 2>/dev/null || echo "/usr/bin/python3")
+if [ -f "$SYSTEM_PYTHON" ]; then
+    cp "$SYSTEM_PYTHON" "$INSTALL_DIR/python3"
+    chmod +x "$INSTALL_DIR/python3"
+    echo "   ✓ Copied Python to $INSTALL_DIR/python3"
+else
+    echo "   ⚠️  Could not find Python binary. You may need to set this up manually."
+fi
+
+# ============================================
 # Interactive configuration for Hub features
+# ============================================
 echo ""
 echo "⚙️  Hub Configuration (optional - press Enter to skip)"
 echo "   These settings are for the Productivity Hub features."
@@ -55,71 +77,195 @@ EOF
     echo "   ✓ Configuration saved to $INSTALL_DIR/config.json"
 fi
 
+# ============================================
+# Install LaunchAgents with local Python
+# ============================================
 echo ""
 echo "⚙️  Installing LaunchAgents..."
-for plist in "$SCRIPT_DIR/launchagents/"*.plist; do
-    filename=$(basename "$plist")
-    sed "s|HOME_DIR|$HOME|g" "$plist" > "$LAUNCHAGENTS_DIR/$filename"
-done
 
+# Create static server plist (uses system Python - no FDA needed for serving files)
+cat > "$LAUNCHAGENTS_DIR/com.elias.startpage.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.elias.startpage</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$INSTALL_DIR/python3</string>
+        <string>-m</string>
+        <string>http.server</string>
+        <string>8765</string>
+        <string>--bind</string>
+        <string>127.0.0.1</string>
+        <string>--directory</string>
+        <string>$INSTALL_DIR</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/startpage-static.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/startpage-static.log</string>
+</dict>
+</plist>
+EOF
+
+# Create search server plist
+cat > "$LAUNCHAGENTS_DIR/com.startpage.search.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.startpage.search</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$INSTALL_DIR/python3</string>
+        <string>$INSTALL_DIR/search-server.py</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>SLACK_WORKSPACE</key>
+        <string>${SLACK_WS:-your-workspace}</string>
+        <key>ATLASSIAN_DOMAIN</key>
+        <string>${ATLASSIAN_DOMAIN:-your-domain.atlassian.net}</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/startpage-search.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/startpage-search.log</string>
+</dict>
+</plist>
+EOF
+
+echo "   ✓ LaunchAgents created"
+
+# ============================================
+# Start services
+# ============================================
+echo ""
 echo "🔄 Starting services..."
-launchctl bootout gui/$(id -u)/com.startpage.static 2>/dev/null || true
+launchctl bootout gui/$(id -u)/com.elias.startpage 2>/dev/null || true
 launchctl bootout gui/$(id -u)/com.startpage.search 2>/dev/null || true
 sleep 1
 
-launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.startpage.static.plist"
+launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.elias.startpage.plist"
 launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.startpage.search.plist"
 sleep 2
 
+# ============================================
+# Setup devsai CLI (for Productivity Hub)
+# ============================================
+echo ""
+echo "🤖 Setting up devsai CLI for Productivity Hub..."
+
+# Check if Node.js is installed
+if command -v node &> /dev/null; then
+    NODE_PATH=$(which node)
+    NODE_VERSION=$(node --version)
+    echo "   Found Node.js $NODE_VERSION at $NODE_PATH"
+    
+    # Copy Node binary for FDA
+    cp "$NODE_PATH" "$DEVSAI_DIR/node"
+    chmod +x "$DEVSAI_DIR/node"
+    echo "   ✓ Copied Node to $DEVSAI_DIR/node"
+    
+    # Check if devsai is installed
+    DEVSAI_DIST=""
+    if npm list -g devsai &> /dev/null; then
+        DEVSAI_DIST=$(npm root -g)/devsai/dist
+    elif [ -d "$HOME/Documents/GitHub/devs-ai-cli/dist" ]; then
+        # Development install
+        DEVSAI_DIST="$HOME/Documents/GitHub/devs-ai-cli/dist"
+    fi
+    
+    if [ -n "$DEVSAI_DIST" ] && [ -d "$DEVSAI_DIST" ]; then
+        cp -r "$DEVSAI_DIST" "$DEVSAI_DIR/"
+        echo "   ✓ Copied devsai to $DEVSAI_DIR/dist"
+    else
+        echo "   ℹ️  devsai not found. Install with: npm install -g devsai"
+    fi
+    
+    # Create wrapper script that uses the local Node binary with FDA
+    cat > "$DEVSAI_DIR/devsai.sh" << 'EOF'
+#!/bin/bash
+# Use local Node binary (has Full Disk Access) with local devsai dist
+export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -1)/bin:$PATH"
+exec "$HOME/.local/share/devsai/node" "$HOME/.local/share/devsai/dist/index.js" "$@"
+EOF
+    chmod +x "$DEVSAI_DIR/devsai.sh"
+    echo "   ✓ Created devsai wrapper at $DEVSAI_DIR/devsai.sh"
+else
+    echo "   ⚠️  Node.js not found. Hub features require Node.js."
+    echo "      Install with: brew install node"
+fi
+
+# ============================================
+# Success message and next steps
+# ============================================
 echo ""
 echo "✅ Installation complete!"
 echo ""
-echo "📋 Next steps:"
-echo ""
-echo "1. Grant Full Disk Access to Python (required for Safari history):"
-echo "   • Open System Settings → Privacy & Security → Full Disk Access"
-echo "   • Click + and add the Python binary:"
-echo "     $(/usr/bin/python3 -c 'import sys; print(sys.executable)' 2>/dev/null || echo '/usr/bin/python3')"
-echo "   • Then restart the search service:"
-echo "     launchctl kickstart -k gui/\$(id -u)/com.startpage.search"
-echo ""
-echo "2. Set Safari homepage:"
-echo "   • Safari → Settings → General"
-echo "   • Homepage: http://127.0.0.1:8765/start.html"
-echo "   • New windows/tabs open with: Homepage"
-echo ""
-echo "3. Customize your start page:"
-echo "   • Open http://127.0.0.1:8765/start.html"
-echo "   • Click the gear icon (bottom-right) to set your name and quick links"
-echo ""
-echo "🔗 Open: http://127.0.0.1:8765/start.html"
-echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📚 Hub Features (Meeting Prep) - Optional Setup"
+echo "📋 REQUIRED: Grant Full Disk Access"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "To use the Productivity Hub with Jira, Confluence, Slack, Gmail:"
+echo "Open: System Settings → Privacy & Security → Full Disk Access"
 echo ""
-echo "1. Install devsai CLI:  npm install -g devsai"
+echo "Add these binaries (use Cmd+Shift+G to paste paths):"
+echo ""
+echo "  1. $INSTALL_DIR/python3"
+echo "     (Required for Safari history search)"
+echo ""
+if [ -f "$DEVSAI_DIR/node" ]; then
+echo "  2. $DEVSAI_DIR/node"
+echo "     (Required for Google Drive search in Hub)"
+echo ""
+fi
+echo "After adding, restart the services:"
+echo "  launchctl kickstart -k gui/\$(id -u)/com.startpage.search"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📋 Set Safari Homepage"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Safari → Settings → General"
+echo "  Homepage: http://127.0.0.1:8765/start.html"
+echo "  New windows/tabs open with: Homepage"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📚 Hub Features (Optional)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "For Jira, Confluence, Slack, Gmail, Drive integrations:"
+echo ""
+echo "1. Install devsai CLI:"
+echo "   npm install -g devsai"
 echo ""
 echo "2. Configure MCP servers:"
 echo "   cp $INSTALL_DIR/devsai.example.json $INSTALL_DIR/.devsai.json"
-echo "   Then edit $INSTALL_DIR/.devsai.json with your credentials"
+echo "   Edit $INSTALL_DIR/.devsai.json with your credentials"
 echo ""
-echo "3. Get your credentials:"
-echo "   • Atlassian: Authenticates via browser when first used (mcp.atlassian.com)"
-echo "   • Slack: Extract xoxc/xoxd tokens from browser cookies (see README)"
-echo "   • Gmail: Requires Google Cloud OAuth setup:"
-echo "     1. Create project at https://console.cloud.google.com/"
-echo "     2. Enable Gmail API and create OAuth credentials (Desktop app)"
-echo "     3. Download JSON and save as ~/.gmail-mcp/gcp-oauth.keys.json"
-echo "     4. Run: npx @monsoft/mcp-gmail auth"
+echo "3. Install MCP servers globally (for faster startup):"
+echo "   npm install -g slack-mcp-server mcp-remote @anthropic/gmail-mcp-server"
 echo ""
-echo "See README.md for detailed Hub setup instructions."
-
-# Copy the example devsai config
-if [ -f "$SCRIPT_DIR/devsai.example.json" ]; then
-    cp "$SCRIPT_DIR/devsai.example.json" "$INSTALL_DIR/"
-    echo ""
-    echo "📄 Example config copied to: $INSTALL_DIR/devsai.example.json"
-fi
+echo "See README.md for detailed Hub setup and credential instructions."
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🔄 After Updating devsai CLI"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "If you update devsai (npm install -g devsai), re-copy the dist:"
+echo "  cp -r \$(npm root -g)/devsai/dist ~/.local/share/devsai/"
+echo ""
+echo "Or re-run this install script."
+echo ""
+echo "🔗 Open: http://127.0.0.1:8765/start.html"

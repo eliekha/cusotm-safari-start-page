@@ -14,10 +14,25 @@ import glob
 import threading
 import time
 import select
+import pty
+import logging
+import sys
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Setup logging to file
+LOG_FILE = "/tmp/safari-hub-server.log"
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Google Calendar API imports
 try:
@@ -62,6 +77,70 @@ HELIUM_HISTORY = os.path.expanduser("~/Library/Application Support/net.imput.hel
 HELIUM_BOOKMARKS = os.path.expanduser("~/Library/Application Support/net.imput.helium/Default/Bookmarks")
 DIA_HISTORY = os.path.expanduser("~/Library/Application Support/Dia/User Data/Default/History")
 DIA_BOOKMARKS = os.path.expanduser("~/Library/Application Support/Dia/User Data/Default/Bookmarks")
+
+
+def extract_json_array(text):
+    """
+    Extract a JSON array from text that may contain extra content before/after.
+    Uses bracket counting to find the correct array end.
+    Returns the parsed array or None if not found.
+    """
+    # Find first '[' that starts a potential JSON array (skip lines with MCP tool output markers)
+    start_idx = -1
+    lines = text.split('\n')
+    char_count = 0
+    
+    for line in lines:
+        # Skip status lines that might contain brackets
+        if any(skip in line for skip in ['MCP tool', 'Connecting to', 'connected', '✓ Output', 'Warning:']):
+            char_count += len(line) + 1
+            continue
+        
+        # Look for line starting with '[' (JSON array start)
+        stripped = line.strip()
+        if stripped.startswith('['):
+            start_idx = char_count + line.index('[')
+            break
+        char_count += len(line) + 1
+    
+    if start_idx == -1:
+        return None
+    
+    # Now find the matching closing bracket using bracket counting
+    bracket_count = 0
+    in_string = False
+    escape_next = False
+    end_idx = start_idx
+    
+    for i, char in enumerate(text[start_idx:], start=start_idx):
+        if escape_next:
+            escape_next = False
+            continue
+        if char == '\\':
+            escape_next = True
+            continue
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if char == '[':
+            bracket_count += 1
+        elif char == ']':
+            bracket_count -= 1
+            if bracket_count == 0:
+                end_idx = i + 1
+                break
+    
+    if bracket_count != 0:
+        return None
+    
+    json_str = text[start_idx:end_idx]
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        return None
+
 
 def copy_db(src):
     """Copy database to temp file to avoid locks. Also copies WAL/SHM for recent data."""
@@ -1325,13 +1404,28 @@ def search_google_drive(query, max_results=5):
     """Search local Google Drive folders for files matching query."""
     results = []
     query_lower = query.lower()
-    query_words = query_lower.split()
+    # Filter out short common words that match too many files
+    query_words = [w for w in query_lower.split() if len(w) > 3]
     
-    for drive_path in GOOGLE_DRIVE_PATHS:
+    if not query_words:
+        logger.warning(f"[Drive] No valid search words in query: {query}")
+        return results
+    
+    # Dynamically find Google Drive paths (in case they changed since startup)
+    drive_paths = [
+        *[p for p in glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*/My Drive"))],
+        *[p for p in glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*/Shared drives"))]
+    ]
+    
+    logger.debug(f"[Drive] Searching for '{query_words}' in {len(drive_paths)} paths")
+    
+    for drive_path in drive_paths:
         if not os.path.exists(drive_path):
             continue
         
         try:
+            logger.debug(f"[Drive] Searching path: {drive_path}")
+            file_count = 0
             # Search for files with matching names
             for root, dirs, files in os.walk(drive_path):
                 # Skip hidden directories
@@ -1341,6 +1435,7 @@ def search_google_drive(query, max_results=5):
                     if file.startswith('.'):
                         continue
                     
+                    file_count += 1
                     file_lower = file.lower()
                     # Check if any query word is in filename
                     if any(word in file_lower for word in query_words):
@@ -1362,11 +1457,18 @@ def search_google_drive(query, max_results=5):
                             'drive': 'My Drive' if 'My Drive' in drive_path else 'Shared drives'
                         })
                         
+                        logger.debug(f"[Drive] Found match: {file}")
+                        
                         if len(results) >= max_results:
+                            logger.info(f"[Drive] Found {len(results)} results after checking {file_count} files")
                             return results
+            
+            logger.debug(f"[Drive] Checked {file_count} files in {drive_path}")
         except Exception as e:
+            logger.error(f"[Drive] Error searching {drive_path}: {e}")
             continue
     
+    logger.info(f"[Drive] Search complete: {len(results)} results for query '{query_words}'")
     return results
 
 
@@ -1408,10 +1510,16 @@ def extract_meeting_keywords(event):
     return list(set(keywords))
 
 
-def call_cli_for_source(source, meeting_title, attendees_str, description='', timeout=60):
-    """Call the CLI to search a specific source for meeting context."""
-    # Find devsai CLI - check common locations
-    cli_path = shutil.which('devsai') or os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin/devsai')
+def call_cli_for_source(source, meeting_title, attendees_str, description='', timeout=60, max_retries=2):
+    """Call the CLI to search a specific source for meeting context.
+    
+    Includes retry logic for reliability.
+    """
+    # Use direct devsai binary (faster than npx which checks/downloads every time)
+    devsai_path = os.path.expanduser('~/.local/share/devsai/devsai.sh')
+    if not os.path.exists(devsai_path):
+        # Fallback to npx if local copy doesn't exist
+        devsai_path = shutil.which('devsai') or os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin/devsai')
     
     # Build meeting context for the AI
     meeting_context = f"Meeting: {meeting_title}"
@@ -1442,10 +1550,32 @@ Return up to 5 Confluence pages (URLs containing /wiki/) as JSON: [{{"title":"..
 Return [] only if search returns nothing."""
     
     elif source == 'drive':
-        # Build search terms from meeting context
-        search_terms = meeting_title.replace('-', ' ').replace(':', ' ')
-        # Use local search - faster and more reliable
-        return search_google_drive(search_terms, 5)
+        # Use CLI's shell tool to search Google Drive local sync folder
+        # Prefer paths without timestamps (older backup folders have timestamps)
+        drive_paths = glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*"))
+        # Filter to prefer paths that don't have timestamps in parentheses
+        main_paths = [p for p in drive_paths if '(' not in p]
+        drive_path_str = main_paths[0] if main_paths else (drive_paths[0] if drive_paths else None)
+        
+        # If no Google Drive folder found, return empty result
+        if not drive_path_str:
+            return []
+        
+        # Extract key terms from meeting title
+        title_words = [w for w in meeting_title.replace('-', ' ').replace(':', ' ').split() if len(w) > 3]
+        keywords = title_words[:3] if title_words else ['meeting']
+        
+        prompt = f"""Search Google Drive for files related to: {meeting_title}
+
+Execute this EXACT shell command using run_command:
+find "{drive_path_str}" -iname "*{keywords[0]}*" -type f 2>/dev/null | head -5
+
+DO NOT run ls or any other command. Run the find command above.
+
+After getting file paths from find, output ONLY this JSON array format:
+[{{"name":"filename.ext","path":"/full/path/to/file"}}]
+
+Return [] if find returns no results."""
     
     elif source == 'slack':
         prompt = f"""Find Slack messages related to this meeting.
@@ -1486,53 +1616,76 @@ Return [] only if nothing found."""
     else:
         return []
     
-    try:
-        env = os.environ.copy()
-        # Add common Node.js paths
-        nvm_path = os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin')
-        env['PATH'] = nvm_path + ':' + env.get('PATH', '')
-        # Prevent interactive OAuth prompts
-        env['CI'] = 'true'
-        env['BROWSER'] = 'false'
-        
-        # Run from project dir to use local .devsai.json config
-        project_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        proc = subprocess.Popen(
-            [cli_path, '-p', prompt, '--output', 'text', '--max-iterations', '5', '-m', 'anthropic-claude-4-5-haiku'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-            cwd=project_dir
-        )
-        
-        stdout, stderr = proc.communicate(timeout=timeout)
-        output = stdout.decode().strip()
-        
-        # Try to parse JSON array from output
-        array_match = re.search(r'\[[\s\S]*\]', output)
-        if array_match:
-            try:
-                return json.loads(array_match.group())
-            except json.JSONDecodeError:
-                pass
-        
-        return []
-        
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        return {'error': f'{source} search timeout'}
-    except Exception as e:
-        return {'error': str(e)}
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                logger.info(f"[CLI] Retry {attempt + 1}/{max_retries} for {source}")
+            logger.info(f"[CLI] Starting {source} call for meeting: {meeting_title[:50]}")
+            
+            env = os.environ.copy()
+            # Add common Node.js paths
+            nvm_path = os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin')
+            env['PATH'] = nvm_path + ':' + env.get('PATH', '')
+            # Prevent interactive OAuth prompts
+            env['CI'] = 'true'
+            env['BROWSER'] = 'false'
+            
+            # Run from project dir to use local .devsai.json config
+            project_dir = os.path.expanduser('~/.local/share/safari_start_page')
+            
+            logger.debug(f"[CLI] devsai_path: {devsai_path}, cwd: {project_dir}")
+            
+            proc = subprocess.Popen(
+                [devsai_path, '-p', prompt, '--max-iterations', '3', '-m', 'anthropic-claude-4-5-haiku'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                cwd=project_dir
+            )
+            
+            stdout, stderr = proc.communicate(timeout=timeout)
+            # devsai outputs to stderr, combine both for parsing
+            output = (stdout.decode() + stderr.decode()).strip()
+            
+            logger.debug(f"[CLI] {source} output length: {len(output)}")
+            logger.debug(f"[CLI] {source} output preview: {output[:300] if output else '(empty)'}")
+            
+            # Try to extract JSON array from output
+            result = extract_json_array(output)
+            if result is not None:
+                logger.info(f"[CLI] {source} returned {len(result)} items")
+                return result
+            
+            # If no JSON found but no error, return empty (don't retry for empty results)
+            if output and 'error' not in output.lower():
+                logger.info(f"[CLI] {source} returned empty (no JSON array found)")
+                return []
+            
+            last_error = "No JSON array found in output"
+            
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            last_error = f'timeout after {timeout}s'
+            logger.error(f"[CLI] {source} {last_error} (attempt {attempt + 1}/{max_retries})")
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"[CLI] {source} exception: {e} (attempt {attempt + 1}/{max_retries})")
+    
+    # All retries failed
+    logger.error(f"[CLI] {source} failed after {max_retries} attempts: {last_error}")
+    return {'error': f'{source} search failed: {last_error}'}
 
 
-def call_cli_for_meeting_summary(meeting_title, attendees_str, attendee_emails, description='', timeout=120):
+def call_cli_for_meeting_summary(meeting_title, attendees_str, attendee_emails, description='', timeout=90):
     """Call the CLI to generate a comprehensive meeting prep summary.
     
     This searches all sources, READS the actual content, and generates a summary.
     """
-    # Find devsai CLI - check common locations
-    cli_path = shutil.which('devsai') or os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin/devsai')
+    # Use direct devsai binary (faster than npx)
+    devsai_path = os.path.expanduser('~/.local/share/devsai/devsai.sh')
+    if not os.path.exists(devsai_path):
+        devsai_path = shutil.which('devsai') or os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin/devsai')
     
     # Build meeting context
     meeting_context = f"Meeting: {meeting_title}"
@@ -1593,7 +1746,7 @@ Return ONLY the formatted summary text, nothing else."""
         project_dir = os.path.dirname(os.path.abspath(__file__))
         
         proc = subprocess.Popen(
-            [cli_path, '-p', prompt, '--output', 'text', '--max-iterations', '15', '-m', 'anthropic-claude-4-5-haiku'],
+            [devsai_path, '-p', prompt, '--max-iterations', '8', '-m', 'anthropic-claude-4-5-haiku'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=env,
@@ -1601,10 +1754,10 @@ Return ONLY the formatted summary text, nothing else."""
         )
         
         stdout, stderr = proc.communicate(timeout=timeout)
-        output = stdout.decode().strip()
+        # devsai outputs to stderr, combine both
+        output = (stdout.decode() + stderr.decode()).strip()
         
         # Strip ANSI color codes from CLI output
-        import re
         output = re.sub(r'\x1b\[[0-9;]*m', '', output)
         
         # Return the summary text
@@ -1730,7 +1883,7 @@ def cleanup_old_caches():
         for meeting_id in to_remove:
             del _meeting_prep_cache[meeting_id]
         if to_remove:
-            print(f"[Cache] Cleaned up {len(to_remove)} old meeting caches")
+            logger.debug(f"[Cache] Cleaned up {len(to_remove)} old meeting caches")
 
 
 # Background pre-caching system
@@ -1806,7 +1959,7 @@ def prefetch_meeting_data(meeting):
     meeting_id = meeting.get('id') or meeting.get('title')
     title = meeting.get('title', '')
     
-    print(f"[Prefetch] Starting prefetch for: {title[:50]}...", flush=True)
+    logger.info(f"[Prefetch] Starting prefetch for: {title[:50]}... (meeting_id={meeting_id})")
     
     attendees = meeting.get('attendees', [])
     attendee_emails = [a.get('email', '') for a in attendees if a.get('email')]
@@ -1826,7 +1979,7 @@ def prefetch_meeting_data(meeting):
     
     # Check auth status to avoid triggering OAuth dialogs from background
     auth_status = check_services_auth()
-    print(f"[Prefetch] Auth status: atlassian={auth_status.get('atlassian')}, slack={auth_status.get('slack')}, gmail={auth_status.get('gmail')}", flush=True)
+    logger.info(f"[Prefetch] Auth status: atlassian={auth_status.get('atlassian')}, slack={auth_status.get('slack')}, gmail={auth_status.get('gmail')}")
     
     # Determine which sources we can safely fetch
     sources_to_fetch = []
@@ -1841,38 +1994,48 @@ def prefetch_meeting_data(meeting):
             if not is_cache_valid(meeting_id, source):
                 sources_to_fetch.append(source)
     else:
-        print("[Prefetch] Skipping Jira/Confluence - not authenticated")
+        logger.info("[Prefetch] Skipping Jira/Confluence - not authenticated")
     
     if auth_status.get('slack'):
         if not is_cache_valid(meeting_id, 'slack'):
             sources_to_fetch.append('slack')
     else:
-        print("[Prefetch] Skipping Slack - not authenticated")
+        logger.info("[Prefetch] Skipping Slack - not authenticated")
     
     if auth_status.get('gmail'):
         if not is_cache_valid(meeting_id, 'gmail'):
             sources_to_fetch.append('gmail')
     else:
-        print("[Prefetch] Skipping Gmail - not authenticated")
+        logger.info("[Prefetch] Skipping Gmail - not authenticated")
     
-    # Fetch sources SEQUENTIALLY to avoid multiple OAuth dialogs
-    # (parallel fetching was causing multiple auth popups)
-    for source in sources_to_fetch:
+    # Fetch sources in PARALLEL for speed (auth is already verified above)
+    logger.info(f"[Prefetch] Sources to fetch (parallel): {sources_to_fetch}")
+    
+    def fetch_source(source):
+        """Fetch a single source and return (source, result)."""
         try:
-            if source == 'drive':
-                search_terms = title.replace('-', ' ').replace(':', ' ')
-                result = search_google_drive(search_terms, 5)
-            else:
-                result = call_cli_for_source(source, title, attendees_str, description, timeout=60)
+            logger.info(f"[Prefetch] Starting {source}...")
+            # All sources use CLI (Drive uses find command, others use MCPs)
+            # Drive gets longer timeout since file search can take time
+            timeout = 90 if source == 'drive' else 60
+            result = call_cli_for_source(source, title, attendees_str, description, timeout=timeout)
             
             if isinstance(result, list):
-                set_meeting_cache(meeting_id, source, result)
-                print(f"[Prefetch] {source} for '{title[:30]}': {len(result)} items")
+                logger.info(f"[Prefetch] {source} for '{title[:30]}': {len(result)} items")
+                return (source, result)
             else:
-                set_meeting_cache(meeting_id, source, [])
+                logger.warning(f"[Prefetch] {source} returned non-list: {type(result)}")
+                return (source, [])
         except Exception as e:
-            print(f"[Prefetch] Error fetching {source}: {e}")
-            set_meeting_cache(meeting_id, source, [])
+            logger.error(f"[Prefetch] Error fetching {source}: {e}")
+            return (source, [])
+    
+    # Run all sources in parallel (limit to 3 workers to avoid resource contention)
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(fetch_source, source): source for source in sources_to_fetch}
+        for future in as_completed(futures):
+            source, result = future.result()
+            set_meeting_cache(meeting_id, source, result)
     
     # Only fetch summary if we have some data sources authenticated
     if auth_status.get('atlassian') or auth_status.get('slack') or auth_status.get('gmail'):
@@ -1881,16 +2044,16 @@ def prefetch_meeting_data(meeting):
                 result = call_cli_for_meeting_summary(title, attendees_str, attendee_emails, description, timeout=120)
                 if result.get('status') == 'success':
                     set_meeting_cache(meeting_id, 'summary', result)
-                    print(f"[Prefetch] Summary for '{title[:30]}': generated")
+                    logger.info(f"[Prefetch] Summary for '{title[:30]}': generated")
                 else:
                     set_meeting_cache(meeting_id, 'summary', {'summary': '', 'status': 'empty'})
             except Exception as e:
-                print(f"[Prefetch] Error fetching summary: {e}")
+                logger.error(f"[Prefetch] Error fetching summary: {e}")
                 set_meeting_cache(meeting_id, 'summary', {'summary': '', 'status': 'error'})
     else:
-        print("[Prefetch] Skipping summary - no authenticated sources")
+        logger.info("[Prefetch] Skipping summary - no authenticated sources")
     
-    print(f"[Prefetch] Completed for: {title[:50]}")
+    logger.info(f"[Prefetch] Completed for: {title[:50]}")
 
 def get_calendar_events_standalone(minutes_ahead=120, limit=5):
     """Standalone function to get calendar events (for prefetch thread)."""
@@ -1912,7 +2075,9 @@ def get_calendar_events_standalone(minutes_ahead=120, limit=5):
         service = build('calendar', 'v3', credentials=creds)
         
         now = datetime.utcnow()
-        time_min = (now - timedelta(hours=2)).isoformat() + 'Z'
+        # Only include meetings from 30 mins ago (to catch ongoing ones) to future
+        # This ensures we prioritize upcoming meetings over old ones
+        time_min = (now - timedelta(minutes=30)).isoformat() + 'Z'
         time_max = (now + timedelta(minutes=minutes_ahead)).isoformat() + 'Z'
         
         events_result = service.events().list(
@@ -1926,11 +2091,34 @@ def get_calendar_events_standalone(minutes_ahead=120, limit=5):
         
         raw_events = events_result.get('items', [])
         
-        # Process events (simplified)
+        # Process events - filter out ended meetings and all-day events
         processed = []
-        for event in raw_events[:limit]:
+        for event in raw_events:
+            if len(processed) >= limit:
+                break
+                
+            title = event.get('summary', 'No title')
             start = event.get('start', {})
             start_time = start.get('dateTime', start.get('date', ''))
+            
+            # Skip all-day events
+            if 'T' not in start_time:
+                continue
+            
+            # Skip meetings that have already ended
+            end = event.get('end', {})
+            end_time = end.get('dateTime', end.get('date', ''))
+            if end_time and 'T' in end_time:
+                try:
+                    # Parse the end time and compare with local time
+                    # Google Calendar returns times with timezone offset (e.g., -05:00 for EST)
+                    end_str = end_time.replace('Z', '+00:00')
+                    end_dt_aware = datetime.fromisoformat(end_str)
+                    local_now = datetime.now().astimezone()
+                    if (end_dt_aware - local_now).total_seconds() < 0:
+                        continue  # Meeting already ended
+                except:
+                    pass  # If parsing fails, include the meeting
             
             attendees = []
             for a in event.get('attendees', []):
@@ -2230,8 +2418,18 @@ class SearchHandler(BaseHTTPRequestHandler):
             import time
             now = time.time()
             force_refresh = parse_qs(parsed.query).get("refresh", [""])[0] == "1"
+            # Allow meeting_id override from query param
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
             
             try:
+                # If meeting_id provided, try cache directly first
+                if meeting_id_param and not force_refresh:
+                    cached = get_cached_data(meeting_id_param, 'jira')
+                    if cached is not None:
+                        logger.debug(f"[API] /hub/prep/jira returning cached data for {meeting_id_param}")
+                        self.send_json(cached)
+                        return
+                
                 calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
                 events = calendar_data.get('events', [])
                 
@@ -2240,7 +2438,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 
                 meeting = events[0]
-                meeting_id = meeting.get('id') or meeting.get('title')
+                meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
                 if not force_refresh:
@@ -2268,7 +2466,16 @@ class SearchHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/hub/prep/confluence":
             # Search Confluence for meeting context (CLI-powered)
             force_refresh = parse_qs(parsed.query).get("refresh", [""])[0] == "1"
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
             try:
+                # If meeting_id provided, try cache directly first
+                if meeting_id_param and not force_refresh:
+                    cached = get_cached_data(meeting_id_param, 'confluence')
+                    if cached is not None:
+                        logger.debug(f"[API] /hub/prep/confluence returning cached data for {meeting_id_param}")
+                        self.send_json(cached)
+                        return
+                
                 calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
                 events = calendar_data.get('events', [])
                 
@@ -2277,7 +2484,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 
                 meeting = events[0]
-                meeting_id = meeting.get('id') or meeting.get('title')
+                meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
                 if not force_refresh:
@@ -2305,7 +2512,16 @@ class SearchHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/hub/prep/drive":
             # Search Google Drive for meeting context
             force_refresh = parse_qs(parsed.query).get("refresh", [""])[0] == "1"
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
             try:
+                # If meeting_id provided, try cache directly first
+                if meeting_id_param and not force_refresh:
+                    cached = get_cached_data(meeting_id_param, 'drive')
+                    if cached is not None:
+                        logger.debug(f"[API] /hub/prep/drive returning cached data for {meeting_id_param}")
+                        self.send_json(cached)
+                        return
+                
                 calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
                 events = calendar_data.get('events', [])
                 
@@ -2314,7 +2530,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 
                 meeting = events[0]
-                meeting_id = meeting.get('id') or meeting.get('title')
+                meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
                 if not force_refresh:
@@ -2337,7 +2553,16 @@ class SearchHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/hub/prep/slack":
             # Search Slack for meeting context (CLI-powered)
             force_refresh = parse_qs(parsed.query).get("refresh", [""])[0] == "1"
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
             try:
+                # If meeting_id provided, try cache directly first
+                if meeting_id_param and not force_refresh:
+                    cached = get_cached_data(meeting_id_param, 'slack')
+                    if cached is not None:
+                        logger.debug(f"[API] /hub/prep/slack returning cached data for {meeting_id_param}")
+                        self.send_json(cached)
+                        return
+                
                 calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
                 events = calendar_data.get('events', [])
                 
@@ -2346,7 +2571,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 
                 meeting = events[0]
-                meeting_id = meeting.get('id') or meeting.get('title')
+                meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
                 if not force_refresh:
@@ -2374,7 +2599,16 @@ class SearchHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/hub/prep/gmail":
             # Search Gmail for meeting context (CLI-powered)
             force_refresh = parse_qs(parsed.query).get("refresh", [""])[0] == "1"
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
             try:
+                # If meeting_id provided, try cache directly first
+                if meeting_id_param and not force_refresh:
+                    cached = get_cached_data(meeting_id_param, 'gmail')
+                    if cached is not None:
+                        logger.debug(f"[API] /hub/prep/gmail returning cached data for {meeting_id_param}")
+                        self.send_json(cached)
+                        return
+                
                 calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
                 events = calendar_data.get('events', [])
                 
@@ -2383,7 +2617,8 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 
                 meeting = events[0]
-                meeting_id = meeting.get('id') or meeting.get('title')
+                # Use meeting_id_param if provided, otherwise derive from meeting
+                meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
                 if not force_refresh:
@@ -2412,7 +2647,16 @@ class SearchHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/hub/prep/summary":
             # Generate comprehensive meeting prep summary (CLI-powered, reads content)
             force_refresh = parse_qs(parsed.query).get("refresh", [""])[0] == "1"
+            meeting_id_param = parse_qs(parsed.query).get("meeting_id", [None])[0]
             try:
+                # If meeting_id provided, try cache directly first
+                if meeting_id_param and not force_refresh:
+                    cached = get_cached_data(meeting_id_param, 'summary')
+                    if cached is not None:
+                        logger.debug(f"[API] /hub/prep/summary returning cached data for {meeting_id_param}")
+                        self.send_json(cached)
+                        return
+                
                 calendar_data = self.get_upcoming_events_google(minutes_ahead=180, limit=1)
                 events = calendar_data.get('events', [])
                 
@@ -2421,7 +2665,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 
                 meeting = events[0]
-                meeting_id = meeting.get('id') or meeting.get('title')
+                meeting_id = meeting_id_param or meeting.get('id') or meeting.get('title')
                 
                 # Check new multi-meeting cache first (skip if refresh requested)
                 if not force_refresh:
@@ -2525,6 +2769,22 @@ class SearchHandler(BaseHTTPRequestHandler):
             
             self.send_json(results)
         
+        elif parsed.path == "/hub/debug/cache":
+            # Debug endpoint to dump cache contents
+            with _meeting_prep_cache_lock:
+                cache_summary = {}
+                for meeting_id, cache in _meeting_prep_cache.items():
+                    if cache is None:
+                        cache_summary[meeting_id] = {'title': 'unknown', 'sources': {}}
+                        continue
+                    meeting_info = cache.get('meeting_info') or {}
+                    cache_summary[meeting_id] = {
+                        'title': meeting_info.get('title', 'unknown') if meeting_info else 'unknown',
+                        'sources': {k: len(v.get('data', [])) if v and isinstance(v.get('data'), list) else 'N/A' 
+                                   for k, v in cache.items() if k not in ['meeting_info', 'last_access']}
+                    }
+            self.send_json({"cache": cache_summary})
+        
         elif parsed.path == "/hub/status":
             # Check hub configuration and auth status
             config = load_mcp_config()
@@ -2609,8 +2869,122 @@ class SearchHandler(BaseHTTPRequestHandler):
     
     def do_POST(self):
         """Handle POST requests."""
-        # NOTE: Slack reply/send endpoints removed - using native Slack app instead
-        self.send_error(404)
+        parsed = urlparse(self.path)
+        
+        if parsed.path == "/chat/stream":
+            self.handle_chat_stream()
+        else:
+            self.send_error(404)
+    
+    def handle_chat_stream(self):
+        """Stream CLI output via Server-Sent Events - using subprocess.communicate for reliability."""
+        try:
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
+            prompt = data.get('prompt', '').strip()
+            max_iterations = data.get('max_iterations', 10)
+            
+            logger.info(f"[Chat] Received prompt: {prompt[:50]}...")
+            
+            if not prompt:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'prompt is required'}).encode())
+                return
+            
+            # Use local devsai copy (LaunchAgents can't access Documents folder)
+            devsai_path = os.path.expanduser('~/.local/share/devsai/devsai.sh')
+            if not os.path.exists(devsai_path):
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'devsai not found at ~/.local/share/devsai/devsai.sh'}).encode())
+                return
+            
+            # Send SSE headers - use Connection: close so curl doesn't wait
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.send_header('Cache-Control', 'no-cache')
+            self.send_header('Connection', 'close')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            # Send initial status
+            self.wfile.write(f"data: {json.dumps({'status': 'Connecting to AI...'})}\n\n".encode())
+            self.wfile.flush()
+            
+            # Set up environment
+            env = os.environ.copy()
+            nvm_path = os.path.expanduser('~/.nvm/versions/node/v20.18.0/bin')
+            env['PATH'] = nvm_path + ':' + env.get('PATH', '')
+            env['CI'] = 'true'
+            env['BROWSER'] = 'false'
+            env['NO_COLOR'] = '1'
+            env['FORCE_COLOR'] = '0'
+            
+            logger.info(f"[Chat] Running: {devsai_path}")
+            start_time = time.time()
+            
+            # Use subprocess.run with timeout - devsai outputs to stderr
+            try:
+                result = subprocess.run(
+                    [devsai_path, '-p', prompt, '--max-iterations', str(max_iterations), '-m', 'anthropic-claude-4-5-haiku'],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    timeout=120  # 2 minute timeout
+                )
+                
+                elapsed = time.time() - start_time
+                logger.info(f"[Chat] Completed in {elapsed:.1f}s, exit code: {result.returncode}")
+                
+                # ANSI escape code pattern for stripping
+                ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                
+                # devsai outputs to stderr, combine both stdout and stderr
+                output = (result.stdout or '') + (result.stderr or '')
+                output = ansi_escape.sub('', output)
+                
+                logger.debug(f"[Chat] Raw output: {output[:200]}...")
+                
+                # Filter and send output
+                lines = output.split('\n')
+                sent_lines = 0
+                for line in lines:
+                    # Skip connection/status messages
+                    if any(x in line for x in ['Connecting', 'MCP server', '✓ Output', 'Warning: Reached']):
+                        continue
+                    if line.strip():
+                        self.wfile.write(f"data: {json.dumps({'text': line + chr(10)})}\n\n".encode())
+                        self.wfile.flush()
+                        sent_lines += 1
+                
+                logger.info(f"[Chat] Sent {sent_lines} lines to client")
+                
+            except subprocess.TimeoutExpired:
+                logger.error("[Chat] Timeout after 120s")
+                self.wfile.write(f"data: {json.dumps({'error': 'Request timed out after 2 minutes'})}\n\n".encode())
+                self.wfile.flush()
+            
+            # Send done event
+            self.wfile.write(f"data: {json.dumps({'done': True})}\n\n".encode())
+            self.wfile.flush()
+            
+        except Exception as e:
+            logger.error(f"[Chat] Error: {e}")
+            try:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+            except:
+                pass
     
     def do_OPTIONS(self):
         """Handle CORS preflight requests."""
@@ -3184,13 +3558,13 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 if __name__ == "__main__":
-    import sys
     
     if len(sys.argv) > 1 and sys.argv[1] == "--auth":
         authenticate_google()
     else:
+        logger.info(f"Starting search server, logging to {LOG_FILE}")
         server = ThreadedHTTPServer(("127.0.0.1", 18765), SearchHandler)
-        print("Search server running on http://127.0.0.1:18765 (multi-threaded)")
+        logger.info("Search server running on http://127.0.0.1:18765 (multi-threaded)")
         
         # Start background prefetch thread for meeting prep data
         start_prefetch_thread()

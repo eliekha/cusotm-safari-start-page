@@ -23,3 +23,8 @@
 logo.png
 .devsai.json
 __pycache__/
+
+# Editor-specific (keep .cursor/skills/ for project documentation)
+.cursor/rules/
+.cursor/settings.json
+.cursor/mcp.json

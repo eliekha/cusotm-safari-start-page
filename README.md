@@ -50,6 +50,14 @@ chmod +x install.sh
 ./install.sh
 ```
 
+The install script will:
+1. Copy files to `~/.local/share/safari_start_page/`
+2. Create local Python and Node binaries for Full Disk Access
+3. Set up LaunchAgents to start servers on login
+4. Create wrapper scripts for the devsai CLI
+
+**After running the script, you MUST grant Full Disk Access** to the local binaries (see step 3 below)
+
 ### Manual Install
 
 1. **Copy files:**
@@ -66,10 +74,16 @@ chmod +x install.sh
    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.startpage.search.plist
    ```
 
-3. **Grant Full Disk Access** (required for Safari history):
+3. **Grant Full Disk Access** (required for Safari history and Google Drive):
    - System Settings → Privacy & Security → Full Disk Access
-   - Add: `/Applications/Xcode.app/Contents/Developer/usr/bin/python3`
-   - (Or the Python that `/usr/bin/python3 -c "import sys; print(sys.executable)"` shows)
+   - Add these binaries (use Cmd+Shift+G to paste paths):
+   
+   | Binary | Path | Purpose |
+   |--------|------|---------|
+   | Python | `~/.local/share/safari_start_page/python3` | Safari history search |
+   | Node | `~/.local/share/devsai/node` | Google Drive search (Hub) |
+   
+   The install script copies these binaries locally so FDA permissions persist across updates
 
 4. **Set Safari homepage:**
    - Safari → Settings → General
@@ -308,19 +322,25 @@ Uses Anthropic's Gmail MCP server with OAuth authentication.
    devsai -p "List my 5 most recent emails" --output text
    ```
 
-### Google Drive (Local Access)
+### Google Drive (AI-Powered Search)
 
-No MCP needed - Google Drive for Desktop syncs files locally. Access via standard file tools:
+Google Drive search uses the devsai CLI to intelligently search your locally synced Drive files:
 
 ```
 ~/Library/CloudStorage/GoogleDrive-{email}/My Drive/
 ~/Library/CloudStorage/GoogleDrive-{email}/Shared drives/
 ```
 
-This allows:
-- Reading meeting agendas and docs directly
-- Searching shared drive content
-- No API setup required
+**Requirements:**
+1. **Google Drive for Desktop** installed and syncing
+2. **Full Disk Access** granted to the Node binary (see installation)
+
+**How it works:**
+- CLI uses `find` command to search file names in your Drive folder
+- AI interprets meeting context to choose relevant search terms
+- Results are cached along with other sources
+
+**No API setup required** - uses local filesystem access
 
 ### Complete MCP Config Example
 
@@ -374,16 +394,52 @@ Create `~/.local/share/safari_start_page/.devsai.json` with all your services:
 
 ### Hub Features Status
 
-| Feature | Status |
-|---------|--------|
-| Jira ticket search | ✅ Working |
-| Confluence page search | ✅ Working |
-| Slack message search | ✅ Working |
-| Gmail email search | ✅ Working |
-| Google Drive file search | ✅ Working |
-| AI-generated meeting brief | ✅ Working |
-| Background prefetching | ✅ Working |
-| GitHub PR notifications | ⬜ Planned |
+| Feature | Status | Method |
+|---------|--------|--------|
+| Jira ticket search | ✅ Working | CLI + Atlassian MCP |
+| Confluence page search | ✅ Working | CLI + Atlassian MCP |
+| Slack message search | ✅ Working | CLI + Slack MCP |
+| Gmail email search | ✅ Working | CLI + Gmail MCP |
+| Google Drive file search | ✅ Working | CLI + `find` command |
+| AI-generated meeting brief | ✅ Working | CLI + all sources |
+| Background prefetching | ✅ Working | 10-min intervals |
+| GitHub PR notifications | ⬜ Planned | - |
+
+### Reliability & Error Handling
+
+The Hub includes several reliability mechanisms:
+
+| Mechanism | Description |
+|-----------|-------------|
+| **Retry logic** | Failed CLI calls retry up to 2 times |
+| **Timeouts** | 60s for most sources, 90s for Drive |
+| **Graceful degradation** | If a source fails, others still work |
+| **Background prefetch** | Data pre-loaded for upcoming meetings |
+| **Cache** | 30-min cache prevents repeated failures |
+| **"Try again" buttons** | Manual retry for failed sources |
+
+**Known limitations:**
+- Slack tokens (xoxc/xoxd) expire when you sign out - re-extract from browser
+- Atlassian OAuth may require re-auth after ~30 days
+- Google Drive requires FDA permission for Node binary
+- CLI calls can timeout on slow networks (increase timeout in code if needed)
+
+### Updating devsai CLI
+
+The start page uses a **local copy** of devsai (with FDA-enabled Node binary). After updating devsai globally:
+
+```bash
+# Update global devsai
+npm install -g devsai
+
+# Re-copy to local folder
+cp -r $(npm root -g)/devsai/dist ~/.local/share/devsai/
+
+# Restart server to pick up changes
+launchctl kickstart -k gui/$(id -u)/com.startpage.search
+```
+
+Or simply re-run `./install.sh` which handles this automatically
 
 ## Customization
 
@@ -429,6 +485,33 @@ Two lightweight servers run in the background:
 - **Real-time**: Reads Safari's WAL file for immediate results
 
 ## Troubleshooting
+
+### Hub Features Not Working
+
+**All sources returning empty:**
+```bash
+# Check if server is running
+lsof -i:18765
+
+# Check MCP server connections
+~/.local/share/devsai/devsai.sh -p "List available tools" --max-iterations 1 2>&1 | head -10
+
+# Check logs for errors
+grep -E "error|timeout|failed" /tmp/safari-hub-server.log | tail -10
+```
+
+**Google Drive returning 0 items:**
+1. Verify FDA is granted to Node binary: `~/.local/share/devsai/node`
+2. Check if Google Drive is syncing: `ls ~/Library/CloudStorage/`
+3. Test manually:
+   ```bash
+   find ~/Library/CloudStorage/GoogleDrive-*/Shared\ drives -iname "*keyword*" -type f | head -5
+   ```
+
+**Slack/Gmail/Jira not working:**
+- Check credentials in `~/.local/share/safari_start_page/.devsai.json`
+- Slack tokens expire when you sign out - re-extract from browser
+- Atlassian may need re-auth: `npx mcp-remote https://mcp.atlassian.com/v1/sse`
 
 ### Search not finding recent pages
 Safari buffers history writes. The search server reads the WAL file for real-time results, but if issues persist:

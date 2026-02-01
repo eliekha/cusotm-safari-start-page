@@ -452,6 +452,16 @@ input[type="file"]{display:none}
 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
 </button>
 
+<!-- AI Chat Button and Panel -->
+<svg style="display:none">
+<defs>
+<linearGradient id="ai-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" style="stop-color:#3b82f6"/>
+<stop offset="100%" style="stop-color:#1d4ed8"/>
+</linearGradient>
+</defs>
+</svg>
+
 <div class="modal" id="modal">
 <div class="modal-content">
 <h2>Settings</h2>
@@ -1312,37 +1322,41 @@ return;
 prepState.meeting=data.meeting;
 renderMeetingPrepProgressive();
 
-// 2. Then fetch each enabled source in parallel
+// Get meeting_id for cache lookup
+var mid = data.meeting.id || '';
+var midParam = mid ? '?meeting_id=' + encodeURIComponent(mid) : '';
+
+// 2. Then fetch each enabled source in parallel (with meeting_id for cache lookup)
 if(sources.jira!==false){
-fetch(S+'/hub/prep/jira',{signal:AbortSignal.timeout(90000)})
+fetch(S+'/hub/prep/jira'+midParam,{signal:AbortSignal.timeout(90000)})
 .then(function(r){return r.json();})
 .then(function(d){prepState.jira=Array.isArray(d)?d:[];prepState.loading.jira=false;renderMeetingPrepProgressive();})
 .catch(function(){prepState.loading.jira=false;renderMeetingPrepProgressive();});
 }
 
 if(sources.confluence!==false){
-fetch(S+'/hub/prep/confluence',{signal:AbortSignal.timeout(90000)})
+fetch(S+'/hub/prep/confluence'+midParam,{signal:AbortSignal.timeout(90000)})
 .then(function(r){return r.json();})
 .then(function(d){prepState.confluence=Array.isArray(d)?d:[];prepState.loading.confluence=false;renderMeetingPrepProgressive();})
 .catch(function(){prepState.loading.confluence=false;renderMeetingPrepProgressive();});
 }
 
 if(sources.drive!==false){
-fetch(S+'/hub/prep/drive',{signal:AbortSignal.timeout(90000)})
+fetch(S+'/hub/prep/drive'+midParam,{signal:AbortSignal.timeout(90000)})
 .then(function(r){return r.json();})
 .then(function(d){prepState.google_drive=Array.isArray(d)?d:[];prepState.loading.drive=false;renderMeetingPrepProgressive();})
 .catch(function(){prepState.loading.drive=false;renderMeetingPrepProgressive();});
 }
 
 if(sources.slack!==false){
-fetch(S+'/hub/prep/slack',{signal:AbortSignal.timeout(90000)})
+fetch(S+'/hub/prep/slack'+midParam,{signal:AbortSignal.timeout(90000)})
 .then(function(r){return r.json();})
 .then(function(d){prepState.slack=Array.isArray(d)?d:[];prepState.loading.slack=false;renderMeetingPrepProgressive();})
 .catch(function(){prepState.loading.slack=false;renderMeetingPrepProgressive();});
 }
 
 if(sources.gmail!==false){
-fetch(S+'/hub/prep/gmail',{signal:AbortSignal.timeout(90000)})
+fetch(S+'/hub/prep/gmail'+midParam,{signal:AbortSignal.timeout(90000)})
 .then(function(r){return r.json();})
 .then(function(d){prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();})
 .catch(function(){prepState.loading.gmail=false;renderMeetingPrepProgressive();});
@@ -1350,7 +1364,7 @@ fetch(S+'/hub/prep/gmail',{signal:AbortSignal.timeout(90000)})
 
 // Fetch AI-generated summary (searches all sources and reads content)
 if(sources.aiBrief!==false){
-fetch(S+'/hub/prep/summary',{signal:AbortSignal.timeout(150000)})
+fetch(S+'/hub/prep/summary'+midParam,{signal:AbortSignal.timeout(150000)})
 .then(function(r){return r.json();})
 .then(function(d){prepState.summary=d.summary||null;prepState.loading.summary=false;renderMeetingPrepProgressive();})
 .catch(function(){prepState.loading.summary=false;renderMeetingPrepProgressive();});
@@ -1678,6 +1692,12 @@ initHub();
 hubPanel.style.display='none';
 }
 }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 </script>
 </body>

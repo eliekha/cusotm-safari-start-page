@@ -2,21 +2,33 @@
   "version": 1,
   "mcpServers": {
     "slack": {
-      "command": "npx",
-      "args": ["-y", "slack-mcp-server"],
+      "command": "/opt/homebrew/bin/slack-mcp-server",
+      "args": [],
       "env": {
         "SLACK_MCP_XOXC_TOKEN": "xoxc-your-token-here",
         "SLACK_MCP_XOXD_TOKEN": "xoxd-your-token-here",
         "SLACK_MCP_ADD_MESSAGE_TOOL": "true"
-      }
+      },
+      "_comment": "Install globally: npm install -g slack-mcp-server"
     },
     "atlassian": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
+      "command": "/opt/homebrew/bin/mcp-remote",
+      "args": ["https://mcp.atlassian.com/v1/sse"],
+      "_comment": "Install globally: npm install -g mcp-remote"
     },
     "gmail": {
-      "command": "npx",
-      "args": ["-y", "@monsoft/mcp-gmail"]
+      "command": "/opt/homebrew/bin/mcp-gmail",
+      "args": [],
+      "_comment": "Install globally: npm install -g @anthropic/gmail-mcp-server"
+    },
+    "apple-docs": {
+      "disabled": true
+    },
+    "sentry": {
+      "disabled": true
+    },
+    "chrome-devtools": {
+      "disabled": true
     }
   },
   "systemPromptAddition": "This is a Safari start page project that serves as a productivity hub. It integrates with Slack, Jira, Confluence, Google Calendar, Google Drive, and Gmail to help prepare for meetings."
