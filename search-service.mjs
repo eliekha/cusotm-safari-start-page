@@ -13,10 +13,12 @@
  *   GET /status - MCP server connection status
  *   POST /search - AI-powered search across sources
  *   POST /query - Raw AI query with MCP tools
+ *   POST /retry - Retry failed MCP server connections
  */
 
 import http from 'http';
 import { URL } from 'url';
+import { fileURLToPath } from 'url';
 
 // Import devsai library components from local installation
 // Uses ~/.local/share/devsai/dist/ which has Full Disk Access
@@ -33,23 +35,35 @@ let CLI_TOOLS, executeSearchFiles, executeFindFiles, executeReadFile, executeLis
 const PORT = parseInt(process.env.SEARCH_SERVICE_PORT || '19765', 10);
 const HOST = '127.0.0.1';
 
-// State
-let mcpManager = null;
-let apiClient = null;
-let initialized = false;
-let initError = null;
+// State (exported for testing)
+export let mcpManager = null;
+export let apiClient = null;
+export let initialized = false;
+export let initError = null;
 
 // Retry configuration for MCP servers
-const MCP_RETRY_CONFIG = {
+export const MCP_RETRY_CONFIG = {
   maxRetries: 3,
   retryDelayMs: 5000,  // 5 seconds between retries
   retryableErrors: ['empty cache', 'not found in empty cache', 'cache not ready'],
 };
 
+// Functions to set state (for testing)
+export function _setMcpManager(manager) { mcpManager = manager; }
+export function _setApiClient(client) { apiClient = client; }
+export function _setInitialized(value) { initialized = value; }
+export function _setInitError(error) { initError = error; }
+export function _resetState() {
+  mcpManager = null;
+  apiClient = null;
+  initialized = false;
+  initError = null;
+}
+
 /**
  * Dynamic import of devsai modules from local installation
  */
-async function loadDevsaiModules() {
+export async function loadDevsaiModules() {
   try {
     // Use the local devsai installation (has Full Disk Access)
     const mcpModule = await import(`file://${LOCAL_DEVSAI_PATH}/mcp/index.js`);
@@ -85,7 +99,7 @@ async function loadDevsaiModules() {
 /**
  * Check if an error is retryable (cache-related)
  */
-function isRetryableError(error) {
+export function isRetryableError(error) {
   if (!error) return false;
   const errorLower = error.toLowerCase();
   return MCP_RETRY_CONFIG.retryableErrors.some(re => errorLower.includes(re));
@@ -94,14 +108,14 @@ function isRetryableError(error) {
 /**
  * Sleep for a given number of milliseconds
  */
-function sleep(ms) {
+export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
  * Retry failed MCP servers that have retryable errors
  */
-async function retryFailedServers() {
+export async function retryFailedServers() {
   if (!mcpManager) return;
   
   const statuses = mcpManager.getServerStatuses();
@@ -152,7 +166,7 @@ async function retryFailedServers() {
 /**
  * Initialize MCP connections and API client
  */
-async function initialize() {
+export async function initialize() {
   console.log('[SearchService] Initializing...');
   
   // Load modules
@@ -220,7 +234,7 @@ async function initialize() {
 /**
  * Execute an AI query with MCP tools
  */
-async function executeQuery(prompt, options = {}) {
+export async function executeQuery(prompt, options = {}) {
   if (!initialized || !apiClient) {
     throw new Error('Service not initialized');
   }
@@ -427,7 +441,7 @@ IMPORTANT FOR GOOGLE DRIVE:
 /**
  * Parse JSON body from request
  */
-function parseBody(req) {
+export function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -445,7 +459,7 @@ function parseBody(req) {
 /**
  * Send JSON response
  */
-function sendJson(res, data, status = 200) {
+export function sendJson(res, data, status = 200) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -456,7 +470,7 @@ function sendJson(res, data, status = 200) {
 /**
  * Handle HTTP requests
  */
-async function handleRequest(req, res) {
+export async function handleRequest(req, res) {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   const path = url.pathname;
   
@@ -587,7 +601,7 @@ async function handleRequest(req, res) {
 /**
  * Start the server
  */
-async function main() {
+export async function main() {
   // Start HTTP server
   const server = http.createServer(handleRequest);
   
@@ -616,9 +630,18 @@ async function main() {
     server.close();
     process.exit(0);
   });
+  
+  return server;
 }
 
-main().catch(err => {
-  console.error('[SearchService] Fatal error:', err);
-  process.exit(1);
-});
+// Export constants for testing
+export { PORT, HOST, HOME, LOCAL_DEVSAI_PATH };
+
+// Only run if executed directly (not imported)
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  main().catch(err => {
+    console.error('[SearchService] Fatal error:', err);
+    process.exit(1);
+  });
+}

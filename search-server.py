@@ -763,7 +763,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                     mcp_servers = {
                         'connected': len(connected),
                         'total': len(servers),
-                        'servers': [{'name': s.get('name'), 'tools': s.get('toolCount', 0)} for s in connected]
+                        'servers': [{'name': s.get('name'), 'tools': s.get('toolCount', 0), 'status': 'connected'} for s in connected]
                     }
             except:
                 pass
