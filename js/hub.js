@@ -329,6 +329,7 @@ fetch(S+'/hub/service-health')
 .then(function(r){return r.json();})
 .then(function(data){
 var html='';
+var hasFailedMCP=false;
 data.services.forEach(function(svc){
 var isOk=svc.status==='ok';
 var statusColor=isOk?'#4ade80':'#f87171';
@@ -338,9 +339,19 @@ html+='<div style="color:'+statusColor+'">'+statusIcon+'</div>';
 html+='<div style="flex:1">';
 html+='<div style="font-size:13px;color:rgba(255,255,255,.9)">'+svc.name+' <span style="color:rgba(255,255,255,.3);font-size:11px">:'+svc.port+'</span></div>';
 html+='<div style="font-size:11px;color:rgba(255,255,255,.4)">'+svc.description+'</div>';
-if(svc.mcp&&svc.mcp.connected>0){
-var mcpNames=svc.mcp.servers.map(function(s){return s.name+'('+s.tools+')'}).join(', ');
-html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: '+svc.mcp.connected+' connected - '+mcpNames+'</div>';
+if(svc.mcp){
+var connectedServers=svc.mcp.servers.filter(function(s){return s.status==='connected';});
+var errorServers=svc.mcp.servers.filter(function(s){return s.status==='error';});
+if(connectedServers.length>0){
+var mcpNames=connectedServers.map(function(s){return s.name+'('+s.tools+')'}).join(', ');
+html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: '+connectedServers.length+' connected - '+mcpNames+'</div>';
+}
+if(errorServers.length>0){
+hasFailedMCP=true;
+errorServers.forEach(function(es){
+html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+': '+(es.error||'Connection error').substring(0,80)+'</div>';
+});
+}
 }
 if(svc.error){
 html+='<div style="font-size:10px;color:#f87171;margin-top:2px">'+svc.error+'</div>';
@@ -349,10 +360,39 @@ html+='</div>';
 html+='<div style="font-size:11px;color:'+statusColor+';font-weight:500">'+(isOk?'OK':'Error')+'</div>';
 html+='</div>';
 });
+// Add retry button if there are failed MCP servers
+if(hasFailedMCP){
+html+='<div style="margin-top:8px;padding:10px 12px;background:rgba(248,113,113,.1);border-radius:8px;display:flex;align-items:center;justify-content:space-between">';
+html+='<div style="font-size:12px;color:#f87171">Some MCP servers failed to connect</div>';
+html+='<button id="mcp-retry-btn" onclick="retryFailedMCP()" style="padding:6px 12px;background:#f87171;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Retry Failed</button>';
+html+='</div>';
+}
 container.innerHTML=html;
 })
 .catch(function(e){
 container.innerHTML='<div style="font-size:12px;color:#f87171;text-align:center;padding:12px">Failed to load service health</div>';
+});
+}
+
+function retryFailedMCP(){
+var btn=document.getElementById('mcp-retry-btn');
+if(btn){
+btn.disabled=true;
+btn.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-linecap="round"/></svg>Retrying...</span>';
+}
+fetch('http://127.0.0.1:19765/retry',{method:'POST'})
+.then(function(r){return r.json();})
+.then(function(data){
+console.log('MCP retry result:',data);
+// Refresh service health to show updated status
+setTimeout(fetchServiceHealth,500);
+})
+.catch(function(e){
+console.error('MCP retry error:',e);
+if(btn){
+btn.disabled=false;
+btn.textContent='Retry Failed';
+}
 });
 }
 

@@ -101,7 +101,7 @@ var currentMeeting=data.current_meeting;
 if(inMeeting&&currentMeeting){
 inCallEl.style.display='flex';
 document.getElementById('cal-current-title').textContent=currentMeeting.title;
-document.getElementById('cal-upcoming-count').textContent=events.length>0?events.length+' upcoming':'';
+document.getElementById('cal-upcoming-count').textContent=events.length>0?'+'+events.length+' more':'';
 eventsEl.classList.toggle('collapsed',!calendarExpanded);
 }else{
 inCallEl.style.display='none';

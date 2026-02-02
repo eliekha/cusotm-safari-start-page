@@ -39,6 +39,13 @@ let apiClient = null;
 let initialized = false;
 let initError = null;
 
+// Retry configuration for MCP servers
+const MCP_RETRY_CONFIG = {
+  maxRetries: 3,
+  retryDelayMs: 5000,  // 5 seconds between retries
+  retryableErrors: ['empty cache', 'not found in empty cache', 'cache not ready'],
+};
+
 /**
  * Dynamic import of devsai modules from local installation
  */
@@ -76,6 +83,73 @@ async function loadDevsaiModules() {
 }
 
 /**
+ * Check if an error is retryable (cache-related)
+ */
+function isRetryableError(error) {
+  if (!error) return false;
+  const errorLower = error.toLowerCase();
+  return MCP_RETRY_CONFIG.retryableErrors.some(re => errorLower.includes(re));
+}
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry failed MCP servers that have retryable errors
+ */
+async function retryFailedServers() {
+  if (!mcpManager) return;
+  
+  const statuses = mcpManager.getServerStatuses();
+  const failedServers = statuses.filter(s => 
+    s.status === 'error' && isRetryableError(s.error)
+  );
+  
+  if (failedServers.length === 0) return;
+  
+  console.log(`[SearchService] Retrying ${failedServers.length} failed server(s) with cache errors...`);
+  
+  for (const server of failedServers) {
+    for (let attempt = 1; attempt <= MCP_RETRY_CONFIG.maxRetries; attempt++) {
+      console.log(`[SearchService] Retry ${attempt}/${MCP_RETRY_CONFIG.maxRetries} for ${server.name}...`);
+      
+      try {
+        // Disconnect and reconnect the server
+        await mcpManager.disconnectServer(server.name);
+        await sleep(MCP_RETRY_CONFIG.retryDelayMs);
+        await mcpManager.connectServer(server.name);
+        
+        // Check if it succeeded
+        const newStatuses = mcpManager.getServerStatuses();
+        const newStatus = newStatuses.find(s => s.name === server.name);
+        
+        if (newStatus?.status === 'connected') {
+          console.log(`[SearchService] ✓ ${server.name} reconnected successfully (${newStatus.toolCount} tools)`);
+          break;
+        } else if (newStatus?.status === 'error') {
+          console.log(`[SearchService] ✗ ${server.name} retry ${attempt} failed: ${newStatus.error?.substring(0, 60)}`);
+          if (!isRetryableError(newStatus.error)) {
+            console.log(`[SearchService] Error not retryable, stopping retries for ${server.name}`);
+            break;
+          }
+        }
+      } catch (err) {
+        console.log(`[SearchService] ✗ ${server.name} retry ${attempt} error: ${err.message}`);
+      }
+      
+      // Wait before next retry (unless this was the last attempt)
+      if (attempt < MCP_RETRY_CONFIG.maxRetries) {
+        await sleep(MCP_RETRY_CONFIG.retryDelayMs);
+      }
+    }
+  }
+}
+
+/**
  * Initialize MCP connections and API client
  */
 async function initialize() {
@@ -107,16 +181,31 @@ async function initialize() {
   console.log('[SearchService] Connecting to MCP servers...');
   try {
     await mcpManager.connectAllEnabled();
-    const statuses = mcpManager.getServerStatuses();
-    const connected = statuses.filter(s => s.status === 'connected');
-    const errors = statuses.filter(s => s.status === 'error');
+    let statuses = mcpManager.getServerStatuses();
+    let connected = statuses.filter(s => s.status === 'connected');
+    let errors = statuses.filter(s => s.status === 'error');
     
-    console.log(`[SearchService] Connected: ${connected.length} servers`);
+    console.log(`[SearchService] Initial connection: ${connected.length} servers`);
     for (const s of connected) {
       console.log(`  ✓ ${s.name} (${s.toolCount} tools)`);
     }
     for (const s of errors) {
       console.log(`  ✗ ${s.name}: ${s.error?.substring(0, 60)}`);
+    }
+    
+    // Retry servers that failed with cache-related errors
+    const retryableErrors = errors.filter(s => isRetryableError(s.error));
+    if (retryableErrors.length > 0) {
+      console.log(`[SearchService] ${retryableErrors.length} server(s) have retryable errors, scheduling retry...`);
+      // Wait a bit for caches to load, then retry
+      await sleep(MCP_RETRY_CONFIG.retryDelayMs);
+      await retryFailedServers();
+      
+      // Log final status
+      statuses = mcpManager.getServerStatuses();
+      connected = statuses.filter(s => s.status === 'connected');
+      errors = statuses.filter(s => s.status === 'error');
+      console.log(`[SearchService] After retries: ${connected.length} connected, ${errors.length} errors`);
     }
   } catch (err) {
     console.error('[SearchService] MCP connection error:', err.message);
@@ -398,6 +487,24 @@ async function handleRequest(req, res) {
       sendJson(res, {
         initialized,
         error: initError,
+        servers: statuses,
+      });
+      return;
+    }
+    
+    // Retry failed MCP servers
+    if (path === '/retry' && req.method === 'POST') {
+      if (!mcpManager) {
+        sendJson(res, { error: 'MCP manager not initialized' }, 503);
+        return;
+      }
+      
+      console.log('[SearchService] Manual retry requested...');
+      await retryFailedServers();
+      
+      const statuses = mcpManager.getServerStatuses();
+      sendJson(res, {
+        message: 'Retry completed',
         servers: statuses,
       });
       return;
