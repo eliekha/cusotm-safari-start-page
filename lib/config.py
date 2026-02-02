@@ -47,6 +47,30 @@ def load_user_config():
 
 USER_CONFIG = load_user_config()
 
+# =============================================================================
+# Hub Model Configuration
+# =============================================================================
+
+_hub_model = USER_CONFIG.get('hubModel', 'anthropic-claude-4-5-haiku')
+
+def get_hub_model():
+    """Get the currently configured AI model for hub operations."""
+    return _hub_model
+
+def set_hub_model(model):
+    """Set the AI model for hub operations and persist to config."""
+    global _hub_model, USER_CONFIG
+    import json
+    
+    _hub_model = model
+    USER_CONFIG['hubModel'] = model
+    
+    try:
+        with open(USER_CONFIG_FILE, 'w') as f:
+            json.dump(USER_CONFIG, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save hub model config: {e}")
+
 # Google Drive path from config or auto-detect
 GOOGLE_DRIVE_BASE = USER_CONFIG.get('google_drive_path', '')
 if not GOOGLE_DRIVE_BASE:
@@ -199,20 +223,17 @@ Return results as a JSON array with objects containing:
 
 Focus on files that match meeting topics, attendee names, or project keywords.""",
 
-    'summary': """Generate a meeting prep brief based on the following context. Meeting:
-Title: {title}
+    'summary': """Generate a brief meeting prep for: {title}
 Attendees: {attendees}
-Description: {description}
+{description}
 
-Available context from various sources:
-{context}
+Search Slack, Jira, Confluence, and Gmail for relevant context, then create a prep brief.
 
-Create a concise meeting prep summary with:
-1. **Key Context** - What this meeting is about based on the gathered information
-2. **Recent Activity** - Summary of recent discussions, tickets, or documents
-3. **Talking Points** - 2-3 suggested topics based on the context
-
-If a source returns nothing relevant, skip it. Focus on providing actionable insights.
-
-Return ONLY the formatted summary text, nothing else."""
+RULES:
+- Be specific: include ticket numbers, document names, dates. Prioritize slack/gmail exchanges.
+- Provide context on the meeting first.
+- Be opinionated: provide your opinion on what should be covered in the call based on the data retrieved, particularly the slack/gmail exchanges.
+- Skip sections with no relevant info
+- No filler or generic statements
+- Total length: under 200 words"""
 }

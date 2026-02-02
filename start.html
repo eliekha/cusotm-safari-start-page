@@ -81,7 +81,7 @@
 <button class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">General</button>
 <button class="settings-tab" data-tab="appearance" onclick="switchSettingsTab('appearance')">Appearance</button>
 <button class="settings-tab" data-tab="hub" onclick="switchSettingsTab('hub')">Hub</button>
-<button class="settings-tab" data-tab="status" onclick="switchSettingsTab('status');fetchPrefetchStatus()">Status</button>
+<button class="settings-tab" data-tab="status" onclick="switchSettingsTab('status');fetchServiceHealth();fetchPrefetchStatus()">Status</button>
 <button class="settings-tab" data-tab="prompts" onclick="switchSettingsTab('prompts');loadPrompts()">Prompts</button>
 </div>
 
@@ -206,11 +206,43 @@
 </div>
 </div>
 <div class="hub-setup-hint" id="hub-setup-hint" style="display:none"></div>
+<div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin:20px 0 8px 0">AI Model</div>
+<div style="display:flex;align-items:center;gap:12px">
+<select id="hub-model" onchange="updateHubModel()" style="flex:1;padding:10px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;cursor:pointer">
+<optgroup label="Fast (Recommended)">
+<option value="anthropic-claude-4-5-haiku" selected>Claude 4.5 Haiku (Default)</option>
+<option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+<option value="gemini-2.5-flash-preview">Gemini 2.5 Flash</option>
+<option value="grok-4-1-fast-non-reasoning">Grok 4.1 Fast</option>
+</optgroup>
+<optgroup label="Balanced">
+<option value="anthropic-claude-4-5-sonnet">Claude 4.5 Sonnet</option>
+<option value="anthropic-claude-4-sonnet">Claude 4 Sonnet</option>
+<option value="anthropic-claude-3-7-sonnet">Claude 3.7 Sonnet</option>
+<option value="gemini-2.5-preview">Gemini 2.5 Pro</option>
+</optgroup>
+<optgroup label="Best Quality">
+<option value="claude-opus-4-5">Claude Opus 4.5</option>
+<option value="gemini-3-pro">Gemini 3 Pro</option>
+<option value="grok-4">Grok 4</option>
+</optgroup>
+</select>
+</div>
+<div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:8px">Used for AI Brief and data source searches</div>
 </div>
 </div>
 </div>
 
 <div id="settings-status" class="settings-panel">
+<div class="modal-section">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<span style="font-size:14px;color:rgba(255,255,255,.9)">Service Health</span>
+<button onclick="fetchServiceHealth()" style="padding:6px 12px;background:rgba(255,255,255,.1);border:none;border-radius:6px;color:rgba(255,255,255,.8);cursor:pointer;font-size:12px">Refresh</button>
+</div>
+<div id="service-health-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:12px">Loading...</div>
+</div>
+</div>
 <div class="modal-section">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
 <span style="font-size:14px;color:rgba(255,255,255,.9)">Prefetch Activity</span>

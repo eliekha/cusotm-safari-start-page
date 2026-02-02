@@ -20,6 +20,28 @@ echo "📄 Copying files..."
 cp "$SCRIPT_DIR/start.html" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/search-server.py" "$INSTALL_DIR/"
 
+# Copy lib modules
+if [ -d "$SCRIPT_DIR/lib" ]; then
+    cp -r "$SCRIPT_DIR/lib" "$INSTALL_DIR/"
+    echo "   ✓ Copied lib/ modules"
+fi
+
+# Copy frontend assets
+if [ -d "$SCRIPT_DIR/css" ]; then
+    cp -r "$SCRIPT_DIR/css" "$INSTALL_DIR/"
+    echo "   ✓ Copied css/ folder"
+fi
+if [ -d "$SCRIPT_DIR/js" ]; then
+    cp -r "$SCRIPT_DIR/js" "$INSTALL_DIR/"
+    echo "   ✓ Copied js/ folder"
+fi
+
+# Copy Node.js search service
+if [ -f "$SCRIPT_DIR/search-service.mjs" ]; then
+    cp "$SCRIPT_DIR/search-service.mjs" "$INSTALL_DIR/"
+    echo "   ✓ Copied search-service.mjs"
+fi
+
 # Copy example configs if they exist
 [ -f "$SCRIPT_DIR/devsai.example.json" ] && cp "$SCRIPT_DIR/devsai.example.json" "$INSTALL_DIR/"
 [ -f "$SCRIPT_DIR/config.example.json" ] && cp "$SCRIPT_DIR/config.example.json" "$INSTALL_DIR/"
@@ -173,6 +195,7 @@ echo ""
 echo "🔄 Starting services..."
 launchctl bootout gui/$(id -u)/com.briefdesk.static 2>/dev/null || true
 launchctl bootout gui/$(id -u)/com.briefdesk.server 2>/dev/null || true
+launchctl bootout gui/$(id -u)/com.briefdesk.search-service 2>/dev/null || true
 # Also remove old startpage services if they exist
 launchctl bootout gui/$(id -u)/com.elias.startpage 2>/dev/null || true
 launchctl bootout gui/$(id -u)/com.startpage.search 2>/dev/null || true
@@ -224,6 +247,57 @@ exec "$HOME/.local/share/devsai/node" "$HOME/.local/share/devsai/dist/index.js" 
 EOF
     chmod +x "$DEVSAI_DIR/devsai.sh"
     echo "   ✓ Created devsai wrapper at $DEVSAI_DIR/devsai.sh"
+    
+    # ============================================
+    # Setup Node.js Search Service
+    # ============================================
+    echo ""
+    echo "🔎 Setting up AI Search Service..."
+    
+    if [ -f "$INSTALL_DIR/search-service.mjs" ]; then
+        # Create search service LaunchAgent
+        cat > "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.briefdesk.search-service</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$DEVSAI_DIR/node</string>
+        <string>$INSTALL_DIR/search-service.mjs</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$INSTALL_DIR</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>SEARCH_SERVICE_PORT</key>
+        <string>19765</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/briefdesk-search-service.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/briefdesk-search-service.log</string>
+</dict>
+</plist>
+EOF
+        echo "   ✓ Created search service LaunchAgent"
+        
+        # Start the search service
+        launchctl bootstrap gui/$(id -u) "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" 2>/dev/null || true
+        echo "   ✓ Started AI Search Service on port 19765"
+    else
+        echo "   ℹ️  search-service.mjs not found, skipping"
+    fi
 else
     echo "   ⚠️  Node.js not found. Hub features require Node.js."
     echo "      Install with: brew install node"

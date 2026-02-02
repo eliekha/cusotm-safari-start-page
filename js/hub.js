@@ -321,6 +321,41 @@ fetchPrefetchStatus(); // Refresh status display
 .catch(function(e){console.error('Toggle error:',e);});
 }
 
+function fetchServiceHealth(){
+var container=document.getElementById('service-health-container');
+if(!container)return;
+container.innerHTML='<div style="text-align:center;padding:12px;color:rgba(255,255,255,.4)"><svg width="16" height="16" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-linecap="round"/></svg></div>';
+fetch(S+'/hub/service-health')
+.then(function(r){return r.json();})
+.then(function(data){
+var html='';
+data.services.forEach(function(svc){
+var isOk=svc.status==='ok';
+var statusColor=isOk?'#4ade80':'#f87171';
+var statusIcon=isOk?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
+html+='<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid '+statusColor+'">';
+html+='<div style="color:'+statusColor+'">'+statusIcon+'</div>';
+html+='<div style="flex:1">';
+html+='<div style="font-size:13px;color:rgba(255,255,255,.9)">'+svc.name+' <span style="color:rgba(255,255,255,.3);font-size:11px">:'+svc.port+'</span></div>';
+html+='<div style="font-size:11px;color:rgba(255,255,255,.4)">'+svc.description+'</div>';
+if(svc.mcp&&svc.mcp.connected>0){
+var mcpNames=svc.mcp.servers.map(function(s){return s.name+'('+s.tools+')'}).join(', ');
+html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: '+svc.mcp.connected+' connected - '+mcpNames+'</div>';
+}
+if(svc.error){
+html+='<div style="font-size:10px;color:#f87171;margin-top:2px">'+svc.error+'</div>';
+}
+html+='</div>';
+html+='<div style="font-size:11px;color:'+statusColor+';font-weight:500">'+(isOk?'OK':'Error')+'</div>';
+html+='</div>';
+});
+container.innerHTML=html;
+})
+.catch(function(e){
+container.innerHTML='<div style="font-size:12px;color:#f87171;text-align:center;padding:12px">Failed to load service health</div>';
+});
+}
+
 function fetchPrefetchStatus(){
 var refreshBtn=document.getElementById('status-refresh-btn');
 var currentEl=document.getElementById('prefetch-status-current');
@@ -408,7 +443,7 @@ html+='<div style="display:flex;gap:8px;align-items:center">';
 if(isCustom)html+='<span style="font-size:10px;color:#4ade80;background:rgba(74,222,128,.15);padding:2px 6px;border-radius:4px">Custom</span>';
 html+='<button onclick="resetPrompt(\''+source+'\')" style="font-size:10px;padding:4px 8px;background:rgba(255,255,255,.1);border:none;border-radius:4px;color:rgba(255,255,255,.6);cursor:pointer">Reset</button>';
 html+='</div></div>';
-html+='<textarea id="prompt-'+source+'" style="width:100%;min-height:120px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:10px;color:rgba(255,255,255,.8);font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box" onchange="markPromptChanged(\''+source+'\')">'+escapeHtml(p.current)+'</textarea>';
+html+='<textarea id="prompt-'+source+'" style="width:100%;min-height:120px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:10px;color:rgba(255,255,255,.8);font-size:11px;font-family:monospace;resize:vertical;box-sizing:border-box" oninput="markPromptChanged(\''+source+'\')">'+escapeHtml(p.current)+'</textarea>';
 html+='<button id="save-prompt-'+source+'" onclick="savePrompt(\''+source+'\')" style="display:none;margin-top:8px;padding:6px 12px;background:#6366f1;border:none;border-radius:6px;color:#fff;font-size:11px;cursor:pointer">Save Changes</button>';
 html+='</div>';
 });
@@ -566,8 +601,9 @@ var sources=settings.hubSources||{};
 if(sources.aiBrief!==false){
 var summaryCollapsed=localStorage.getItem('hub-summary-collapsed')==='true';
 var hasContent=prepState.summary||prepState.loading.summary;
+var summaryRefreshIcon='<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
 html+='<div class="hub-prep-section hub-prep-summary'+(summaryCollapsed?' collapsed':'')+'">';
-html+='<div class="hub-prep-section-title'+(hasContent&&!summaryCollapsed?' has-content':'')+'" onclick="toggleSummary()">AI Brief</div>';
+html+='<div class="hub-prep-section-title'+(hasContent&&!summaryCollapsed?' has-content':'')+'" onclick="toggleSummary()">AI Brief<button class="hub-section-refresh'+(prepState.loading.summary?' loading':'')+'" onclick="event.stopPropagation();retrySource(\'summary\')" title="Refresh">'+summaryRefreshIcon+'</button></div>';
 html+='<div class="hub-summary-body">';
 if(prepState.loading.summary){
 html+='<div class="skeleton-summary"><div class="skeleton skeleton-summary-line"></div><div class="skeleton skeleton-summary-line"></div><div class="skeleton skeleton-summary-line"></div></div>';

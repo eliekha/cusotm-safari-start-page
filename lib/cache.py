@@ -92,6 +92,9 @@ def get_all_prompts():
         }
     return result
 
+# Load custom prompts at module initialization
+load_custom_prompts()
+
 # =============================================================================
 # Meeting Prep Cache
 # =============================================================================

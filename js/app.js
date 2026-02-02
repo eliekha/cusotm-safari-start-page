@@ -48,7 +48,7 @@ function getSettings(){
 var s=localStorage.getItem('startpage');
 var defaultHubSources={jira:true,confluence:true,slack:true,gmail:true,drive:true,aiBrief:true};
 if(s){try{var p=JSON.parse(s);if(!p.theme)p.theme='dark';if(p.hubEnabled===undefined)p.hubEnabled=true;if(!p.hubSources)p.hubSources=defaultHubSources;return p;}catch(e){}}
-return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:'',calEnabled:false,calUrl:'',calMinutes:60,hubEnabled:true,hubSources:defaultHubSources};
+return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:'',calEnabled:false,calUrl:'',calMinutes:60,hubEnabled:true,hubSources:defaultHubSources,hubModel:'anthropic-claude-4-5-haiku'};
 }
 function saveToStorage(settings){localStorage.setItem('startpage',JSON.stringify(settings));}
 
@@ -188,8 +188,16 @@ document.getElementById('hub-confluence').checked=sources.confluence!==false;
 document.getElementById('hub-slack').checked=sources.slack!==false;
 document.getElementById('hub-gmail').checked=sources.gmail!==false;
 document.getElementById('hub-drive').checked=sources.drive!==false;
+document.getElementById('hub-model').value=settings.hubModel||'gpt-4o';
 toggleHubSettings();
 fetchHubAuthStatus();
+}
+function updateHubModel(){
+var model=document.getElementById('hub-model').value;
+settings.hubModel=model;
+saveToStorage(settings);
+// Notify backend of model change
+fetch(S+'/hub/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model})}).catch(function(){});
 }
 function fetchHubAuthStatus(){
 fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})

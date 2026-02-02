@@ -31,6 +31,7 @@ A beautiful, fast productivity hub with meeting prep, real-time history search, 
 - **Persistent Cache** - Prefetched data survives server restarts (stored in JSON)
 - **Status Dashboard** - Monitor prefetch activity in Settings → Status tab
 - **Collapsible Sections** - Each source can be collapsed; state persists across sessions
+- **Model Selection** - Choose your preferred AI model (Settings → Hub → AI Model)
 
 ## Requirements
 
@@ -168,10 +169,12 @@ The start page integrates with external services via **Model Context Protocol (M
 
 ### How It Works
 
-1. **devsai CLI** acts as the brain - it receives prompts and calls MCP tools
-2. **MCP servers** provide access to each service (Slack, Atlassian, Gmail)
-3. **Background prefetching** pre-loads data for meetings in the next 2 hours
-4. **AI Brief** uses the CLI to read and summarize content from all sources
+1. **Search Service** (Node.js) keeps MCP connections warm for fast AI queries
+2. **devsai library** is loaded once and reused - no cold start penalty
+3. **MCP servers** provide access to each service (Slack, Atlassian, Gmail)
+4. **Background prefetching** pre-loads data for meetings across the next 7 days
+5. **AI Brief** uses the search service to read and summarize content from all sources
+6. **Fallback** to CLI subprocess if search service is unavailable
 
 ### Configured MCP Servers
 
@@ -408,6 +411,55 @@ Create `~/.local/share/briefdesk/.devsai.json` with all your services:
 
 ---
 
+### Search Service (Fast AI Queries)
+
+The search service is a Node.js process that keeps MCP connections alive, eliminating cold start delays:
+
+**Architecture:**
+- Runs on port **18766** as a LaunchAgent (`com.briefdesk.search-service`)
+- Loads devsai library once at startup
+- MCP servers stay connected between requests
+- Python server calls search service via HTTP
+- Falls back to CLI subprocess if service unavailable
+
+**Performance comparison:**
+| Method | First Query | Subsequent Queries |
+|--------|-------------|-------------------|
+| CLI subprocess | ~15-25s | ~10-15s (MCP restart each time) |
+| Search service | ~8-12s | ~3-8s (MCP stays connected) |
+
+**Managing the service:**
+```bash
+# Check if running
+lsof -i:18766
+
+# View logs
+tail -f /tmp/briefdesk-search-service.log
+
+# Restart
+launchctl stop com.briefdesk.search-service && launchctl start com.briefdesk.search-service
+```
+
+---
+
+### AI Model Selection
+
+Choose your preferred AI model in **Settings → Hub → AI Model**. The selected model is used for:
+- AI Brief generation (meeting summaries)
+- Data source searches (Jira, Confluence, Slack, Gmail, Drive)
+
+**Available models:**
+
+| Category | Models |
+|----------|--------|
+| **Fast (Recommended)** | Claude 4.5 Haiku (default), Gemini 2.0 Flash, Gemini 2.5 Flash, Grok 4.1 Fast |
+| **Balanced** | Claude 4.5 Sonnet, Claude 4 Sonnet, Claude 3.7 Sonnet, Gemini 2.5 Pro |
+| **Best Quality** | Claude Opus 4.5, Gemini 3 Pro, Grok 4 |
+
+Model selection is persisted in `~/.local/share/briefdesk/config.json` and used by both the search service and CLI fallback.
+
+---
+
 ### Hub Features Status
 
 | Feature | Status | Method |
@@ -475,10 +527,11 @@ Settings are stored in localStorage and persist across sessions.
 
 ## How It Works
 
-Two lightweight servers run in the background:
+Three lightweight servers run in the background:
 
 1. **Static server** (port 8765) - Serves HTML/CSS
 2. **Search server** (port 18765) - Queries browser history, calendar, and productivity hub
+3. **Search service** (port 18766) - Node.js service that keeps MCP connections warm for fast AI queries
 
 ### History Search
 - Searches multiple browsers: Safari, Chrome, Helium, and Dia
@@ -574,13 +627,15 @@ curl http://127.0.0.1:8765/start.html
 ### Restart servers
 ```bash
 launchctl kickstart -k gui/$(id -u)/com.briefdesk.static
-launchctl kickstart -k gui/$(id -u)/com.briefdesk.search
+launchctl kickstart -k gui/$(id -u)/com.briefdesk.server
+launchctl kickstart -k gui/$(id -u)/com.briefdesk.search-service
 ```
 
 ### Uninstall
 ```bash
 launchctl bootout gui/$(id -u)/com.briefdesk.static
-launchctl bootout gui/$(id -u)/com.briefdesk.search
+launchctl bootout gui/$(id -u)/com.briefdesk.server
+launchctl bootout gui/$(id -u)/com.briefdesk.search-service
 rm ~/Library/LaunchAgents/com.briefdesk.*.plist
 rm -rf ~/.local/share/briefdesk
 ```
@@ -688,21 +743,23 @@ This ensures tests have "teeth" - they will catch real regressions.
 briefdesk/
 ├── start.html           # Main start page (customizable)
 ├── search-server.py     # Main API server (imports from lib/)
+├── search-service.mjs   # Node.js search service (keeps MCP warm)
 ├── lib/                 # Modular server components
 │   ├── __init__.py
-│   ├── config.py        # Constants, paths, logging, prompts
+│   ├── config.py        # Constants, paths, logging, prompts, model config
 │   ├── utils.py         # Utility functions
 │   ├── cache.py         # Cache management
 │   ├── slack.py         # Slack integration
 │   ├── atlassian.py     # Jira/Confluence integration
 │   ├── google_services.py # Calendar/Drive integration
-│   ├── cli.py           # devsai CLI integration
+│   ├── cli.py           # devsai CLI/search service integration
 │   ├── prefetch.py      # Background prefetching
 │   └── history.py       # Browser history/bookmarks
 ├── css/
 │   └── styles.css       # Frontend styles
 ├── js/
-│   └── hub.js           # Frontend JavaScript
+│   ├── app.js           # Main frontend JavaScript
+│   └── hub.js           # Hub/meeting prep JavaScript
 ├── install.sh           # Installation script
 ├── tests/               # Unit tests (479 tests, 100% coverage)
 │   ├── test_server.py
@@ -712,8 +769,9 @@ briefdesk/
 │   ├── test_cli_calendar.py
 │   └── test_prefetch_utils.py
 ├── launchagents/
-│   ├── com.briefdesk.static.plist
-│   └── com.briefdesk.search.plist
+│   ├── com.briefdesk.static.plist      # Static file server
+│   ├── com.briefdesk.server.plist      # Main API server
+│   └── com.briefdesk.search-service.plist  # Node.js search service
 └── README.md
 
 # Runtime files (in ~/.local/share/briefdesk/)
@@ -721,6 +779,7 @@ briefdesk/
 ├── css/                 # Deployed styles
 ├── js/                  # Deployed JavaScript
 ├── prep_cache.json      # Persistent prefetch cache (~100-200KB)
+├── config.json          # User settings (model selection, etc.)
 ├── google_credentials.json  # Google OAuth credentials
 └── token.pickle         # Google auth token
 ```

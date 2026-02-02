@@ -10,6 +10,7 @@ This package contains the modular components of the BriefDesk server:
 - cli: devsai CLI integration for AI-powered searches
 - prefetch: Background prefetching system
 - history: Browser history and bookmarks search
+- ai_search: Fast AI-powered search via Node.js service (keeps MCP connections warm)
 """
 
 # Config exports
@@ -102,4 +103,10 @@ from .history import (
     search_dia_bookmarks, search_safari_bookmarks,
     search_chrome_history, search_helium_history,
     search_dia_history, search_safari_history,
+)
+
+# AI Search exports (fast AI-powered search via Node.js service)
+from .ai_search import (
+    is_search_service_available, get_service_status,
+    ai_search, ai_query, parse_search_results,
 )

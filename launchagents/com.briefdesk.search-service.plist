@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.briefdesk.search-service</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>HOME_DIR/.local/share/devsai/node</string>
+        <string>HOME_DIR/.local/share/briefdesk/search-service.mjs</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>HOME_DIR/.local/share/briefdesk</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>HOME_DIR</string>
+        <key>SEARCH_SERVICE_PORT</key>
+        <string>19765</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/briefdesk-search-service.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/briefdesk-search-service.log</string>
+</dict>
+</plist>

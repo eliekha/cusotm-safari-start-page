@@ -129,6 +129,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_hub_status()
         elif path == "/hub/prefetch-status":
             self.handle_prefetch_status()
+        elif path == "/hub/service-health":
+            self.handle_service_health()
         elif path == "/hub/prefetch/control":
             self.handle_prefetch_control(params)
         elif path == "/hub/prompts":
@@ -167,8 +169,21 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_slack_send(data)
         elif path == "/hub/prompts":
             self.handle_set_prompt(data)
+        elif path == "/hub/settings":
+            self.handle_hub_settings(data)
         else:
             self.send_json({"error": "Not found"})
+    
+    def handle_hub_settings(self, data):
+        """Handle hub settings update (model selection, etc)."""
+        from lib.config import set_hub_model, get_hub_model
+        
+        model = data.get('model')
+        if model:
+            set_hub_model(model)
+            logger.info(f"[Settings] Model updated to: {model}")
+        
+        self.send_json({"success": True, "model": get_hub_model()})
     
     # =========================================================================
     # Search Handlers
@@ -579,6 +594,89 @@ class SearchHandler(BaseHTTPRequestHandler):
             "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
             "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
             "gmail": {"configured": auth_status.get("gmail", False), "authenticated": auth_status.get("gmail", False)},
+        })
+    
+    def handle_service_health(self):
+        """Check health of all BriefDesk services."""
+        import socket
+        import urllib.request
+        
+        services = []
+        
+        # Static server (port 8765)
+        static_ok = False
+        static_error = None
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex(('127.0.0.1', 8765))
+            static_ok = result == 0
+            sock.close()
+        except Exception as e:
+            static_error = str(e)
+        services.append({
+            'name': 'Static Server',
+            'port': 8765,
+            'status': 'ok' if static_ok else 'error',
+            'error': static_error,
+            'description': 'Serves HTML/CSS/JS'
+        })
+        
+        # API server (port 18765) - this is us, always OK
+        services.append({
+            'name': 'API Server',
+            'port': 18765,
+            'status': 'ok',
+            'error': None,
+            'description': 'Calendar, search, meeting prep'
+        })
+        
+        # Search service (port 19765)
+        search_ok = False
+        search_error = None
+        search_details = {}
+        try:
+            req = urllib.request.Request('http://127.0.0.1:19765/health', method='GET')
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = json.loads(resp.read().decode())
+                search_ok = data.get('status') == 'ok'
+                search_details = data
+                if not search_ok:
+                    search_error = data.get('error', 'Unknown error')
+        except urllib.error.URLError as e:
+            search_error = 'Not running'
+        except Exception as e:
+            search_error = str(e)
+        
+        # Get MCP server count if available
+        mcp_servers = None
+        if search_ok:
+            try:
+                req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    status_data = json.loads(resp.read().decode())
+                    servers = status_data.get('servers', [])
+                    connected = [s for s in servers if s.get('status') == 'connected']
+                    mcp_servers = {
+                        'connected': len(connected),
+                        'total': len(servers),
+                        'servers': [{'name': s.get('name'), 'tools': s.get('toolCount', 0)} for s in connected]
+                    }
+            except:
+                pass
+        
+        services.append({
+            'name': 'Search Service',
+            'port': 19765,
+            'status': 'ok' if search_ok else 'error',
+            'error': search_error,
+            'description': 'AI queries, MCP connections',
+            'mcp': mcp_servers
+        })
+        
+        self.send_json({
+            'services': services,
+            'timestamp': datetime.now().isoformat()
         })
     
     def handle_prefetch_status(self):
