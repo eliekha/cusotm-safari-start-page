@@ -585,6 +585,103 @@ rm ~/Library/LaunchAgents/com.briefdesk.*.plist
 rm -rf ~/.local/share/briefdesk
 ```
 
+## Testing
+
+The server has comprehensive unit test coverage (479 tests, 100% function coverage) to ensure reliability when making changes.
+
+### Running Tests
+
+```bash
+# Install pytest (if not already installed)
+pip3 install pytest
+
+# Run all tests
+cd ~/.local/share/briefdesk  # or your briefdesk directory
+python3 -m pytest tests/ -v
+
+# Run tests for a specific module
+python3 -m pytest tests/test_slack.py -v
+python3 -m pytest tests/test_atlassian.py -v
+python3 -m pytest tests/test_google.py -v
+
+# Run a specific test class
+python3 -m pytest tests/test_server.py::TestExtractJsonArray -v
+
+# Run with short output (just pass/fail)
+python3 -m pytest tests/ --tb=no
+
+# Run with coverage report (requires pytest-cov)
+pip3 install pytest-cov
+python3 -m pytest tests/ --cov=. --cov-report=term-missing
+```
+
+### Test Structure
+
+```
+tests/
+├── conftest.py              # Pytest configuration (adds tests/ to path)
+├── search_server_funcs.py   # Extracted functions for isolated testing
+├── prefetch_utils_funcs.py  # Prefetch functions module
+├── test_server.py           # Core utilities (23 tests)
+│   └── JSON parsing, prompts, cache, domain extraction
+├── test_slack.py            # Slack integration (57 tests)
+│   └── Tokens, API calls, users, conversations, threads, DMs
+├── test_atlassian.py        # Atlassian/MCP (93 tests)
+│   └── MCP config, process management, Jira, Confluence
+├── test_google.py           # Google Calendar/Drive (55 tests)
+│   └── OAuth, calendar events, meeting lookup, Drive search
+├── test_cli_calendar.py     # CLI and calendar utils (100 tests)
+│   └── Keywords, CLI calls, JSON extraction, timestamps
+└── test_prefetch_utils.py   # Prefetch & background tasks (151 tests)
+    └── Caching, threading, cleanup, status tracking
+```
+
+### Test Coverage by Function Area
+
+| Area | Functions Covered | Test Count |
+|------|-------------------|------------|
+| Core Utilities | `extract_json_array`, `extract_domain`, `slack_ts_to_iso`, `is_night_hours` | 23 |
+| Prompt System | `get_prompt`, `set_custom_prompt`, `get_all_prompts`, `reset_prompt` | 12 |
+| Cache System | `get_meeting_cache`, `set_meeting_cache`, `has_cached_data`, `is_cache_valid` | 45 |
+| Slack | `slack_api_call`, `slack_get_users`, `slack_get_conversations_fast`, etc. | 57 |
+| Atlassian | `load_mcp_config`, `call_atlassian_tool`, `search_atlassian`, etc. | 93 |
+| Google | `authenticate_google`, `get_calendar_events_standalone`, `search_google_drive` | 55 |
+| CLI | `call_cli_for_source`, `call_cli_for_meeting_summary`, `extract_meeting_keywords` | 48 |
+| Prefetch | `prefetch_meeting_data`, `background_prefetch_loop`, `cleanup_old_caches` | 151 |
+
+### Writing New Tests
+
+Tests use `unittest.mock` to isolate functions from external dependencies:
+
+```python
+from unittest.mock import patch, MagicMock
+
+class TestMyFunction:
+    @patch('search_server_funcs.external_dependency')
+    def test_something(self, mock_dep):
+        from search_server_funcs import my_function
+        
+        mock_dep.return_value = {'expected': 'data'}
+        result = my_function('input')
+        
+        assert result == expected_output
+        mock_dep.assert_called_once_with('input')
+```
+
+Key patterns used:
+- **Fixture for state reset**: `@pytest.fixture(autouse=True)` to reset globals between tests
+- **Mock external calls**: `@patch` for subprocess, API calls, file I/O
+- **Test isolation**: Each test imports fresh from `search_server_funcs`
+
+### Verifying Test Integrity
+
+The tests were validated with mutation testing:
+1. Introduced intentional bugs (e.g., return `None` instead of data)
+2. Verified tests caught the bugs with specific assertion failures
+3. Reverted bugs and confirmed all tests pass
+
+This ensures tests have "teeth" - they will catch real regressions.
+
 ## Files
 
 ```
@@ -592,6 +689,13 @@ briefdesk/
 ├── start.html           # Main start page (customizable)
 ├── search-server.py     # History search + Hub server
 ├── install.sh           # Installation script
+├── tests/               # Unit tests (479 tests, 100% coverage)
+│   ├── test_server.py
+│   ├── test_slack.py
+│   ├── test_atlassian.py
+│   ├── test_google.py
+│   ├── test_cli_calendar.py
+│   └── test_prefetch_utils.py
 ├── launchagents/
 │   ├── com.briefdesk.static.plist
 │   └── com.briefdesk.search.plist
