@@ -102,6 +102,16 @@ if(inMeeting&&currentMeeting){
 inCallEl.style.display='flex';
 document.getElementById('cal-current-title').textContent=currentMeeting.title;
 document.getElementById('cal-upcoming-count').textContent=events.length>0?'+'+events.length+' more':'';
+// Add join button to in-call bar if meeting has a link
+var inCallJoin=document.getElementById('cal-in-call-join');
+if(inCallJoin){
+if(currentMeeting.meet_link){
+inCallJoin.href=currentMeeting.meet_link;
+inCallJoin.style.display='flex';
+}else{
+inCallJoin.style.display='none';
+}
+}
 eventsEl.classList.toggle('collapsed',!calendarExpanded);
 }else{
 inCallEl.style.display='none';

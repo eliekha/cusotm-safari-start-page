@@ -175,14 +175,15 @@ input[type="file"]{display:none}
 /* Calendar */
 .cal-container{display:none;max-width:500px;margin:24px auto 0}
 .cal-container.show{display:block}
-.cal-in-call{padding:12px 16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-color);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .2s}
+.cal-in-call{padding:12px 16px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-color);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;gap:12px;transition:all .2s}
 .cal-in-call:hover{border-color:var(--border-hover);background:var(--bg-card-hover)}
-.cal-in-call-info{display:flex;align-items:center;gap:10px}
+.cal-in-call-info{display:flex;align-items:center;gap:10px;flex:1;cursor:pointer}
 .cal-in-call-dot{width:8px;height:8px;border-radius:50%;background:#34a853;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .cal-in-call-text{font-size:13px;color:var(--text-secondary)}
 .cal-in-call-text strong{color:var(--text-primary);font-weight:500}
-.cal-in-call-toggle{display:flex;align-items:center;gap:8px}
+.cal-in-call-toggle{display:flex;align-items:center;gap:8px;cursor:pointer}
+.cal-in-call-join{margin-left:auto;margin-right:12px;flex-shrink:0}
 .cal-upcoming-badge{font-size:11px;color:var(--text-muted);padding:4px 10px;background:rgba(255,255,255,.06);border-radius:12px;white-space:nowrap}
 .cal-upcoming-badge:empty{display:none}
 .cal-in-call-toggle svg.cal-chevron{width:16px;height:16px;fill:var(--text-muted);transition:transform .2s}

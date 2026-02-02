@@ -19,12 +19,13 @@
 </div>
 <div class="ql" id="ql"></div>
 <div class="cal-container" id="cal-container">
-<div class="cal-in-call" id="cal-in-call" style="display:none" onclick="toggleCalendarExpand()">
-<div class="cal-in-call-info">
+<div class="cal-in-call" id="cal-in-call" style="display:none">
+<div class="cal-in-call-info" onclick="toggleCalendarExpand()">
 <div class="cal-in-call-dot"></div>
 <div class="cal-in-call-text">In call: <strong id="cal-current-title"></strong></div>
 </div>
-<div class="cal-in-call-toggle"><span class="cal-upcoming-badge" id="cal-upcoming-count"></span><svg class="cal-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
+<a href="#" id="cal-in-call-join" class="cal-join cal-in-call-join" target="_blank" style="display:none" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Join</a>
+<div class="cal-in-call-toggle" onclick="toggleCalendarExpand()"><span class="cal-upcoming-badge" id="cal-upcoming-count"></span><svg class="cal-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></div>
 </div>
 <div class="cal-events" id="cal-events"></div>
 </div>
