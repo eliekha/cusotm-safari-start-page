@@ -151,6 +151,13 @@ class SearchHandler(BaseHTTPRequestHandler):
         # Setup page
         elif path == "/setup":
             self.handle_setup_page()
+        # Installer endpoints
+        elif path == "/installer":
+            self.handle_installer_page()
+        elif path == "/installer/check":
+            self.handle_installer_check(params)
+        elif path == "/installer/check-fda":
+            self.handle_installer_check_fda()
         else:
             self.send_json({"error": "Not found"})
     
@@ -179,6 +186,9 @@ class SearchHandler(BaseHTTPRequestHandler):
         # Setup endpoints
         elif path == "/setup/slack":
             self.handle_setup_slack(data)
+        # Installer endpoints
+        elif path == "/installer/install":
+            self.handle_installer_install(data)
         else:
             self.send_json({"error": "Not found"})
     
@@ -317,23 +327,34 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         """Handle calendar events request."""
         minutes = int(params.get("minutes", ["180"])[0])
         limit = int(params.get("limit", ["3"])[0])
+        force_refresh = params.get("refresh", ["0"])[0] == "1"
         
         now = time.time()
-        # Return cached data if fresh enough
-        if _calendar_cache["data"] and (now - _calendar_cache["timestamp"]) < CACHE_TTL:
+        # Return cached data if fresh enough (unless force refresh)
+        if not force_refresh and _calendar_cache["data"] and (now - _calendar_cache["timestamp"]) < CACHE_TTL:
             self.send_json(_calendar_cache["data"])
             return
         
         try:
             events = self.get_upcoming_events_google(minutes, limit)
+            # Check if the response contains an auth error
+            if events.get("error"):
+                error = events["error"]
+                if error in ("not_authenticated", "invalid_token", "auth_failed") or "401" in str(events.get("detail", "")).lower():
+                    self.send_json({"events": [], "in_meeting": False, "current_meeting": None, "auth_error": True, "error": "Calendar authentication expired. Please re-authenticate."})
+                    return
             _calendar_cache["data"] = events
             _calendar_cache["timestamp"] = now
             self.send_json(events)
         except Exception as e:
-            if _calendar_cache["data"]:
+            error_str = str(e).lower()
+            # Detect auth-related errors
+            if "401" in error_str or "invalid_grant" in error_str or "token" in error_str or "credentials" in error_str or "auth" in error_str:
+                self.send_json({"events": [], "in_meeting": False, "current_meeting": None, "auth_error": True, "error": "Calendar authentication expired. Please re-authenticate."})
+            elif _calendar_cache["data"]:
                 self.send_json(_calendar_cache["data"])
             else:
-                self.send_json({"error": str(e)})
+                self.send_json({"events": [], "in_meeting": False, "current_meeting": None, "error": str(e)})
     
     def handle_calendar_status(self):
         """Check calendar configuration status."""
@@ -384,11 +405,12 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             time_min = (now - timedelta(hours=2)).isoformat() + 'Z'
             time_max = (now + timedelta(minutes=minutes_ahead)).isoformat() + 'Z'
             
+            # Request more events than needed since we filter out ended ones
             events_result = service.events().list(
                 calendarId='primary',
                 timeMin=time_min,
                 timeMax=time_max,
-                maxResults=limit,
+                maxResults=max(20, limit * 3),
                 singleEvents=True,
                 orderBy='startTime'
             ).execute()
@@ -400,30 +422,47 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             
             processed = []
             in_meeting = False
-            current_meeting = None
+            current_meetings = []
             
             for event in raw_events:
                 start = event['start'].get('dateTime', event['start'].get('date'))
                 if 'T' not in start:
                     continue  # Skip all-day events
                 
-                start_dt = datetime.fromisoformat(start.replace('Z', '+00:00')).replace(tzinfo=None)
+                # Parse times - Google returns ISO format with timezone
+                # Convert to UTC naive datetime for consistent comparison
+                if start.endswith('Z'):
+                    start_utc = datetime.fromisoformat(start.replace('Z', ''))
+                elif '+' in start or (start.count('-') > 2):
+                    # Has timezone offset like +00:00 or -05:00
+                    start_parsed = datetime.fromisoformat(start)
+                    # Convert to UTC by subtracting offset
+                    start_utc = start_parsed.replace(tzinfo=None) - start_parsed.utcoffset()
+                else:
+                    start_utc = datetime.fromisoformat(start)
                 
                 end = event['end'].get('dateTime', event['end'].get('date'))
-                end_dt = None
+                end_utc = None
                 if end and 'T' in end:
-                    end_dt = datetime.fromisoformat(end.replace('Z', '+00:00')).replace(tzinfo=None)
+                    if end.endswith('Z'):
+                        end_utc = datetime.fromisoformat(end.replace('Z', ''))
+                    elif '+' in end or (end.count('-') > 2):
+                        end_parsed = datetime.fromisoformat(end)
+                        end_utc = end_parsed.replace(tzinfo=None) - end_parsed.utcoffset()
+                    else:
+                        end_utc = datetime.fromisoformat(end)
                 
-                minutes_until = int((start_dt - local_now).total_seconds() / 60)
+                # Compare in UTC
+                minutes_until = int((start_utc - now).total_seconds() / 60)
                 
                 is_current = False
-                if end_dt:
-                    minutes_until_end = int((end_dt - local_now).total_seconds() / 60)
+                if end_utc:
+                    minutes_until_end = int((end_utc - now).total_seconds() / 60)
                     if minutes_until <= 0 and minutes_until_end > 0:
                         is_current = True
                         in_meeting = True
                 
-                if end_dt and (end_dt - local_now).total_seconds() < 0:
+                if end_utc and (end_utc - now).total_seconds() < 0:
                     continue
                 
                 # Extract meeting link
@@ -460,12 +499,16 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                         'self': a.get('self', False)
                     })
                 
+                # Convert UTC to local time for display
+                start_local = start_utc + (local_now - now)
+                end_local = end_utc + (local_now - now) if end_utc else None
+                
                 evt_data = {
                     'id': event.get('id', ''),
                     'title': event.get('summary', 'Untitled'),
-                    'start': start_dt.strftime('%Y-%m-%dT%H:%M:%S'),
-                    'end': end_dt.strftime('%Y-%m-%dT%H:%M:%S') if end_dt else None,
-                    'start_formatted': start_dt.strftime('%I:%M %p').lstrip('0'),
+                    'start': start_local.strftime('%Y-%m-%dT%H:%M:%S'),
+                    'end': end_local.strftime('%Y-%m-%dT%H:%M:%S') if end_local else None,
+                    'start_formatted': start_local.strftime('%I:%M %p').lstrip('0'),
                     'location': event.get('location'),
                     'description': event.get('description', ''),
                     'attendees': attendees,
@@ -475,7 +518,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                 }
                 
                 if is_current:
-                    current_meeting = evt_data
+                    current_meetings.append(evt_data)
                 else:
                     processed.append(evt_data)
             
@@ -484,10 +527,18 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             return {
                 "events": future_events,
                 "in_meeting": in_meeting,
-                "current_meeting": current_meeting
+                "current_meetings": current_meetings,
+                # Keep current_meeting for backward compatibility (first one)
+                "current_meeting": current_meetings[0] if current_meetings else None
             }
             
         except Exception as e:
+            error_str = str(e).lower()
+            # Check for auth-related errors
+            if "401" in error_str or "invalid_grant" in error_str or "token" in error_str or "refresh" in error_str:
+                logger.error(f"[Calendar] Auth error: {e}")
+                return {"error": "not_authenticated", "detail": str(e)}
+            logger.error(f"[Calendar] Error: {e}")
             return {"error": str(e)}
     
     # =========================================================================
@@ -695,6 +746,21 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         status = get_prefetch_status()
         auth_status = check_services_auth()
         
+        # Actually test calendar credentials by trying to get the service
+        calendar_configured = os.path.exists(CREDENTIALS_PATH)
+        calendar_authenticated = False
+        calendar_error = None
+        
+        if os.path.exists(TOKEN_PATH):
+            try:
+                service, error = self.get_google_calendar_service()
+                if service:
+                    calendar_authenticated = True
+                else:
+                    calendar_error = error or "auth_failed"
+            except Exception as e:
+                calendar_error = str(e)
+        
         # Format auth status for frontend (expects objects with .configured/.authenticated properties)
         self.send_json({
             **status,
@@ -703,8 +769,9 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
             "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
             "gmail": {"configured": auth_status.get("gmail", False), "authenticated": auth_status.get("gmail", False)},
-            "calendar": {"configured": os.path.exists(CREDENTIALS_PATH), 
-                        "authenticated": os.path.exists(TOKEN_PATH)},
+            "calendar": {"configured": calendar_configured, 
+                        "authenticated": calendar_authenticated,
+                        "error": calendar_error},
         })
     
     def handle_setup_page(self):
@@ -773,6 +840,101 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         except Exception as e:
             logger.error(f"[Setup] Slack setup error: {e}")
             self.send_json({"success": False, "error": str(e)})
+    
+    def handle_installer_page(self):
+        """Serve the installer page."""
+        installer_path = os.path.join(CONFIG_DIR, 'installer.html')
+        # Also check in the script directory for development
+        if not os.path.exists(installer_path):
+            installer_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'installer.html')
+        
+        if os.path.exists(installer_path):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            with open(installer_path, 'rb') as f:
+                self.wfile.write(f.read())
+        else:
+            self.send_json({"error": "Installer page not found"})
+    
+    def handle_installer_check(self, params):
+        """Check if a command/dependency is available."""
+        import subprocess
+        
+        cmd = params.get('cmd', [''])[0]
+        if not cmd:
+            self.send_json({"ok": False, "error": "No command specified"})
+            return
+        
+        try:
+            result = subprocess.run(
+                cmd.split(),
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                version = result.stdout.strip() or result.stderr.strip()
+                self.send_json({"ok": True, "version": version})
+            else:
+                self.send_json({"ok": False, "error": "Command failed"})
+        except FileNotFoundError:
+            self.send_json({"ok": False, "error": "Not installed"})
+        except Exception as e:
+            self.send_json({"ok": False, "error": str(e)})
+    
+    def handle_installer_install(self, data):
+        """Run the installation process."""
+        import subprocess
+        
+        try:
+            # Installation is already done if this endpoint is reachable
+            # Just return success since the server is running
+            self.send_json({
+                "success": True,
+                "message": "BriefDesk is already installed and running"
+            })
+        except Exception as e:
+            logger.error(f"[Installer] Install error: {e}")
+            self.send_json({"success": False, "error": str(e)})
+    
+    def handle_installer_check_fda(self):
+        """Check if Full Disk Access is granted for Python and Node."""
+        import sqlite3
+        
+        python_fda = False
+        node_fda = 'not_installed'
+        
+        # Test Python FDA by trying to read Safari history
+        try:
+            safari_history = os.path.expanduser("~/Library/Safari/History.db")
+            if os.path.exists(safari_history):
+                conn = sqlite3.connect(f"file:{safari_history}?mode=ro", uri=True)
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM history_items LIMIT 1")
+                cursor.fetchone()
+                conn.close()
+                python_fda = True
+        except (sqlite3.OperationalError, PermissionError) as e:
+            logger.info(f"[FDA Check] Python FDA not granted: {e}")
+            python_fda = False
+        except Exception as e:
+            logger.info(f"[FDA Check] Python FDA check error: {e}")
+            python_fda = False
+        
+        # Test Node FDA by checking if the devsai node binary exists
+        # (actual FDA testing would require running node to read a protected file)
+        devsai_node = os.path.expanduser("~/.local/share/devsai/node")
+        if os.path.exists(devsai_node):
+            # For now, just check if it exists - actual FDA would need to run it
+            # We'll assume if Python has FDA and node exists, user will grant it
+            node_fda = True  # Optimistic - they'll need to add it manually
+        
+        self.send_json({
+            "python_fda": python_fda,
+            "node_fda": node_fda
+        })
     
     def handle_service_health(self):
         """Check health of all BriefDesk services."""

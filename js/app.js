@@ -93,20 +93,34 @@ function renderCalendarData(data){
 var container=document.getElementById('cal-container');
 var inCallEl=document.getElementById('cal-in-call');
 var eventsEl=document.getElementById('cal-events');
-if(data.error){container.classList.remove('show');return;}
+// Check for auth error and show banner
+if(data.auth_error){
+container.classList.add('show');
+eventsEl.innerHTML='<div class="cal-auth-error" onclick="window.open(\'http://127.0.0.1:18765/installer.html\',\'_blank\')"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#f59e0b;margin-right:8px;flex-shrink:0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><span>Calendar auth expired. <u>Click to re-authenticate</u></span></div>';
+return;
+}
+if(data.error&&!data.events){container.classList.remove('show');return;}
 container.classList.add('show');
 var events=data.events||[];
 var inMeeting=data.in_meeting;
-var currentMeeting=data.current_meeting;
-if(inMeeting&&currentMeeting){
+// Support both current_meetings array and legacy current_meeting
+var currentMeetings=data.current_meetings||[];
+if(!currentMeetings.length&&data.current_meeting){currentMeetings=[data.current_meeting];}
+if(inMeeting&&currentMeetings.length>0){
 inCallEl.style.display='flex';
-document.getElementById('cal-current-title').textContent=currentMeeting.title;
-document.getElementById('cal-upcoming-count').textContent=events.length>0?'+'+events.length+' more':'';
-// Add join button to in-call bar if meeting has a link
+// Show first meeting title, or count if multiple
+if(currentMeetings.length===1){
+document.getElementById('cal-current-title').textContent=currentMeetings[0].title;
+}else{
+document.getElementById('cal-current-title').textContent=currentMeetings.length+' meetings now';
+}
+var totalUpcoming=events.length+currentMeetings.length-1;
+document.getElementById('cal-upcoming-count').textContent=totalUpcoming>0?'+'+totalUpcoming+' more':'';
+// Add join button to in-call bar if first meeting has a link
 var inCallJoin=document.getElementById('cal-in-call-join');
 if(inCallJoin){
-if(currentMeeting.meet_link){
-inCallJoin.href=currentMeeting.meet_link;
+if(currentMeetings[0].meet_link){
+inCallJoin.href=currentMeetings[0].meet_link;
 inCallJoin.style.display='flex';
 }else{
 inCallJoin.style.display='none';
@@ -119,19 +133,23 @@ eventsEl.classList.remove('collapsed');
 calendarExpanded=false;
 inCallEl.classList.remove('expanded');
 }
-if(events.length===0&&!inMeeting){eventsEl.innerHTML='<div class="cal-empty">No upcoming meetings</div>';return;}
-if(events.length===0){eventsEl.innerHTML='';return;}
+// Combine ALL current meetings and future events for the list
+var allEvents=[];
+currentMeetings.forEach(function(m){allEvents.push(m);});
+events.forEach(function(e){allEvents.push(e);});
+if(allEvents.length===0&&!inMeeting){eventsEl.innerHTML='<div class="cal-empty">No upcoming meetings</div>';return;}
+if(allEvents.length===0){eventsEl.innerHTML='';return;}
 var html='';
-events.forEach(function(evt){
+allEvents.forEach(function(evt){
 var mins=evt.minutes_until;
 var countdownClass='cal-countdown';
 var countdownText='';
-if(mins<=0){countdownText='Now';countdownClass='cal-countdown now';}
+if(evt.is_current||mins<=0){countdownText='Now';countdownClass='cal-countdown now';}
 else if(mins<=5){countdownText='In '+mins+' min';countdownClass='cal-countdown soon';}
 else if(mins<60){countdownText='In '+mins+' min';}
 else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
 var joinHtml=evt.meet_link?'<a href="'+evt.meet_link+'" class="cal-join" target="_blank"><svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>Join</a>':'';
-html+='<div class="cal-card"><div class="cal-card-inner">';
+html+='<div class="cal-card'+(evt.is_current?' cal-current':'')+'"><div class="cal-card-inner">';
 html+='<div class="cal-icon"><svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z"/></svg></div>';
 html+='<div class="cal-info"><div class="cal-title">'+evt.title+'</div>';
 html+='<div class="cal-meta"><span class="cal-time">'+evt.start_formatted+'</span><span class="'+countdownClass+'">'+countdownText+'</span></div></div>';
@@ -139,29 +157,36 @@ html+=joinHtml+'</div></div>';
 });
 eventsEl.innerHTML=html;
 }
-function fetchCalendar(){
+function fetchCalendar(forceRefresh){
 if(!settings.calEnabled){return;}
 var container=document.getElementById('cal-container');
 var eventsEl=document.getElementById('cal-events');
+var refreshBtn=document.getElementById('cal-refresh-btn');
 // Show cached data immediately, or loading indicator
-if(calendarCache){
+if(calendarCache && !forceRefresh){
 renderCalendarData(calendarCache);
 }else{
 container.classList.add('show');
-eventsEl.innerHTML='<div class="cal-loading"><div class="cal-spinner"></div><span class="cal-loading-text">Loading calendar...</span></div>';
+if(!forceRefresh)eventsEl.innerHTML='<div class="cal-loading"><div class="cal-spinner"></div><span class="cal-loading-text">Loading calendar...</span></div>';
 }
-var url=S+'/calendar?minutes='+(settings.calMinutes||180)+'&limit=3';
+if(refreshBtn)refreshBtn.classList.add('spinning');
+var url=S+'/calendar?minutes='+(settings.calMinutes||180)+'&limit=3'+(forceRefresh?'&refresh=1':'');
 fetch(url,{signal:AbortSignal.timeout(10000)})
 .then(function(r){return r.json();})
 .then(function(data){
 calendarCache=data;
 try{localStorage.setItem('calCache',JSON.stringify(data));}catch(e){}
 renderCalendarData(data);
+if(refreshBtn)refreshBtn.classList.remove('spinning');
 })
 .catch(function(e){
 console.log('Calendar error:',e);
 document.getElementById('cal-container').classList.remove('show');
+if(refreshBtn)refreshBtn.classList.remove('spinning');
 });
+}
+function refreshCalendar(){
+fetchCalendar(true);
 }
 function toggleCalendarExpand(){
 calendarExpanded=!calendarExpanded;
@@ -527,4 +552,36 @@ aiInput.addEventListener('keyup',function(e){e.stopPropagation();});
 aiInput.addEventListener('keypress',function(e){e.stopPropagation();});
 }
 });
+
+// Server connectivity check
+var serverConnected=true;
+function checkServerConnection(){
+var banner=document.getElementById('server-error-banner');
+if(!banner)return;
+fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})
+.then(function(r){
+if(r.ok){
+serverConnected=true;
+banner.style.display='none';
+return true;
+}
+throw new Error('Server error');
+})
+.catch(function(){
+serverConnected=false;
+banner.style.display='flex';
+});
+}
+function retryServerConnection(){
+var btn=document.querySelector('.server-error-banner button');
+if(btn)btn.textContent='Checking...';
+checkServerConnection();
+setTimeout(function(){
+var btn=document.querySelector('.server-error-banner button');
+if(btn)btn.textContent='Retry';
+},2000);
+}
+// Check on load and periodically
+setTimeout(checkServerConnection,1000);
+setInterval(checkServerConnection,30000);
 

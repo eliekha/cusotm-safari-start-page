@@ -19,6 +19,8 @@ mkdir -p "$DEVSAI_DIR"
 echo "📄 Copying files..."
 cp "$SCRIPT_DIR/start.html" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/setup.html" "$INSTALL_DIR/" 2>/dev/null || true
+cp "$SCRIPT_DIR/installer.html" "$INSTALL_DIR/" 2>/dev/null || true
+cp -r "$SCRIPT_DIR/icons" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/search-server.py" "$INSTALL_DIR/"
 
 # Copy lib modules
@@ -364,7 +366,7 @@ echo "  cp -r \$(npm root -g)/devsai/dist ~/.local/share/devsai/"
 echo ""
 echo "Or re-run this install script."
 echo ""
-echo "🔗 Opening BriefDesk Setup..."
+echo "🔗 Opening BriefDesk Installer..."
 echo ""
 
 # Wait for servers to be ready
@@ -373,11 +375,11 @@ for i in {1..30}; do
     if curl -s http://127.0.0.1:18765/debug > /dev/null 2>&1; then
         echo "✅ Servers are ready!"
         sleep 1
-        open "http://127.0.0.1:8765/setup.html"
+        open "http://127.0.0.1:8765/installer.html"
         exit 0
     fi
     sleep 1
 done
 
-echo "⚠️  Servers may still be starting. Opening setup page anyway..."
-open "http://127.0.0.1:8765/setup.html"
+echo "⚠️  Servers may still be starting. Opening installer page anyway..."
+open "http://127.0.0.1:8765/installer.html"

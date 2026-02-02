@@ -6,9 +6,11 @@
     <string>com.briefdesk.server</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
+        <string>HOME_DIR/.local/share/briefdesk/python3</string>
         <string>HOME_DIR/.local/share/briefdesk/search-server.py</string>
     </array>
+    <key>WorkingDirectory</key>
+    <string>HOME_DIR/.local/share/briefdesk</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

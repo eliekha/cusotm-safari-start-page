@@ -88,7 +88,7 @@ avatarColor=nameToColor(item.from);
 iconClass='avatar';
 }else{
 iconClass='slack';
-icon='<svg viewBox="0 0 127 127"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2S.8 87.3.8 80s5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/><path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2S39.7.6 47 .6s13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2H14c-7.3 0-13.2-5.9-13.2-13.2S6.7 33.7 14 33.7h33z" fill="#36C5F0"/><path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V14c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v32.9z" fill="#2EB67D"/><path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2s5.9-13.2 13.2-13.2h33c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2h-33z" fill="#ECB22E"/></svg>';
+icon='<img src="icons/slack.png" alt="Slack">';
 }
 
 if(link){
@@ -98,22 +98,22 @@ actions+='</div>';
 }
 }else if(type==='jira'){
 iconClass='jira';
-icon='<svg viewBox="0 -30.63 255.32 285.96"><defs><linearGradient id="jg1"><stop offset=".18" stop-color="#0052cc"/><stop offset="1" stop-color="#2684ff"/></linearGradient></defs><path d="M244.66 0H121.71a55.5 55.5 0 0 0 55.5 55.5h22.65v21.87c.02 30.63 24.84 55.45 55.47 55.47V10.67c0-5.89-4.78-10.67-10.67-10.67z" fill="#2684ff"/><path d="M183.82 61.26H60.87c.02 30.63 24.84 55.45 55.47 55.47h22.65v21.94c.04 30.62 24.88 55.43 55.5 55.43V71.93c0-5.89-4.78-10.67-10.67-10.67z" fill="url(#jg1)"/><path d="M122.95 122.49H0c0 30.65 24.85 55.5 55.5 55.5h22.72v21.87c.02 30.6 24.8 55.41 55.4 55.47V133.16c0-5.89-4.78-10.67-10.67-10.67z" fill="url(#jg1)"/></svg>';
+icon='<img src="icons/jira.svg" alt="Jira">';
 meta=item.key||item.status||'';
 link=item.url||'';
 }else if(type==='confluence'){
 iconClass='confluence';
-icon='<svg viewBox="-.02 .04 256.07 245.94"><defs><linearGradient id="cg1" x1="243.35" y1="261.62" x2="83.15" y2="169.55" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0052cc"/><stop offset=".92" stop-color="#2380fb"/><stop offset="1" stop-color="#2684ff"/></linearGradient><linearGradient id="cg2" x1="12.63" y1="-15.48" x2="172.87" y2="76.59" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0052cc"/><stop offset=".92" stop-color="#2380fb"/><stop offset="1" stop-color="#2684ff"/></linearGradient></defs><path d="M9.11 187.79c-2.64 4.3-5.63 9.34-7.99 13.33a8.13 8.13 0 0 0 1.44 8.76c.6.84 1.36 1.56 2.23 2.12l53.03 32.69a8.13 8.13 0 0 0 9.27-2.62c2.14-3.56 4.85-8.17 7.76-13.09 21.02-34.47 42.32-30.25 80.37-12.16l52.6 24.94a8.13 8.13 0 0 0 10.97-4.07l25.25-56.93a8.13 8.13 0 0 0-3.88-10.66c-11.09-5.22-33.16-15.49-52.94-25.17-71.95-34.71-132.66-32.42-179.12 42.99z" fill="url(#cg1)"/><path d="M246.88 58.38c2.67-4.3 5.66-9.33 7.99-13.32a8.13 8.13 0 0 0-1.53-8.93 8.09 8.09 0 0 0-2.33-2.11l-52.95-32.69a8.13 8.13 0 0 0-9.28 2.62c-2.09 3.56-4.85 8.17-7.76 13.09-21.1 34.63-42.2 30.41-80.29 12.32l-52.55-24.95a8.13 8.13 0 0 0-10.98 4.03l-25.25 57.09a8.19 8.19 0 0 0 3.88 10.69c11.13 5.23 33.2 15.49 52.94 25.18 71.76 34.7 132.66 32.42 179.09-43z" fill="url(#cg2)"/></svg>';
+icon='<img src="icons/confluence.svg" alt="Confluence">';
 meta=item.space||'';
 link=item.url||'';
 }else if(type==='drive'){
 iconClass='drive';
-icon='<svg viewBox="0 0 87.3 78"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>';
+icon='<img src="icons/drive.png" alt="Google Drive">';
 meta=item.drive||'';
 link=item.full_path?'file://'+item.full_path:'';
 }else if(type==='gmail'){
 iconClass='gmail';
-icon='<svg viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg>';
+icon='<img src="icons/gmail.png" alt="Gmail">';
 // Show sender and date
 var sender=item.from||'';
 if(sender.includes('<'))sender=sender.split('<')[0].trim();

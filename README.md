@@ -50,35 +50,29 @@ A beautiful, fast productivity hub with meeting prep, real-time history search, 
 ### Quick Install
 
 ```bash
-chmod +x install.sh
+git clone https://github.com/eliekha/BriefDesk.git
+cd BriefDesk
 ./install.sh
+```
+
+Or with a one-liner:
+```bash
+curl -sL https://raw.githubusercontent.com/eliekha/BriefDesk/main/install.sh | bash
 ```
 
 The install script will:
 1. Copy files to `~/.local/share/briefdesk/`
-2. Create local Python and Node binaries for Full Disk Access
-3. Set up LaunchAgents to start servers on login
-4. Create wrapper scripts for the devsai CLI
+2. Set up LaunchAgents to start servers on login
+3. **Open an interactive setup wizard** in your browser
 
-**After running the script, you MUST grant Full Disk Access** to the local binaries (see step 3 below)
+The setup wizard guides you through:
+- Checking system requirements (Python, Node.js)
+- Configuring integrations (Calendar, Slack, etc.)
+- Verifying the installation
 
-### Manual Install
+### After Installation
 
-1. **Copy files:**
-   ```bash
-   mkdir -p ~/.local/share/briefdesk
-   cp start.html search-server.py ~/.local/share/briefdesk/
-   ```
-
-2. **Install LaunchAgents:**
-   ```bash
-   cp launchagents/*.plist ~/Library/LaunchAgents/
-   # Edit plists to replace HOME_DIR with your home directory path
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.briefdesk.static.plist
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.briefdesk.search.plist
-   ```
-
-3. **Grant Full Disk Access** (required for Safari history and Google Drive):
+1. **Grant Full Disk Access** (required for Safari history and Google Drive):
    - System Settings → Privacy & Security → Full Disk Access
    - Add these binaries (use Cmd+Shift+G to paste paths):
    
@@ -86,13 +80,19 @@ The install script will:
    |--------|------|---------|
    | Python | `~/.local/share/briefdesk/python3` | Safari history search |
    | Node | `~/.local/share/devsai/node` | Google Drive search (Hub) |
-   
-   The install script copies these binaries locally so FDA permissions persist across updates
 
-4. **Set Safari homepage:**
-   - Safari → Settings → General
-   - Homepage: `http://127.0.0.1:8765/start.html`
-   - New windows/tabs open with: Homepage
+2. **Set your browser homepage:**
+   - Safari → Settings → General → Homepage: `http://127.0.0.1:8765/start.html`
+   - Or use the [New Tab Redirect](https://chrome.google.com/webstore/detail/new-tab-redirect/) extension for Chrome
+
+### Reconfigure Later
+
+You can always return to the setup wizard:
+```
+http://127.0.0.1:8765/installer.html
+```
+
+Or configure integrations from Settings → Status tab in the main app.
 
 ## Google Calendar Setup (Optional)
 
