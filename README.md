@@ -182,7 +182,7 @@ The start page integrates with external services via **Model Context Protocol (M
 |---------|------------|--------------|
 | **Slack** | `slack-mcp-server` | Search messages, list channels, read history |
 | **Atlassian** | `mcp-remote` → Atlassian | Jira issues, Confluence pages, search |
-| **Gmail** | `@anthropic/gmail-mcp-server` | List/search/read emails |
+| **Gmail** | `@monsoft/mcp-gmail` | List/search/read emails |
 | **Google Drive** | Local filesystem | Read docs via Google Drive for Desktop |
 
 ---
@@ -268,7 +268,7 @@ Uses Atlassian's official MCP server with OAuth - opens browser for one-time aut
 
 1. **First-time auth (opens browser):**
    ```bash
-   npx -y mcp-remote https://mcp.atlassian.com/v1/mcp
+   npx -y mcp-remote https://mcp.atlassian.com/v1/sse
    ```
    
 2. **Add to MCP config** (`~/.devsai/mcp.json`):
@@ -277,7 +277,7 @@ Uses Atlassian's official MCP server with OAuth - opens browser for one-time aut
      "mcpServers": {
        "atlassian": {
          "command": "npx",
-         "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"]
+         "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
        }
      }
    }
@@ -287,7 +287,7 @@ OAuth tokens are cached locally after first authentication.
 
 ### Setting Up Gmail MCP
 
-Uses Anthropic's Gmail MCP server with OAuth authentication.
+Uses `@monsoft/mcp-gmail` server with OAuth authentication.
 
 1. **Create Google Cloud OAuth credentials** (if you haven't already for Calendar):
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -303,13 +303,12 @@ Uses Anthropic's Gmail MCP server with OAuth authentication.
    mv ~/Downloads/client_secret_*.json ~/.gmail-mcp/gcp-oauth.keys.json
    ```
 
-3. **Install and authenticate:**
+3. **Authenticate (opens browser for OAuth):**
    ```bash
-   # First run will open browser for OAuth
-   npx @anthropic/gmail-mcp-server
+   npx @monsoft/mcp-gmail auth
    ```
    
-   After authenticating, tokens are saved to `~/.gmail-mcp/credentials.json`
+   After authenticating, tokens are saved to `~/.gmail-mcp/`
 
 4. **Add to your `.devsai.json`:**
    ```json
@@ -317,7 +316,7 @@ Uses Anthropic's Gmail MCP server with OAuth authentication.
      "mcpServers": {
        "gmail": {
          "command": "npx",
-         "args": ["-y", "@anthropic/gmail-mcp-server"]
+         "args": ["-y", "@monsoft/mcp-gmail"]
        }
      }
    }
@@ -365,11 +364,11 @@ Create `~/.local/share/briefdesk/.devsai.json` with all your services:
     },
     "atlassian": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/mcp"]
+      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
     },
     "gmail": {
       "command": "npx",
-      "args": ["-y", "@anthropic/gmail-mcp-server"]
+      "args": ["-y", "@monsoft/mcp-gmail"]
     }
   }
 }
