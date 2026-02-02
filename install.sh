@@ -67,11 +67,29 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     read -r ATLASSIAN_DOMAIN
     ATLASSIAN_DOMAIN=${ATLASSIAN_DOMAIN:-your-domain.atlassian.net}
 
+    # Auto-detect Google Drive path
+    GDRIVE_PATH=""
+    if [ -d "$HOME/Library/CloudStorage" ]; then
+        # Find the first GoogleDrive folder (most recent if multiple)
+        GDRIVE_FOLDER=$(ls -1d "$HOME/Library/CloudStorage/GoogleDrive-"* 2>/dev/null | head -1)
+        if [ -n "$GDRIVE_FOLDER" ]; then
+            GDRIVE_PATH="$GDRIVE_FOLDER"
+            echo "   ✓ Auto-detected Google Drive: $GDRIVE_PATH"
+        fi
+    fi
+    
+    if [ -z "$GDRIVE_PATH" ]; then
+        echo "   Google Drive path (leave empty to skip):"
+        echo "   Example: /Users/you/Library/CloudStorage/GoogleDrive-you@company.com"
+        read -r GDRIVE_PATH
+    fi
+
     # Create config file
     cat > "$INSTALL_DIR/config.json" << EOF
 {
   "slack_workspace": "$SLACK_WS",
-  "atlassian_domain": "$ATLASSIAN_DOMAIN"
+  "atlassian_domain": "$ATLASSIAN_DOMAIN",
+  "google_drive_path": "$GDRIVE_PATH"
 }
 EOF
     echo "   ✓ Configuration saved to $INSTALL_DIR/config.json"

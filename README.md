@@ -687,7 +687,22 @@ This ensures tests have "teeth" - they will catch real regressions.
 ```
 briefdesk/
 ├── start.html           # Main start page (customizable)
-├── search-server.py     # History search + Hub server
+├── search-server.py     # Main API server (imports from lib/)
+├── lib/                 # Modular server components
+│   ├── __init__.py
+│   ├── config.py        # Constants, paths, logging, prompts
+│   ├── utils.py         # Utility functions
+│   ├── cache.py         # Cache management
+│   ├── slack.py         # Slack integration
+│   ├── atlassian.py     # Jira/Confluence integration
+│   ├── google_services.py # Calendar/Drive integration
+│   ├── cli.py           # devsai CLI integration
+│   ├── prefetch.py      # Background prefetching
+│   └── history.py       # Browser history/bookmarks
+├── css/
+│   └── styles.css       # Frontend styles
+├── js/
+│   └── hub.js           # Frontend JavaScript
 ├── install.sh           # Installation script
 ├── tests/               # Unit tests (479 tests, 100% coverage)
 │   ├── test_server.py
@@ -702,6 +717,9 @@ briefdesk/
 └── README.md
 
 # Runtime files (in ~/.local/share/briefdesk/)
+├── lib/                 # Deployed server modules
+├── css/                 # Deployed styles
+├── js/                  # Deployed JavaScript
 ├── prep_cache.json      # Persistent prefetch cache (~100-200KB)
 ├── google_credentials.json  # Google OAuth credentials
 └── token.pickle         # Google auth token

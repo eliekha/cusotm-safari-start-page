@@ -20,6 +20,7 @@ _meeting_prep_cache_lock = threading.Lock()
 
 # Custom prompts cache
 _custom_prompts = {}
+_custom_prompts_lock = threading.Lock()
 
 # Calendar cache
 _calendar_cache = {"data": None, "timestamp": 0}
@@ -201,6 +202,36 @@ def get_cached_data(meeting_id, source):
             return None
         cache = _meeting_prep_cache[meeting_id].get(source, {})
         return cache.get('data')
+
+
+def set_meeting_info(meeting_id, title, attendees, attendee_emails, description):
+    """Store meeting metadata for future refreshes."""
+    with _meeting_prep_cache_lock:
+        if meeting_id not in _meeting_prep_cache:
+            _meeting_prep_cache[meeting_id] = {
+                'jira': {'data': None, 'timestamp': 0},
+                'confluence': {'data': None, 'timestamp': 0},
+                'slack': {'data': None, 'timestamp': 0},
+                'gmail': {'data': None, 'timestamp': 0},
+                'drive': {'data': None, 'timestamp': 0},
+                'summary': {'data': None, 'timestamp': 0},
+                'meeting_info': None
+            }
+        _meeting_prep_cache[meeting_id]['meeting_info'] = {
+            'title': title,
+            'attendees': attendees,
+            'attendee_emails': attendee_emails,
+            'description': description
+        }
+    save_prep_cache_to_disk()
+
+
+def get_meeting_info(meeting_id):
+    """Get stored meeting metadata."""
+    with _meeting_prep_cache_lock:
+        if meeting_id not in _meeting_prep_cache:
+            return None
+        return _meeting_prep_cache[meeting_id].get('meeting_info')
 
 
 def cleanup_old_caches():

@@ -11,6 +11,109 @@ except ImportError:
 from .config import logger, SLACK_USERS_CACHE_TTL, SLACK_WORKSPACE
 
 # =============================================================================
+# CSV Parsing and Formatting Utilities
+# =============================================================================
+
+def parse_slack_csv(csv_text):
+    """Parse Slack's CSV-formatted response into a list of dicts."""
+    if not csv_text:
+        return []
+    
+    lines = csv_text.strip().split('\n')
+    if len(lines) < 2:
+        return []
+    
+    # Parse header
+    headers = lines[0].split(',')
+    results = []
+    
+    for line in lines[1:]:
+        if not line.strip():
+            continue
+        # Simple CSV parsing (doesn't handle all edge cases but works for most)
+        values = []
+        current = ''
+        in_quotes = False
+        for char in line:
+            if char == '"' and not in_quotes:
+                in_quotes = True
+            elif char == '"' and in_quotes:
+                in_quotes = False
+            elif char == ',' and not in_quotes:
+                values.append(current.strip().strip('"'))
+                current = ''
+            else:
+                current += char
+        values.append(current.strip().strip('"'))
+        
+        if len(values) >= len(headers):
+            item = {}
+            for i, h in enumerate(headers):
+                item[h.lower()] = values[i] if i < len(values) else ''
+            results.append(item)
+    
+    return results
+
+
+def format_slack_channel(channel, sender_name=''):
+    """Format Slack channel name, resolving DMs to show user names."""
+    if not channel:
+        return ''
+    
+    # Remove leading # if present
+    ch = channel.lstrip('#')
+    
+    # DM channels start with D or are user IDs (U...)
+    if ch.startswith('D') or ch.startswith('U'):
+        # It's a DM - show as "DM with [name]" or just "DM"
+        if sender_name and sender_name != ch:
+            return f"DM with {sender_name}"
+        return "DM"
+    
+    # MPDM (multi-person DM) channels
+    if ch.startswith('mpdm-') or 'mpdm' in ch.lower():
+        return "Group DM"
+    
+    # Regular channel - keep the # prefix
+    return f"#{ch}"
+
+
+def build_slack_url(channel_id, msg_id):
+    """Build a Slack URL to a specific message."""
+    if not channel_id or not msg_id:
+        return None
+    
+    # Remove # prefix from channel
+    ch = channel_id.lstrip('#')
+    # Remove dot from message ID (1769817144.201689 -> p1769817144201689)
+    msg_ts = msg_id.replace('.', '')
+    
+    return f"https://{SLACK_WORKSPACE}.slack.com/archives/{ch}/p{msg_ts}"
+
+
+def format_slack_message(m):
+    """Format a Slack message dict with all needed fields."""
+    realname = m.get('realname', '')
+    username = m.get('username', '')
+    sender = realname or username
+    channel_raw = m.get('channel', '').lstrip('#')
+    channel_display = format_slack_channel(m.get('channel', ''), sender)
+    msg_id = m.get('msgid', '')
+    thread_ts = m.get('threadts', '')
+    
+    return {
+        'title': m.get('text', '')[:100], 
+        'channel': channel_display,
+        'channel_id': channel_raw,
+        'msg_id': msg_id,
+        'thread_ts': thread_ts,
+        'time': m.get('time', ''), 
+        'from': sender,
+        'username': username,  # Added for @username lookups
+        'slack_url': build_slack_url(channel_raw, msg_id)
+    }
+
+# =============================================================================
 # Global State
 # =============================================================================
 

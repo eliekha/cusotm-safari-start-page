@@ -373,8 +373,8 @@ input[type="file"]{display:none}
 .hub-section-refresh svg{width:12px;height:12px;fill:currentColor}
 .hub-prep-section:hover .hub-section-refresh{opacity:.5}
 .hub-section-refresh:hover{opacity:1!important;background:var(--bg-card-hover);color:var(--text-secondary)}
-.hub-section-refresh.loading{opacity:1;animation:spin .8s linear infinite}
-.hub-section-refresh.loading svg{opacity:.5}
+.hub-section-refresh.loading{opacity:1}
+.hub-section-refresh.loading svg{animation:spin .8s linear infinite;transform-origin:center}
 .hub-section-empty{font-size:12px;color:var(--text-muted);padding:12px 4px;font-style:italic;opacity:.7;display:flex;align-items:center;justify-content:space-between}
 .hub-retry-btn{font-size:11px;padding:4px 10px;background:var(--surface-hover);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-style:normal;opacity:1;transition:all .15s}
 .hub-retry-btn:hover{background:var(--accent-color);color:#fff;border-color:var(--accent-color)}

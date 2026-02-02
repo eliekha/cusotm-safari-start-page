@@ -237,16 +237,13 @@ if(!hint)return;
 if(needsSetup.length===0){hint.style.display='none';return;}
 var html='<strong>Setup Instructions:</strong><br>';
 if(needsSetup.indexOf('gmail')>=0){
-html+='<br><strong>Gmail:</strong> Run <code>npx @anthropic/gmail-mcp-server auth</code> in terminal to authenticate.';
+html+='<br><strong>Gmail:</strong> Add gmail MCP to <code>.devsai.json</code> and run <code>mcp-gmail auth</code> to authenticate with Google.';
 }
-if(needsSetup.indexOf('atlassian')>=0){
-html+='<br><strong>Atlassian:</strong> <a href="http://127.0.0.1:18765/hub/atlassian/oauth" target="_blank">Click here to connect</a> your Atlassian account.';
-}
-if(needsSetup.indexOf('atlassian-config')>=0){
-html+='<br><strong>Atlassian:</strong> Add mcp-remote Atlassian server to <code>.devsai.json</code>. See README for details.';
+if(needsSetup.indexOf('atlassian')>=0||needsSetup.indexOf('atlassian-config')>=0){
+html+='<br><strong>Atlassian (Jira/Confluence):</strong> Add <code>mcp-remote https://mcp.atlassian.com/v1/sse</code> to <code>.devsai.json</code>. OAuth will prompt on first use.';
 }
 if(needsSetup.indexOf('slack')>=0||needsSetup.indexOf('slack-config')>=0){
-html+='<br><strong>Slack:</strong> Add Slack MCP tokens to <code>.devsai.json</code>. Get tokens from Slack web app\'s localStorage.';
+html+='<br><strong>Slack:</strong> Add slack-mcp-server to <code>.devsai.json</code> with xoxc/xoxd tokens from Slack web app localStorage.';
 }
 hint.innerHTML=html;
 hint.style.display='block';

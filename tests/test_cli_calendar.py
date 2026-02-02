@@ -497,9 +497,9 @@ class TestCallCliForSource:
     # Successful CLI call tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_successful_cli_call_returns_json_array(self, mock_exists, mock_get_prompt, mock_popen):
         """Test successful CLI call that returns valid JSON array."""
         from search_server_funcs import call_cli_for_source
@@ -525,9 +525,9 @@ class TestCallCliForSource:
         
         assert result == [{"title": "Result 1", "url": "http://example.com"}]
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_successful_cli_call_with_multiple_results(self, mock_exists, mock_get_prompt, mock_popen):
         """Test successful CLI call with multiple JSON results."""
         from search_server_funcs import call_cli_for_source
@@ -554,9 +554,9 @@ class TestCallCliForSource:
         assert result[0]['title'] == 'Result 1'
         assert result[2]['title'] == 'Result 3'
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_json_in_stdout(self, mock_exists, mock_get_prompt, mock_popen):
         """Test CLI returning JSON in stdout instead of stderr."""
         from search_server_funcs import call_cli_for_source
@@ -585,9 +585,9 @@ class TestCallCliForSource:
     # Prompt handling tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_returns_empty_list_when_no_prompt(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that empty list is returned when no prompt template."""
         from search_server_funcs import call_cli_for_source
@@ -600,9 +600,9 @@ class TestCallCliForSource:
         assert result == []
         mock_popen.assert_not_called()
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_returns_empty_list_when_empty_prompt(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that empty list is returned when prompt is empty string."""
         from search_server_funcs import call_cli_for_source
@@ -620,9 +620,9 @@ class TestCallCliForSource:
     # Timeout and retry tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_timeout_with_retry(self, mock_exists, mock_get_prompt, mock_popen):
         """Test timeout handling with retry logic."""
         from search_server_funcs import call_cli_for_source
@@ -651,9 +651,9 @@ class TestCallCliForSource:
         assert mock_popen.call_count == 3
         assert mock_proc.kill.call_count == 3
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_retry_then_success(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that retry works and succeeds on second attempt."""
         from search_server_funcs import call_cli_for_source
@@ -682,9 +682,9 @@ class TestCallCliForSource:
         assert result == [{"result": "success"}]
         assert mock_popen.call_count == 2
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_single_retry_on_timeout(self, mock_exists, mock_get_prompt, mock_popen):
         """Test with max_retries=1 only attempts once."""
         from search_server_funcs import call_cli_for_source
@@ -713,9 +713,9 @@ class TestCallCliForSource:
     # Exception handling tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_exception_handling_oserror(self, mock_exists, mock_get_prompt, mock_popen):
         """Test handling of OSError exceptions."""
         from search_server_funcs import call_cli_for_source
@@ -737,9 +737,9 @@ class TestCallCliForSource:
         assert 'error' in result
         assert 'Failed to start process' in result['error']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_exception_handling_filenotfound(self, mock_exists, mock_get_prompt, mock_popen):
         """Test handling of FileNotFoundError."""
         from search_server_funcs import call_cli_for_source
@@ -761,9 +761,9 @@ class TestCallCliForSource:
         assert 'error' in result
         assert 'devsai not found' in result['error']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_exception_retries_then_fails(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that exceptions trigger retries before failing."""
         from search_server_funcs import call_cli_for_source
@@ -790,9 +790,9 @@ class TestCallCliForSource:
     # Empty and invalid output tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_empty_output_returns_empty_list(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that empty output (no JSON) returns empty list."""
         from search_server_funcs import call_cli_for_source
@@ -814,9 +814,9 @@ class TestCallCliForSource:
         
         assert result == []
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_invalid_json_returns_empty_list(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that invalid JSON output returns empty list."""
         from search_server_funcs import call_cli_for_source
@@ -838,9 +838,9 @@ class TestCallCliForSource:
         
         assert result == []
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_json_object_not_array_returns_empty(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that JSON object (not array) returns empty list."""
         from search_server_funcs import call_cli_for_source
@@ -867,10 +867,10 @@ class TestCallCliForSource:
     # Drive source specific tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
-    @patch('search_server_funcs.glob.glob')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
+    @patch('lib.cli.glob.glob')
     def test_drive_source_with_drive_paths(self, mock_glob, mock_exists, mock_get_prompt, mock_popen):
         """Test drive source handling with Google Drive paths."""
         from search_server_funcs import call_cli_for_source
@@ -893,10 +893,10 @@ class TestCallCliForSource:
         
         assert result == [{"file": "doc.pdf"}]
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
-    @patch('search_server_funcs.glob.glob')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
+    @patch('lib.cli.glob.glob')
     def test_drive_source_no_drive_path_returns_empty(self, mock_glob, mock_exists, mock_get_prompt, mock_popen):
         """Test drive source returns empty when no Google Drive path found."""
         from search_server_funcs import call_cli_for_source
@@ -916,10 +916,10 @@ class TestCallCliForSource:
         assert result == []
         mock_popen.assert_not_called()
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
-    @patch('search_server_funcs.glob.glob')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
+    @patch('lib.cli.glob.glob')
     def test_drive_source_prefers_main_path(self, mock_glob, mock_exists, mock_get_prompt, mock_popen):
         """Test drive source prefers main path over path with parentheses."""
         from search_server_funcs import call_cli_for_source
@@ -952,10 +952,10 @@ class TestCallCliForSource:
     # Path resolution tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
-    @patch('search_server_funcs.shutil.which')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
+    @patch('lib.cli.shutil.which')
     def test_fallback_to_which_devsai(self, mock_which, mock_exists, mock_get_prompt, mock_popen):
         """Test fallback to shutil.which when local devsai doesn't exist."""
         from search_server_funcs import call_cli_for_source
@@ -981,10 +981,10 @@ class TestCallCliForSource:
         call_args = mock_popen.call_args[0][0]
         assert call_args[0] == '/usr/local/bin/devsai'
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
-    @patch('search_server_funcs.shutil.which')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
+    @patch('lib.cli.shutil.which')
     def test_fallback_to_nvm_path(self, mock_which, mock_exists, mock_get_prompt, mock_popen):
         """Test fallback to nvm path when shutil.which returns None."""
         from search_server_funcs import call_cli_for_source
@@ -1014,9 +1014,9 @@ class TestCallCliForSource:
     # Meeting context building tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_meeting_context_built_correctly(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that meeting context is built with all components."""
         from search_server_funcs import call_cli_for_source
@@ -1044,9 +1044,9 @@ class TestCallCliForSource:
         assert 'Attendees: Alice, Bob, Charlie' in prompt_arg
         assert 'Description:' in prompt_arg
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_description_truncated_at_300_chars(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that description is truncated at 300 characters."""
         from search_server_funcs import call_cli_for_source
@@ -1076,9 +1076,9 @@ class TestCallCliForSource:
         a_count = prompt_arg.count('A')
         assert a_count <= 300
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_context_without_attendees(self, mock_exists, mock_get_prompt, mock_popen):
         """Test context building without attendees."""
         from search_server_funcs import call_cli_for_source
@@ -1106,9 +1106,9 @@ class TestCallCliForSource:
         assert 'Attendees' not in prompt_arg  # No attendees line
         assert 'Description:' in prompt_arg
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_context_without_description(self, mock_exists, mock_get_prompt, mock_popen):
         """Test context building without description."""
         from search_server_funcs import call_cli_for_source
@@ -1148,9 +1148,9 @@ class TestCallCliForMeetingSummary:
     # Successful summary generation tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_successful_summary_generation(self, mock_exists, mock_get_prompt, mock_popen):
         """Test successful meeting summary generation."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1176,9 +1176,9 @@ class TestCallCliForMeetingSummary:
         assert 'Meeting Summary' in result['summary']
         assert 'Item 1' in result['summary']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_summary_with_markdown_formatting(self, mock_exists, mock_get_prompt, mock_popen):
         """Test summary with complex markdown formatting."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1222,9 +1222,9 @@ class TestCallCliForMeetingSummary:
     # Timeout handling tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_timeout_returns_timeout_status(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that timeout returns proper status."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1248,9 +1248,9 @@ class TestCallCliForMeetingSummary:
         assert result['summary'] == ''
         mock_proc.kill.assert_called_once()
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_timeout_with_custom_timeout_value(self, mock_exists, mock_get_prompt, mock_popen):
         """Test timeout with custom timeout value."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1276,9 +1276,9 @@ class TestCallCliForMeetingSummary:
     # Error handling tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_exception_returns_error_status(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that exceptions return error status with message."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1298,9 +1298,9 @@ class TestCallCliForMeetingSummary:
         assert 'devsai not found' in result['error']
         assert result['summary'] == ''
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_oserror_returns_error_status(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that OSError returns error status."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1319,9 +1319,9 @@ class TestCallCliForMeetingSummary:
         assert result['status'] == 'error'
         assert 'Permission denied' in result['error']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_runtime_error_returns_error_status(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that RuntimeError returns error status."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1344,9 +1344,9 @@ class TestCallCliForMeetingSummary:
     # Empty output tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_empty_output_returns_empty_status(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that empty output returns empty status."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1367,9 +1367,9 @@ class TestCallCliForMeetingSummary:
         assert result['status'] == 'empty'
         assert result['summary'] == ''
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_whitespace_only_output_returns_empty_status(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that whitespace-only output returns empty status."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1393,9 +1393,9 @@ class TestCallCliForMeetingSummary:
     # Output filtering tests - ANSI codes
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_filters_ansi_color_codes(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that ANSI color codes are stripped from output."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1423,9 +1423,9 @@ class TestCallCliForMeetingSummary:
         assert 'Summary:' in result['summary']
         assert 'important' in result['summary']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_filters_complex_ansi_sequences(self, mock_exists, mock_get_prompt, mock_popen):
         """Test filtering of complex ANSI sequences."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1456,9 +1456,9 @@ class TestCallCliForMeetingSummary:
     # Output filtering tests - CLI progress messages
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_filters_cli_progress_messages(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that CLI progress/status messages are filtered out."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1498,9 +1498,9 @@ Output delivered'''
         assert 'Actual Summary Content' in result['summary']
         assert 'real output' in result['summary']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_filters_checkmark_messages(self, mock_exists, mock_get_prompt, mock_popen):
         """Test filtering of checkmark status messages."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1532,9 +1532,9 @@ Output delivered'''
     # Meeting context building tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_meeting_context_includes_emails(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that meeting context includes attendee emails."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1561,9 +1561,9 @@ Output delivered'''
         assert 'bob@example.com' in prompt_arg
         assert 'Description:' in prompt_arg
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_limits_attendee_emails_to_five(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that only first 5 attendee emails are included."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1594,9 +1594,9 @@ Output delivered'''
         assert 'user5@example.com' not in prompt_arg
         assert 'user9@example.com' not in prompt_arg
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_truncates_description_at_500_chars(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that description is truncated at approximately 500 characters."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1626,9 +1626,9 @@ Output delivered'''
         assert a_count <= 510
         assert a_count >= 490  # Should be close to 500, not way under
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_context_without_optional_fields(self, mock_exists, mock_get_prompt, mock_popen):
         """Test context building with minimal fields."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1658,10 +1658,10 @@ Output delivered'''
     # Path resolution tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
-    @patch('search_server_funcs.shutil.which')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
+    @patch('lib.cli.shutil.which')
     def test_fallback_devsai_path(self, mock_which, mock_exists, mock_get_prompt, mock_popen):
         """Test fallback to shutil.which for devsai path."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1688,9 +1688,9 @@ Output delivered'''
     # CLI argument tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_uses_higher_max_iterations(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that summary uses higher max-iterations (8 vs 3)."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1713,9 +1713,9 @@ Output delivered'''
         max_iter_index = call_args.index('--max-iterations')
         assert call_args[max_iter_index + 1] == '8'
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_uses_correct_model(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that the correct model is specified."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1742,9 +1742,9 @@ Output delivered'''
     # Output combination tests
     # -------------------------------------------------------------------------
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_combines_stdout_and_stderr(self, mock_exists, mock_get_prompt, mock_popen):
         """Test that both stdout and stderr are combined."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1770,9 +1770,9 @@ Output delivered'''
         assert 'Stdout content' in result['summary']
         assert 'Stderr content' in result['summary']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_only_stdout_content(self, mock_exists, mock_get_prompt, mock_popen):
         """Test with only stdout content."""
         from search_server_funcs import call_cli_for_meeting_summary
@@ -1796,9 +1796,9 @@ Output delivered'''
         assert result['status'] == 'success'
         assert 'Only stdout here' in result['summary']
 
-    @patch('search_server_funcs.subprocess.Popen')
-    @patch('search_server_funcs.get_prompt')
-    @patch('search_server_funcs.os.path.exists')
+    @patch('lib.cli.subprocess.Popen')
+    @patch('lib.cli.get_prompt')
+    @patch('lib.cli.os.path.exists')
     def test_only_stderr_content(self, mock_exists, mock_get_prompt, mock_popen):
         """Test with only stderr content (normal for devsai)."""
         from search_server_funcs import call_cli_for_meeting_summary

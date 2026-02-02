@@ -322,10 +322,19 @@ fetchPrefetchStatus(); // Refresh status display
 }
 
 function fetchPrefetchStatus(){
+var refreshBtn=document.getElementById('status-refresh-btn');
+var currentEl=document.getElementById('prefetch-status-current');
+// Show loading state
+if(refreshBtn){
+refreshBtn.disabled=true;
+refreshBtn.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-linecap="round"/></svg>Loading...</span>';
+}
+currentEl.innerHTML='<div style="text-align:center;padding:16px;color:rgba(255,255,255,.5)"><svg width="20" height="20" viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="32" stroke-linecap="round"/></svg></div>';
+// Synthetic delay for better UX feedback
+setTimeout(function(){
 fetch(S+'/hub/prefetch-status')
 .then(function(r){return r.json();})
 .then(function(data){
-var currentEl=document.getElementById('prefetch-status-current');
 var logEl=document.getElementById('prefetch-activity-log');
 // Update current status
 var statusHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
@@ -367,11 +376,15 @@ logEl.innerHTML=logHtml;
 }else{
 logEl.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:20px">No activity yet</div>';
 }
+// Reset button
+if(refreshBtn){refreshBtn.disabled=false;refreshBtn.textContent='Refresh';}
 })
 .catch(function(e){
 console.error('Prefetch status error:',e);
-document.getElementById('prefetch-status-current').innerHTML='<div style="color:#f87171;font-size:12px">Error: '+(e.message||'Failed to fetch')+'</div>';
+currentEl.innerHTML='<div style="color:#f87171;font-size:12px">Error: '+(e.message||'Failed to fetch')+'</div>';
+if(refreshBtn){refreshBtn.disabled=false;refreshBtn.textContent='Refresh';}
 });
+},400);
 }
 
 var _promptsData={};

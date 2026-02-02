@@ -31,12 +31,39 @@ MCP_CONFIG_PATH = os.path.expanduser("~/.devsai/mcp.json")
 CACHE_DIR = CONFIG_DIR
 PREP_CACHE_FILE = os.path.join(CACHE_DIR, "prep_cache.json")
 PROMPTS_FILE = os.path.join(CACHE_DIR, "custom_prompts.json")
+USER_CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
-# Google Drive paths (auto-detect for any Google account)
-GOOGLE_DRIVE_PATHS = [
-    *[p for p in glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*/My Drive"))],
-    *[p for p in glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*/Shared drives"))]
-]
+# Load user configuration
+def load_user_config():
+    """Load user configuration from config.json."""
+    import json
+    if os.path.exists(USER_CONFIG_FILE):
+        try:
+            with open(USER_CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+USER_CONFIG = load_user_config()
+
+# Google Drive path from config or auto-detect
+GOOGLE_DRIVE_BASE = USER_CONFIG.get('google_drive_path', '')
+if not GOOGLE_DRIVE_BASE:
+    # Auto-detect if not configured
+    gdrive_folders = glob.glob(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-*"))
+    if gdrive_folders:
+        GOOGLE_DRIVE_BASE = gdrive_folders[0]
+
+# Google Drive paths for searching
+GOOGLE_DRIVE_PATHS = []
+if GOOGLE_DRIVE_BASE:
+    my_drive = os.path.join(GOOGLE_DRIVE_BASE, "My Drive")
+    shared_drives = os.path.join(GOOGLE_DRIVE_BASE, "Shared drives")
+    if os.path.exists(my_drive):
+        GOOGLE_DRIVE_PATHS.append(my_drive)
+    if os.path.exists(shared_drives):
+        GOOGLE_DRIVE_PATHS.append(shared_drives)
 
 # Browser database paths
 SAFARI_HISTORY = os.path.expanduser("~/Library/Safari/History.db")
@@ -156,20 +183,21 @@ Focus on emails that are:
 2. Related to meeting topics
 3. Recent correspondence about the subject""",
 
-    'drive': """Search Google Drive for files related to this meeting. Meeting context:
+    'drive': """Search Google Drive for files related to this meeting using find_files.
+Meeting context:
 Title: {title}
 Attendees: {attendees}
 Description: {description}
 
-Find up to {limit} relevant files. Return results as a JSON array with objects containing:
+Search in: {drive_path}
+
+Find up to {limit} relevant files (documents, spreadsheets, presentations, etc).
+Return results as a JSON array with objects containing:
 - title: file name
-- url: file path or Drive URL
+- url: full file path
 - type: "drive"
 
-Focus on files that are:
-1. Related to meeting topics
-2. Recently modified
-3. Shared with attendees""",
+Focus on files that match meeting topics, attendee names, or project keywords.""",
 
     'summary': """Generate a meeting prep brief based on the following context. Meeting:
 Title: {title}

@@ -146,7 +146,7 @@ class TestCacheFunctions:
         with funcs._meeting_prep_cache_lock:
             funcs._meeting_prep_cache.clear()
     
-    @patch('search_server_funcs.save_prep_cache_to_disk')
+    @patch('lib.cache.save_prep_cache_to_disk')
     def test_set_and_get_meeting_cache(self, mock_save):
         """Test setting and getting meeting cache."""
         import search_server_funcs as funcs
@@ -161,7 +161,7 @@ class TestCacheFunctions:
         result = funcs.get_cached_data('test-meeting-123', 'jira')
         assert result == test_data
     
-    @patch('search_server_funcs.save_prep_cache_to_disk')
+    @patch('lib.cache.save_prep_cache_to_disk')
     def test_has_cached_data(self, mock_save):
         """Test has_cached_data function."""
         import search_server_funcs as funcs
@@ -172,7 +172,7 @@ class TestCacheFunctions:
         assert funcs.has_cached_data('test-meeting-456', 'slack') == True
         assert funcs.has_cached_data('test-meeting-456', 'jira') == False
     
-    @patch('search_server_funcs.save_prep_cache_to_disk')
+    @patch('lib.cache.save_prep_cache_to_disk')
     def test_is_cache_valid_with_fresh_data(self, mock_save):
         """Test is_cache_valid with fresh data."""
         import search_server_funcs as funcs
@@ -180,7 +180,7 @@ class TestCacheFunctions:
         funcs.set_meeting_cache('test-meeting-789', 'confluence', [{"page": "test"}])
         assert funcs.is_cache_valid('test-meeting-789', 'confluence') == True
     
-    @patch('search_server_funcs.save_prep_cache_to_disk')
+    @patch('lib.cache.save_prep_cache_to_disk')
     def test_is_cache_valid_with_stale_data(self, mock_save):
         """Test is_cache_valid with stale data."""
         import search_server_funcs as funcs
@@ -205,7 +205,7 @@ class TestCacheFunctions:
         result = get_cached_data('nonexistent-meeting', 'jira')
         assert result is None
     
-    @patch('search_server_funcs.save_prep_cache_to_disk')
+    @patch('lib.cache.save_prep_cache_to_disk')
     def test_cache_multiple_sources(self, mock_save):
         """Test caching data for multiple sources."""
         import search_server_funcs as funcs

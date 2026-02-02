@@ -129,14 +129,11 @@ def is_night_hours():
 
 
 def extract_domain(url):
-    """Extract domain from URL, removing www. prefix."""
+    """Extract domain from URL for matching."""
     try:
         parsed = urlparse(url)
-        domain = parsed.netloc or parsed.path.split('/')[0]
-        if domain.startswith('www.'):
-            domain = domain[4:]
-        return domain
-    except Exception:
+        return parsed.netloc.lower().replace('www.', '')
+    except:
         return ''
 
 

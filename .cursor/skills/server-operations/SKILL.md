@@ -1,15 +1,15 @@
 ---
 name: server-operations
-description: Manage Safari Start Page servers. Check status, view logs, restart servers, deploy changes, and troubleshoot issues. Use when the user needs help with server operations, debugging data issues, or deploying updates.
+description: Manage BriefDesk servers. Check status, view logs, restart servers, deploy changes, and troubleshoot issues. Use when the user needs help with server operations, debugging data issues, or deploying updates.
 ---
 
-# Safari Start Page Server Operations
+# BriefDesk Server Operations
 
-Standardized workflows for managing the Safari Start Page local servers.
+Standardized workflows for managing the BriefDesk local servers.
 
 ## Server Architecture
 
-The Safari Start Page runs two local servers:
+BriefDesk runs two local servers:
 
 | Server | Port | Purpose |
 |--------|------|---------|
@@ -20,10 +20,20 @@ The Safari Start Page runs two local servers:
 
 ```
 Production (deployed):
-~/.local/share/safari_start_page/
-├── search-server.py      # Main API server
+~/.local/share/briefdesk/
+├── search-server.py      # Main API server (imports from lib/)
+├── lib/                  # Modular server components
+│   ├── __init__.py
+│   ├── config.py         # Constants, paths, logging
+│   ├── utils.py          # Utility functions
+│   ├── cache.py          # Cache management
+│   ├── slack.py          # Slack integration
+│   ├── atlassian.py      # Jira/Confluence integration
+│   ├── google_services.py # Calendar/Drive integration
+│   ├── cli.py            # devsai CLI integration
+│   ├── prefetch.py       # Background prefetching
+│   └── history.py        # Browser history/bookmarks
 ├── start.html            # Frontend
-├── python3               # Local Python binary (for FDA)
 ├── google_token.pickle   # Google Calendar/Drive auth token
 └── .devsai.json          # MCP server configuration
 
@@ -34,10 +44,11 @@ Production (deployed):
 └── node_modules/         # CLI dependencies
 
 Source (development):
-~/Documents/safari_start_page/
+~/Documents/briefdesk/
 ├── search-server.py      # Edit here, then deploy
+├── lib/                  # Modular components
+├── tests/                # Unit tests (409 tests)
 ├── start.html
-├── install.sh
 └── ...
 ```
 
@@ -47,7 +58,7 @@ Both binaries need FDA for CloudStorage access:
 
 | Binary | Path | Purpose |
 |--------|------|---------|
-| Python | `~/.local/share/safari_start_page/python3` | Safari history, server |
+| Python | System Python or `~/.local/share/briefdesk/python3` | Safari history, server |
 | Node | `~/.local/share/devsai/node` | Google Drive search via CLI |
 
 To grant FDA:
@@ -65,7 +76,7 @@ lsof -i:8765   # Static file server
 lsof -i:18765  # API server
 
 # Check LaunchAgent status
-launchctl list | grep -E "startpage|safari"
+launchctl list | grep -E "briefdesk|startpage"
 
 # Quick health check
 curl -s http://127.0.0.1:18765/hub/prep/meeting | python3 -c "import sys,json; d=json.load(sys.stdin); print('Meeting:', d.get('meeting',{}).get('title','None')[:50])"
@@ -73,20 +84,20 @@ curl -s http://127.0.0.1:18765/hub/prep/meeting | python3 -c "import sys,json; d
 
 ## Viewing Logs
 
-The main log file is `/tmp/safari-hub-server.log`.
+The main log file is `/tmp/briefdesk-server.log`.
 
 ```bash
 # View recent logs
-tail -50 /tmp/safari-hub-server.log
+tail -50 /tmp/briefdesk-server.log
 
 # Follow logs in real-time
-tail -f /tmp/safari-hub-server.log
+tail -f /tmp/briefdesk-server.log
 
 # Filter by component
-tail -f /tmp/safari-hub-server.log | grep -E "\[Prefetch\]"   # Background prefetch
-tail -f /tmp/safari-hub-server.log | grep -E "\[CLI\]"        # CLI calls to devsai
-tail -f /tmp/safari-hub-server.log | grep -E "\[API\]"        # API endpoint logs
-tail -f /tmp/safari-hub-server.log | grep -E "\[Drive\]"      # Drive search logs
+tail -f /tmp/briefdesk-server.log | grep -E "\[Prefetch\]"   # Background prefetch
+tail -f /tmp/briefdesk-server.log | grep -E "\[CLI\]"        # CLI calls to devsai
+tail -f /tmp/briefdesk-server.log | grep -E "\[API\]"        # API endpoint logs
+tail -f /tmp/briefdesk-server.log | grep -E "\[Drive\]"      # Drive search logs
 ```
 
 ## Checking Cache Status
@@ -129,8 +140,8 @@ launchctl kickstart -k gui/$(id -u)/com.startpage.search
 lsof -ti:18765 | xargs kill -9
 
 # 2. Start server with visible output
-cd ~/.local/share/safari_start_page
-./python3 -u search-server.py 2>&1 | tee /tmp/safari-hub-server.log
+cd ~/.local/share/briefdesk
+python3 -u search-server.py 2>&1 | tee /tmp/briefdesk-server.log
 ```
 
 ### Handling "Address Already in Use" Errors
@@ -150,17 +161,18 @@ launchctl load ~/Library/LaunchAgents/com.startpage.search.plist
 
 ## Deploying Changes
 
-After editing files in `~/Documents/safari_start_page/`:
+After editing files in `~/Documents/briefdesk/`:
 
 ```bash
-# 1. Deploy both frontend and backend
-cp ~/Documents/safari_start_page/search-server.py ~/.local/share/safari_start_page/
-cp ~/Documents/safari_start_page/start.html ~/.local/share/safari_start_page/
+# 1. Deploy frontend, backend, and lib modules
+cp ~/Documents/briefdesk/search-server.py ~/.local/share/briefdesk/
+cp -r ~/Documents/briefdesk/lib ~/.local/share/briefdesk/
+cp ~/Documents/briefdesk/start.html ~/.local/share/briefdesk/
 
 # 2. Restart server
 lsof -ti:18765 | xargs kill -9 2>/dev/null
-launchctl unload ~/Library/LaunchAgents/com.startpage.search.plist 2>/dev/null
-launchctl load ~/Library/LaunchAgents/com.startpage.search.plist
+sleep 2
+cd ~/.local/share/briefdesk && nohup python3 search-server.py > /tmp/briefdesk-server.log 2>&1 &
 
 # 3. Wait and verify
 sleep 3
@@ -185,7 +197,7 @@ After deploying, remind user to hard refresh Safari with **Cmd+Shift+R**.
 
 3. **Check prefetch logs:**
    ```bash
-   grep -E "Prefetch|CLI" /tmp/safari-hub-server.log | tail -30
+   grep -E "Prefetch|CLI" /tmp/briefdesk-server.log | tail -30
    ```
 
 4. **Common issues:**
@@ -210,7 +222,7 @@ After deploying, remind user to hard refresh Safari with **Cmd+Shift+R**.
 
 3. **Test CLI Drive search manually:**
    ```bash
-   cd ~/.local/share/safari_start_page
+   cd ~/.local/share/briefdesk
    ~/.local/share/devsai/devsai.sh -p 'Run: find ~/Library/CloudStorage/GoogleDrive-*/Shared\ drives -iname "*keyword*" -type f | head -5' --max-iterations 2
    ```
 
@@ -218,14 +230,14 @@ After deploying, remind user to hard refresh Safari with **Cmd+Shift+R**.
 
 ```bash
 # Check if token exists
-ls -la ~/.local/share/safari_start_page/google_token.pickle
+ls -la ~/.local/share/briefdesk/google_token.pickle
 
 # Test calendar endpoint
 curl -s http://127.0.0.1:18765/calendar | python3 -m json.tool
 
 # If authentication needed, run interactively
-cd ~/.local/share/safari_start_page
-./python3 search-server.py --auth
+cd ~/.local/share/briefdesk
+python3 search-server.py --auth
 ```
 
 ### CLI / MCP Not Working
@@ -238,7 +250,7 @@ cd ~/.local/share/safari_start_page
 ~/.local/share/devsai/devsai.sh -p "List available tools" --max-iterations 1 2>&1 | head -20
 
 # Check CLI execution logs
-grep -E "\[CLI\]" /tmp/safari-hub-server.log | tail -20
+grep -E "\[CLI\]" /tmp/briefdesk-server.log | tail -20
 ```
 
 ### Slack Token Expired
@@ -249,7 +261,7 @@ Fix:
 1. Open `https://app.slack.com` in browser
 2. Open DevTools → Application → Cookies
 3. Copy new `d` cookie (xoxd-...) and token from localStorage (xoxc-...)
-4. Update `~/.local/share/safari_start_page/.devsai.json`
+4. Update `~/.local/share/briefdesk/.devsai.json`
 5. Restart server
 
 ## API Endpoints Reference

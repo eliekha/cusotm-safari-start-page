@@ -23,12 +23,12 @@ class TestGetSlackTokens:
     @pytest.fixture(autouse=True)
     def reset_tokens(self):
         """Reset the global _slack_tokens before each test."""
-        import search_server_funcs as funcs
-        funcs._slack_tokens = None
+        import lib.slack as slack_module
+        slack_module._slack_tokens = None
         yield
-        funcs._slack_tokens = None
+        slack_module._slack_tokens = None
 
-    @patch('search_server_funcs.load_mcp_config')
+    @patch('lib.atlassian.load_mcp_config')
     def test_returns_tokens_from_config(self, mock_load_config):
         """Test that tokens are correctly loaded from MCP config."""
         from search_server_funcs import get_slack_tokens
@@ -47,7 +47,7 @@ class TestGetSlackTokens:
         assert result['xoxc'] == 'xoxc-test-token'
         assert result['xoxd'] == 'xoxd-test-token'
 
-    @patch('search_server_funcs.load_mcp_config')
+    @patch('lib.atlassian.load_mcp_config')
     def test_returns_empty_strings_when_no_config(self, mock_load_config):
         """Test that empty strings are returned when config is missing."""
         from search_server_funcs import get_slack_tokens
@@ -59,7 +59,7 @@ class TestGetSlackTokens:
         assert result['xoxc'] == ''
         assert result['xoxd'] == ''
 
-    @patch('search_server_funcs.load_mcp_config')
+    @patch('lib.atlassian.load_mcp_config')
     def test_caches_tokens_on_subsequent_calls(self, mock_load_config):
         """Test that tokens are cached and not reloaded."""
         import search_server_funcs as funcs
@@ -82,7 +82,7 @@ class TestGetSlackTokens:
         mock_load_config.assert_called_once()
         assert result1 is result2
 
-    @patch('search_server_funcs.load_mcp_config')
+    @patch('lib.atlassian.load_mcp_config')
     def test_handles_partial_config(self, mock_load_config):
         """Test handling config with only some tokens."""
         from search_server_funcs import get_slack_tokens
@@ -117,8 +117,8 @@ class TestSlackApiCall:
         yield
         funcs._slack_tokens = None
 
-    @patch('search_server_funcs.slack_requests')
-    @patch('search_server_funcs.get_slack_tokens')
+    @patch('lib.slack.slack_requests')
+    @patch('lib.slack.get_slack_tokens')
     def test_successful_get_request(self, mock_get_tokens, mock_requests):
         """Test successful GET API call."""
         from search_server_funcs import slack_api_call
@@ -135,8 +135,8 @@ class TestSlackApiCall:
         call_args = mock_requests.get.call_args
         assert 'https://slack.com/api/users.list' in call_args[0]
 
-    @patch('search_server_funcs.slack_requests')
-    @patch('search_server_funcs.get_slack_tokens')
+    @patch('lib.slack.slack_requests')
+    @patch('lib.slack.get_slack_tokens')
     def test_successful_post_request(self, mock_get_tokens, mock_requests):
         """Test successful POST API call."""
         from search_server_funcs import slack_api_call
@@ -151,7 +151,7 @@ class TestSlackApiCall:
         assert result == {'ok': True, 'ts': '123.456'}
         mock_requests.post.assert_called_once()
 
-    @patch('search_server_funcs.get_slack_tokens')
+    @patch('lib.slack.get_slack_tokens')
     def test_returns_error_when_no_token(self, mock_get_tokens):
         """Test that error is returned when no token is configured."""
         from search_server_funcs import slack_api_call
@@ -163,8 +163,8 @@ class TestSlackApiCall:
         assert result['ok'] == False
         assert 'No Slack token configured' in result['error']
 
-    @patch('search_server_funcs.slack_requests')
-    @patch('search_server_funcs.get_slack_tokens')
+    @patch('lib.slack.slack_requests')
+    @patch('lib.slack.get_slack_tokens')
     def test_handles_http_error(self, mock_get_tokens, mock_requests):
         """Test handling of HTTP errors."""
         from search_server_funcs import slack_api_call
@@ -192,8 +192,8 @@ class TestSlackApiCall:
         assert result['ok'] == False
         assert 'error' in result
 
-    @patch('search_server_funcs.slack_requests')
-    @patch('search_server_funcs.get_slack_tokens')
+    @patch('lib.slack.slack_requests')
+    @patch('lib.slack.get_slack_tokens')
     def test_handles_request_exception(self, mock_get_tokens, mock_requests):
         """Test handling of request exceptions (network errors)."""
         from search_server_funcs import slack_api_call
@@ -208,8 +208,8 @@ class TestSlackApiCall:
         assert result['ok'] == False
         assert 'error' in result
 
-    @patch('search_server_funcs.slack_requests')
-    @patch('search_server_funcs.get_slack_tokens')
+    @patch('lib.slack.slack_requests')
+    @patch('lib.slack.get_slack_tokens')
     def test_includes_auth_headers(self, mock_get_tokens, mock_requests):
         """Test that authorization headers are included."""
         from search_server_funcs import slack_api_call
@@ -237,12 +237,12 @@ class TestSlackGetUsers:
     @pytest.fixture(autouse=True)
     def reset_cache(self):
         """Reset the users cache before each test."""
-        import search_server_funcs as funcs
-        funcs._slack_users_cache = {"data": None, "timestamp": 0}
+        import lib.slack as slack_module
+        slack_module._slack_users_cache = {"data": None, "timestamp": 0}
         yield
-        funcs._slack_users_cache = {"data": None, "timestamp": 0}
+        slack_module._slack_users_cache = {"data": None, "timestamp": 0}
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_users_map(self, mock_api_call):
         """Test that users are returned as a map by ID."""
         from search_server_funcs import slack_get_users
@@ -263,7 +263,7 @@ class TestSlackGetUsers:
         assert result['U123']['username'] == 'john'
         assert 'U456' in result
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_handles_pagination(self, mock_api_call):
         """Test that pagination is handled correctly."""
         from search_server_funcs import slack_get_users
@@ -288,30 +288,32 @@ class TestSlackGetUsers:
         assert 'U2' in result
         assert mock_api_call.call_count == 2
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_cached_data_within_ttl(self, mock_api_call):
         """Test that cached data is returned within TTL."""
-        import search_server_funcs as funcs
+        import lib.slack as slack_module
+        from search_server_funcs import slack_get_users
         
-        # Pre-populate cache
-        funcs._slack_users_cache = {
+        # Pre-populate cache in the actual module
+        slack_module._slack_users_cache = {
             'data': {'U999': {'id': 'U999', 'name': 'Cached User'}},
             'timestamp': time.time()
         }
         
-        result = funcs.slack_get_users()
+        result = slack_get_users()
         
         # Should not call API
         mock_api_call.assert_not_called()
         assert 'U999' in result
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_refreshes_expired_cache(self, mock_api_call):
         """Test that expired cache is refreshed."""
-        import search_server_funcs as funcs
+        import lib.slack as slack_module
+        from search_server_funcs import slack_get_users
         
-        # Pre-populate with expired cache
-        funcs._slack_users_cache = {
+        # Pre-populate with expired cache in the actual module
+        slack_module._slack_users_cache = {
             'data': {'U999': {'id': 'U999', 'name': 'Old User'}},
             'timestamp': time.time() - 1000  # Expired
         }
@@ -322,14 +324,15 @@ class TestSlackGetUsers:
             'response_metadata': {}
         }
         
-        result = funcs.slack_get_users()
+        result = slack_get_users()
         
         mock_api_call.assert_called()
         assert 'U1' in result
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_handles_api_error(self, mock_api_call):
         """Test handling of API errors."""
+        import lib.slack as slack_module
         from search_server_funcs import slack_get_users
         
         mock_api_call.return_value = {'ok': False, 'error': 'not_authed'}
@@ -346,7 +349,7 @@ class TestSlackGetUsers:
 class TestSlackGetUnreadCounts:
     """Test the slack_get_unread_counts function."""
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_unread_counts(self, mock_api_call):
         """Test that unread counts are returned correctly."""
         from search_server_funcs import slack_get_unread_counts
@@ -366,7 +369,7 @@ class TestSlackGetUnreadCounts:
         assert len(result['channels']) == 1
         assert result['threads']['mention_count'] == 5
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_empty_on_api_failure(self, mock_api_call):
         """Test that empty structure is returned on API failure."""
         from search_server_funcs import slack_get_unread_counts
@@ -377,7 +380,7 @@ class TestSlackGetUnreadCounts:
         
         assert result == {'ims': [], 'channels': [], 'mpims': [], 'threads': {}}
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_calls_correct_api_method(self, mock_api_call):
         """Test that the correct API method is called."""
         from search_server_funcs import slack_get_unread_counts
@@ -476,9 +479,9 @@ class TestSlackGetConversationsFast:
         yield
         funcs._slack_users_cache = {"data": None, "timestamp": 0}
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
-    @patch('search_server_funcs.slack_get_unread_counts')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
+    @patch('lib.slack.slack_get_unread_counts')
     def test_returns_conversations_list(self, mock_unread, mock_users, mock_api_call):
         """Test that conversations are returned as a list."""
         from search_server_funcs import slack_get_conversations_fast
@@ -496,9 +499,9 @@ class TestSlackGetConversationsFast:
         
         assert isinstance(result, list)
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
-    @patch('search_server_funcs.slack_get_unread_counts')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
+    @patch('lib.slack.slack_get_unread_counts')
     def test_includes_threads_with_unreads(self, mock_unread, mock_users, mock_api_call):
         """Test that threads are included when they have unreads."""
         from search_server_funcs import slack_get_conversations_fast
@@ -519,9 +522,9 @@ class TestSlackGetConversationsFast:
         assert threads_item['unread_count'] == 3
         assert threads_item['type'] == 'thread'
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
-    @patch('search_server_funcs.slack_get_unread_counts')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
+    @patch('lib.slack.slack_get_unread_counts')
     def test_respects_limit_parameter(self, mock_unread, mock_users, mock_api_call):
         """Test that results are limited by the limit parameter."""
         from search_server_funcs import slack_get_conversations_fast
@@ -540,9 +543,9 @@ class TestSlackGetConversationsFast:
         
         assert len(result) <= 5
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
-    @patch('search_server_funcs.slack_get_unread_counts')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
+    @patch('lib.slack.slack_get_unread_counts')
     def test_unread_only_filters_results(self, mock_unread, mock_users, mock_api_call):
         """Test that unread_only=True filters to only unread items."""
         from search_server_funcs import slack_get_conversations_fast
@@ -571,7 +574,7 @@ class TestSlackGetConversationsFast:
 class TestSlackGetConversationsWithUnread:
     """Test the slack_get_conversations_with_unread backwards-compatibility wrapper."""
 
-    @patch('search_server_funcs.slack_get_conversations_fast')
+    @patch('lib.slack.slack_get_conversations_fast')
     def test_calls_fast_function(self, mock_fast):
         """Test that it calls slack_get_conversations_fast."""
         from search_server_funcs import slack_get_conversations_with_unread
@@ -582,7 +585,7 @@ class TestSlackGetConversationsWithUnread:
         
         mock_fast.assert_called_once_with(limit=25, unread_only=False)
 
-    @patch('search_server_funcs.slack_get_conversations_fast')
+    @patch('lib.slack.slack_get_conversations_fast')
     def test_returns_result_from_fast_function(self, mock_fast):
         """Test that it returns the result from slack_get_conversations_fast."""
         from search_server_funcs import slack_get_conversations_with_unread
@@ -602,8 +605,8 @@ class TestSlackGetConversationsWithUnread:
 class TestSlackGetConversationHistoryDirect:
     """Test the slack_get_conversation_history_direct function."""
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_returns_messages_list(self, mock_users, mock_api_call):
         """Test that messages are returned as a list."""
         from search_server_funcs import slack_get_conversation_history_direct
@@ -623,8 +626,8 @@ class TestSlackGetConversationHistoryDirect:
         assert result[0]['text'] == 'Hello'
         assert result[0]['user'] == 'John'
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_returns_error_on_failure(self, mock_users, mock_api_call):
         """Test that error dict is returned on API failure."""
         from search_server_funcs import slack_get_conversation_history_direct
@@ -637,8 +640,8 @@ class TestSlackGetConversationHistoryDirect:
         assert result['status'] == 'error'
         assert 'channel_not_found' in result['message']
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_handles_at_username_channel_error(self, mock_users, mock_api_call):
         """Test special handling of @username channel not found."""
         from search_server_funcs import slack_get_conversation_history_direct
@@ -651,8 +654,8 @@ class TestSlackGetConversationHistoryDirect:
         assert result['status'] == 'error'
         assert 'Cannot find channel' in result['message']
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_marks_own_messages(self, mock_users, mock_api_call):
         """Test that own messages are marked with is_me=True."""
         from search_server_funcs import slack_get_conversation_history_direct
@@ -678,8 +681,8 @@ class TestSlackGetConversationHistoryDirect:
         assert my_msg['is_me'] == True
         assert other_msg['is_me'] == False
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_reverses_message_order(self, mock_users, mock_api_call):
         """Test that messages are reversed to show oldest first."""
         from search_server_funcs import slack_get_conversation_history_direct
@@ -707,8 +710,8 @@ class TestSlackGetConversationHistoryDirect:
 class TestSlackGetThreads:
     """Test the slack_get_threads function."""
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_returns_threads_list(self, mock_users, mock_api_call):
         """Test that threads are returned as a list."""
         from search_server_funcs import slack_get_threads
@@ -738,8 +741,8 @@ class TestSlackGetThreads:
         assert result[0]['channel_id'] == 'C123'
         assert result[0]['root_text'] == 'Original message'
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_returns_empty_on_no_threads(self, mock_users, mock_api_call):
         """Test that empty list is returned when no threads."""
         from search_server_funcs import slack_get_threads
@@ -751,8 +754,8 @@ class TestSlackGetThreads:
         
         assert result == []
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_includes_unread_count(self, mock_users, mock_api_call):
         """Test that unread reply count is included."""
         from search_server_funcs import slack_get_threads
@@ -782,8 +785,8 @@ class TestSlackGetThreads:
 class TestSlackGetThreadReplies:
     """Test the slack_get_thread_replies function."""
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_returns_thread_messages(self, mock_users, mock_api_call):
         """Test that thread replies are returned."""
         from search_server_funcs import slack_get_thread_replies
@@ -803,8 +806,8 @@ class TestSlackGetThreadReplies:
         assert isinstance(result, list)
         assert len(result) == 3
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_returns_error_on_failure(self, mock_users, mock_api_call):
         """Test that error dict is returned on API failure."""
         from search_server_funcs import slack_get_thread_replies
@@ -816,8 +819,8 @@ class TestSlackGetThreadReplies:
         
         assert result['status'] == 'error'
 
-    @patch('search_server_funcs.slack_api_call')
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_api_call')
+    @patch('lib.slack.slack_get_users')
     def test_marks_root_message(self, mock_users, mock_api_call):
         """Test that root message is marked with is_root=True."""
         from search_server_funcs import slack_get_thread_replies
@@ -847,7 +850,7 @@ class TestSlackGetThreadReplies:
 class TestSlackSendMessageDirect:
     """Test the slack_send_message_direct function."""
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_sends_message_successfully(self, mock_api_call):
         """Test successful message sending."""
         from search_server_funcs import slack_send_message_direct
@@ -860,7 +863,7 @@ class TestSlackSendMessageDirect:
         assert result['ts'] == '123.456'
         assert result['channel'] == 'C123'
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_sends_thread_reply(self, mock_api_call):
         """Test sending a reply in a thread."""
         from search_server_funcs import slack_send_message_direct
@@ -873,7 +876,7 @@ class TestSlackSendMessageDirect:
         call_kwargs = mock_api_call.call_args[1]
         assert call_kwargs['post_data']['thread_ts'] == '123.456'
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_error_on_failure(self, mock_api_call):
         """Test error handling on send failure."""
         from search_server_funcs import slack_send_message_direct
@@ -885,7 +888,7 @@ class TestSlackSendMessageDirect:
         assert result['success'] == False
         assert 'channel_not_found' in result['error']
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_calls_correct_api_method(self, mock_api_call):
         """Test that chat.postMessage API is called."""
         from search_server_funcs import slack_send_message_direct
@@ -905,7 +908,7 @@ class TestSlackSendMessageDirect:
 class TestSlackGetDmChannelForUser:
     """Test the slack_get_dm_channel_for_user function."""
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_channel_id_on_success(self, mock_api_call):
         """Test that channel ID is returned on success."""
         from search_server_funcs import slack_get_dm_channel_for_user
@@ -919,7 +922,7 @@ class TestSlackGetDmChannelForUser:
         
         assert result['channel_id'] == 'D123456'
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_error_on_failure(self, mock_api_call):
         """Test that error is returned on API failure."""
         from search_server_funcs import slack_get_dm_channel_for_user
@@ -931,7 +934,7 @@ class TestSlackGetDmChannelForUser:
         assert 'error' in result
         assert 'user_not_found' in result['error']
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_calls_conversations_open(self, mock_api_call):
         """Test that conversations.open API is called."""
         from search_server_funcs import slack_get_dm_channel_for_user
@@ -950,7 +953,7 @@ class TestSlackGetDmChannelForUser:
 class TestSlackFindUserByUsername:
     """Test the slack_find_user_by_username function."""
 
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_get_users')
     def test_finds_user_by_exact_username(self, mock_get_users):
         """Test finding user by exact username match."""
         from search_server_funcs import slack_find_user_by_username
@@ -966,7 +969,7 @@ class TestSlackFindUserByUsername:
         assert result['id'] == 'U123'
         assert result['username'] == 'johndoe'
 
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_get_users')
     def test_returns_none_when_not_found(self, mock_get_users):
         """Test that None is returned when user not found."""
         from search_server_funcs import slack_find_user_by_username
@@ -979,7 +982,7 @@ class TestSlackFindUserByUsername:
         
         assert result is None
 
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_get_users')
     def test_case_insensitive_search(self, mock_get_users):
         """Test that search is case-insensitive."""
         from search_server_funcs import slack_find_user_by_username
@@ -993,7 +996,7 @@ class TestSlackFindUserByUsername:
         assert result is not None
         assert result['id'] == 'U123'
 
-    @patch('search_server_funcs.slack_get_users')
+    @patch('lib.slack.slack_get_users')
     def test_strips_at_symbol(self, mock_get_users):
         """Test that @ prefix is stripped from username."""
         from search_server_funcs import slack_find_user_by_username
@@ -1015,7 +1018,7 @@ class TestSlackFindUserByUsername:
 class TestSlackMarkConversationRead:
     """Test the slack_mark_conversation_read function."""
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_marks_conversation_read_successfully(self, mock_api_call):
         """Test successful marking of conversation as read."""
         from search_server_funcs import slack_mark_conversation_read
@@ -1026,7 +1029,7 @@ class TestSlackMarkConversationRead:
         
         assert result['success'] == True
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_returns_failure_on_error(self, mock_api_call):
         """Test that failure is returned on API error."""
         from search_server_funcs import slack_mark_conversation_read
@@ -1037,7 +1040,7 @@ class TestSlackMarkConversationRead:
         
         assert result['success'] == False
 
-    @patch('search_server_funcs.slack_api_call')
+    @patch('lib.slack.slack_api_call')
     def test_calls_conversations_mark_api(self, mock_api_call):
         """Test that conversations.mark API is called with correct params."""
         from search_server_funcs import slack_mark_conversation_read

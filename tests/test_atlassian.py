@@ -1,5 +1,5 @@
 """
-Tests for Atlassian/MCP-related functions in search-server.py
+Tests for Atlassian/MCP-related functions in lib/atlassian.py
 
 Run with: pytest tests/test_atlassian.py -v
 """
@@ -10,8 +10,11 @@ import subprocess
 import pytest
 from unittest.mock import patch, MagicMock, mock_open, call
 
-# Add tests directory to path
-sys.path.insert(0, os.path.dirname(__file__))
+# Add parent directory to path for lib imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+# Import the module for state manipulation
+import lib.atlassian as atlassian_module
 
 
 # =============================================================================
@@ -84,15 +87,16 @@ def mock_confluence_search_response():
 @pytest.fixture
 def reset_atlassian_globals():
     """Reset global state before each test."""
-    import search_server_funcs
-    search_server_funcs._atlassian_process = None
-    search_server_funcs._atlassian_initialized = False
-    search_server_funcs._atlassian_msg_id = 0
+    atlassian_module._atlassian_process = None
+    atlassian_module._atlassian_initialized = False
+    atlassian_module._atlassian_msg_id = 0
+    atlassian_module._mcp_config_cache = None
     yield
     # Cleanup after test
-    search_server_funcs._atlassian_process = None
-    search_server_funcs._atlassian_initialized = False
-    search_server_funcs._atlassian_msg_id = 0
+    atlassian_module._atlassian_process = None
+    atlassian_module._atlassian_initialized = False
+    atlassian_module._atlassian_msg_id = 0
+    atlassian_module._mcp_config_cache = None
 
 
 # =============================================================================
@@ -104,27 +108,36 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_file_not_found(self):
         """Test returns empty dict when config file doesn't exist."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=False):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=False):
             result = load_mcp_config()
         
         assert result == {}
 
     def test_load_mcp_config_returns_dict(self):
         """Test always returns a dict type."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=False):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=False):
             result = load_mcp_config()
         
         assert isinstance(result, dict)
 
     def test_load_mcp_config_valid_json(self, mock_mcp_config):
         """Test successfully loads valid JSON config."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', mock_open(read_data=json.dumps(mock_mcp_config))):
                 result = load_mcp_config()
         
@@ -133,9 +146,12 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_invalid_json(self):
         """Test returns empty dict on invalid JSON."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', mock_open(read_data="not valid json {{")):
                 result = load_mcp_config()
         
@@ -143,10 +159,13 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_missing_mcpservers_key(self):
         """Test returns empty dict when mcpServers key is missing."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
+        
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
         
         config_without_servers = {"someOtherKey": "value"}
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', mock_open(read_data=json.dumps(config_without_servers))):
                 result = load_mcp_config()
         
@@ -154,9 +173,12 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_file_read_error(self):
         """Test returns empty dict on file read error."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', side_effect=IOError("Permission denied")):
                 result = load_mcp_config()
         
@@ -164,9 +186,12 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_empty_file(self):
         """Test returns empty dict when file is empty."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', mock_open(read_data="")):
                 result = load_mcp_config()
         
@@ -174,10 +199,13 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_empty_mcpservers(self):
         """Test returns empty dict when mcpServers is empty."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
+        
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
         
         config = {"mcpServers": {}}
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', mock_open(read_data=json.dumps(config))):
                 result = load_mcp_config()
         
@@ -185,9 +213,12 @@ class TestLoadMcpConfig:
 
     def test_load_mcp_config_multiple_servers(self, mock_mcp_config):
         """Test loads config with multiple MCP servers."""
-        from search_server_funcs import load_mcp_config
+        from lib.atlassian import load_mcp_config
         
-        with patch('search_server_funcs.os.path.exists', return_value=True):
+        # Reset cache to ensure fresh load
+        atlassian_module._mcp_config_cache = None
+        
+        with patch('lib.atlassian.os.path.exists', return_value=True):
             with patch('builtins.open', mock_open(read_data=json.dumps(mock_mcp_config))):
                 result = load_mcp_config()
         
@@ -205,31 +236,30 @@ class TestGetAtlassianProcess:
 
     def test_returns_none_when_no_config(self, reset_atlassian_globals):
         """Test returns None when atlassian config is missing."""
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
-        with patch('search_server_funcs.load_mcp_config', return_value={}):
+        with patch('lib.atlassian.load_mcp_config', return_value={}):
             result = get_atlassian_process()
         
         assert result is None
 
     def test_returns_none_when_no_command(self, reset_atlassian_globals):
         """Test returns None when command is not specified."""
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         config = {"atlassian": {"args": ["some-arg"]}}
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
             result = get_atlassian_process()
         
         assert result is None
 
     def test_returns_existing_running_process(self, reset_atlassian_globals):
         """Test returns existing process if still running."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None  # Process is running
-        search_server_funcs._atlassian_process = mock_proc
+        atlassian_module._atlassian_process = mock_proc
         
         result = get_atlassian_process()
         
@@ -237,13 +267,12 @@ class TestGetAtlassianProcess:
 
     def test_starts_new_process_when_dead(self, reset_atlassian_globals, mock_mcp_config):
         """Test starts new process when existing one has died."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         # Existing dead process
         dead_proc = MagicMock()
         dead_proc.poll.return_value = 1  # Process exited
-        search_server_funcs._atlassian_process = dead_proc
+        atlassian_module._atlassian_process = dead_proc
         
         # New process mock
         new_proc = MagicMock()
@@ -256,18 +285,17 @@ class TestGetAtlassianProcess:
             "result": {"capabilities": {}}
         }).encode()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=new_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=new_proc):
+                with patch('lib.atlassian.time.sleep'):
                     result = get_atlassian_process()
         
         assert result is new_proc
-        assert search_server_funcs._atlassian_initialized is True
+        assert atlassian_module._atlassian_initialized is True
 
     def test_starts_process_and_initializes(self, reset_atlassian_globals, mock_mcp_config):
         """Test starts process and performs MCP initialization handshake."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -279,21 +307,20 @@ class TestGetAtlassianProcess:
             "result": {"capabilities": {}, "serverInfo": {"name": "atlassian"}}
         }).encode()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
+                with patch('lib.atlassian.time.sleep'):
                     result = get_atlassian_process()
         
         assert result is mock_proc
-        assert search_server_funcs._atlassian_initialized is True
+        assert atlassian_module._atlassian_initialized is True
         # Verify init request was sent
         assert mock_proc.stdin.write.called
         assert mock_proc.stdin.flush.called
 
     def test_initialization_fails_gracefully(self, reset_atlassian_globals, mock_mcp_config):
         """Test handles initialization failure gracefully."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -302,28 +329,27 @@ class TestGetAtlassianProcess:
         # Invalid JSON response
         mock_proc.stdout.readline.return_value = b"not json"
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
+                with patch('lib.atlassian.time.sleep'):
                     result = get_atlassian_process()
         
         assert result is mock_proc
-        assert search_server_funcs._atlassian_initialized is False
+        assert atlassian_module._atlassian_initialized is False
 
     def test_popen_exception_returns_none(self, reset_atlassian_globals, mock_mcp_config):
         """Test returns None when Popen raises exception."""
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', side_effect=OSError("Command not found")):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', side_effect=OSError("Command not found")):
                 result = get_atlassian_process()
         
         assert result is None
 
     def test_empty_init_response(self, reset_atlassian_globals, mock_mcp_config):
         """Test handles empty initialization response."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -331,18 +357,17 @@ class TestGetAtlassianProcess:
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline.return_value = b""  # Empty response
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
+                with patch('lib.atlassian.time.sleep'):
                     result = get_atlassian_process()
         
         assert result is mock_proc
-        assert search_server_funcs._atlassian_initialized is False
+        assert atlassian_module._atlassian_initialized is False
 
     def test_init_response_without_result(self, reset_atlassian_globals, mock_mcp_config):
         """Test handles initialization response without result key."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -355,18 +380,17 @@ class TestGetAtlassianProcess:
             "error": {"code": -32000, "message": "Server error"}
         }).encode()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
+                with patch('lib.atlassian.time.sleep'):
                     result = get_atlassian_process()
         
         assert result is mock_proc
-        assert search_server_funcs._atlassian_initialized is False
+        assert atlassian_module._atlassian_initialized is False
 
     def test_sends_initialized_notification(self, reset_atlassian_globals, mock_mcp_config):
         """Test sends notifications/initialized after successful init."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -376,9 +400,9 @@ class TestGetAtlassianProcess:
             "jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}
         }).encode()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
+                with patch('lib.atlassian.time.sleep'):
                     get_atlassian_process()
         
         # Check that the initialized notification was sent (second write call)
@@ -390,11 +414,10 @@ class TestGetAtlassianProcess:
 
     def test_resets_msg_id_on_new_process(self, reset_atlassian_globals, mock_mcp_config):
         """Test message ID is reset when starting new process."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         # Set a high msg_id as if there were previous calls
-        search_server_funcs._atlassian_msg_id = 100
+        atlassian_module._atlassian_msg_id = 100
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -404,18 +427,17 @@ class TestGetAtlassianProcess:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
+                with patch('lib.atlassian.time.sleep'):
                     get_atlassian_process()
         
         # After starting, msg_id should be 1 (used for init)
-        assert search_server_funcs._atlassian_msg_id == 1
+        assert atlassian_module._atlassian_msg_id == 1
 
     def test_config_without_env_vars(self, reset_atlassian_globals):
         """Test process starts even without env vars in config."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         config = {"atlassian": {"command": "npx", "args": ["-y", "mcp-server"]}}
         
@@ -427,9 +449,9 @@ class TestGetAtlassianProcess:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc) as mock_popen:
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc) as mock_popen:
+                with patch('lib.atlassian.time.sleep'):
                     result = get_atlassian_process()
         
         assert result is mock_proc
@@ -445,9 +467,9 @@ class TestCallAtlassianTool:
 
     def test_returns_error_when_no_process(self, reset_atlassian_globals):
         """Test returns error when process is not available."""
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=None):
+        with patch('lib.atlassian.get_atlassian_process', return_value=None):
             result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'error' in result
@@ -455,12 +477,12 @@ class TestCallAtlassianTool:
 
     def test_returns_error_when_process_dead(self, reset_atlassian_globals):
         """Test returns error when process has died."""
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = 1  # Process exited
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
             result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'error' in result
@@ -468,14 +490,13 @@ class TestCallAtlassianTool:
 
     def test_returns_error_when_not_initialized(self, reset_atlassian_globals):
         """Test returns error when MCP not initialized."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
-        search_server_funcs._atlassian_initialized = False
+        atlassian_module._atlassian_initialized = False
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
             result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'error' in result
@@ -483,8 +504,7 @@ class TestCallAtlassianTool:
 
     def test_successful_tool_call(self, reset_atlassian_globals):
         """Test successful MCP tool call."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -496,10 +516,10 @@ class TestCallAtlassianTool:
             "result": {"content": [{"type": "text", "text": "Success"}]}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'content' in result
@@ -507,19 +527,18 @@ class TestCallAtlassianTool:
 
     def test_timeout_handling(self, reset_atlassian_globals):
         """Test timeout returns appropriate error."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdin = MagicMock()
         mock_proc.stdout = MagicMock()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
         # select returns empty (timeout)
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([], [], [])):
                 result = call_atlassian_tool('search', {'query': 'test'}, timeout=5)
         
         assert 'error' in result
@@ -527,8 +546,7 @@ class TestCallAtlassianTool:
 
     def test_error_response_from_mcp(self, reset_atlassian_globals):
         """Test handles error response from MCP server."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -540,18 +558,17 @@ class TestCallAtlassianTool:
             "error": {"code": -32600, "message": "Invalid request"}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'error' in result
 
     def test_json_decode_error(self, reset_atlassian_globals):
         """Test handles JSON decode error in response."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -559,18 +576,17 @@ class TestCallAtlassianTool:
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline.return_value = b"invalid json {{"
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'error' in result
 
     def test_increments_message_id(self, reset_atlassian_globals):
         """Test message ID increments with each call."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -580,37 +596,35 @@ class TestCallAtlassianTool:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
-        initial_id = search_server_funcs._atlassian_msg_id
+        atlassian_module._atlassian_initialized = True
+        initial_id = atlassian_module._atlassian_msg_id
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 call_atlassian_tool('search', {'query': 'test1'})
                 call_atlassian_tool('search', {'query': 'test2'})
         
-        assert search_server_funcs._atlassian_msg_id == initial_id + 2
+        assert atlassian_module._atlassian_msg_id == initial_id + 2
 
     def test_exception_during_call(self, reset_atlassian_globals):
         """Test handles exceptions during tool call."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdin = MagicMock()
         mock_proc.stdin.write.side_effect = IOError("Broken pipe")
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
             result = call_atlassian_tool('search', {'query': 'test'})
         
         assert 'error' in result
 
     def test_empty_response_line(self, reset_atlassian_globals):
         """Test handles empty response line."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -618,10 +632,10 @@ class TestCallAtlassianTool:
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline.return_value = b""  # Empty line
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = call_atlassian_tool('search', {'query': 'test'})
         
         # Should return timeout error since no valid response
@@ -629,8 +643,7 @@ class TestCallAtlassianTool:
 
     def test_default_timeout_is_15_seconds(self, reset_atlassian_globals):
         """Test default timeout is 15 seconds."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -640,10 +653,10 @@ class TestCallAtlassianTool:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])) as mock_select:
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])) as mock_select:
                 call_atlassian_tool('search', {'query': 'test'})
         
         # Check select was called with timeout=15
@@ -651,8 +664,7 @@ class TestCallAtlassianTool:
 
     def test_custom_timeout(self, reset_atlassian_globals):
         """Test custom timeout is passed to select."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -662,18 +674,17 @@ class TestCallAtlassianTool:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])) as mock_select:
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])) as mock_select:
                 call_atlassian_tool('search', {'query': 'test'}, timeout=30)
         
         mock_select.assert_called_with([mock_proc.stdout], [], [], 30)
 
     def test_sends_correct_request_format(self, reset_atlassian_globals):
         """Test sends correctly formatted JSON-RPC request."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -683,11 +694,11 @@ class TestCallAtlassianTool:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
-        search_server_funcs._atlassian_msg_id = 5
+        atlassian_module._atlassian_initialized = True
+        atlassian_module._atlassian_msg_id = 5
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 call_atlassian_tool('my_tool', {'arg1': 'value1'})
         
         # Verify the request format
@@ -701,8 +712,7 @@ class TestCallAtlassianTool:
 
     def test_flush_after_write(self, reset_atlassian_globals):
         """Test flushes stdin after writing request."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -712,10 +722,10 @@ class TestCallAtlassianTool:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 call_atlassian_tool('search', {'query': 'test'})
         
         mock_proc.stdin.flush.assert_called()
@@ -728,30 +738,30 @@ class TestCallAtlassianTool:
 class TestCallMcpTool:
     """Tests for call_mcp_tool function (generic MCP caller)."""
 
-    def test_returns_error_when_server_not_configured(self):
+    def test_returns_error_when_server_not_configured(self, reset_atlassian_globals):
         """Test returns error when server is not in config."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
-        with patch('search_server_funcs.load_mcp_config', return_value={}):
+        with patch('lib.atlassian.load_mcp_config', return_value={}):
             result = call_mcp_tool('unknown_server', 'some_tool', {})
         
         assert 'error' in result
         assert 'not configured' in result['error']
 
-    def test_returns_error_when_no_command(self):
+    def test_returns_error_when_no_command(self, reset_atlassian_globals):
         """Test returns error when command not specified."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"test_server": {"args": ["arg1"]}}
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
             result = call_mcp_tool('test_server', 'some_tool', {})
         
         assert 'error' in result
         assert 'No command' in result['error']
 
-    def test_successful_mcp_call(self):
+    def test_successful_mcp_call(self, reset_atlassian_globals):
         """Test successful MCP tool call via subprocess."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": ["-y", "mcp-slack"]}}
         
@@ -761,15 +771,15 @@ class TestCallMcpTool:
             b""
         )
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'conversations_list', {})
         
         assert result == {"data": "success"}
 
-    def test_timeout_expired(self):
+    def test_timeout_expired(self, reset_atlassian_globals):
         """Test handles subprocess timeout."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
@@ -777,17 +787,17 @@ class TestCallMcpTool:
         mock_proc.communicate.side_effect = subprocess.TimeoutExpired(cmd="test", timeout=30)
         mock_proc.kill = MagicMock()
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'conversations_list', {})
         
         assert 'error' in result
         assert 'timed out' in result['error'].lower()
         mock_proc.kill.assert_called_once()
 
-    def test_handles_multiline_json_response(self):
+    def test_handles_multiline_json_response(self, reset_atlassian_globals):
         """Test parses last valid JSON from multiline output."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
@@ -800,15 +810,15 @@ class TestCallMcpTool:
         mock_proc = MagicMock()
         mock_proc.communicate.return_value = (multiline_response.encode(), b"")
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'test_tool', {})
         
         assert result == {"final": "data"}
 
-    def test_handles_error_in_response(self):
+    def test_handles_error_in_response(self, reset_atlassian_globals):
         """Test returns error from MCP error response."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
@@ -822,31 +832,31 @@ class TestCallMcpTool:
             b""
         )
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'unknown_tool', {})
         
         assert 'error' in result
 
-    def test_no_valid_response(self):
+    def test_no_valid_response(self, reset_atlassian_globals):
         """Test handles invalid/non-JSON output."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
         mock_proc = MagicMock()
         mock_proc.communicate.return_value = (b"some random output", b"")
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'test_tool', {})
         
         assert 'error' in result
         assert 'No valid MCP response' in result['error']
 
-    def test_uses_env_vars_from_config(self):
+    def test_uses_env_vars_from_config(self, reset_atlassian_globals):
         """Test passes environment variables from config."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {
             "slack": {
@@ -862,8 +872,8 @@ class TestCallMcpTool:
             b""
         )
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc) as mock_popen:
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc) as mock_popen:
                 call_mcp_tool('slack', 'test', {})
         
         # Verify env was passed
@@ -871,22 +881,22 @@ class TestCallMcpTool:
         assert 'env' in call_args.kwargs
         assert 'SLACK_TOKEN' in call_args.kwargs['env']
 
-    def test_general_exception(self):
+    def test_general_exception(self, reset_atlassian_globals):
         """Test handles general exceptions."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', side_effect=Exception("Unexpected error")):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', side_effect=Exception("Unexpected error")):
                 result = call_mcp_tool('slack', 'test_tool', {})
         
         assert 'error' in result
         assert 'Unexpected error' in result['error']
 
-    def test_empty_args_list(self):
+    def test_empty_args_list(self, reset_atlassian_globals):
         """Test handles config with empty args list."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"myserver": {"command": "mycommand", "args": []}}
         
@@ -896,15 +906,15 @@ class TestCallMcpTool:
             b""
         )
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('myserver', 'test', {})
         
         assert result == {"ok": True}
 
-    def test_skips_non_json_lines(self):
+    def test_skips_non_json_lines(self, reset_atlassian_globals):
         """Test skips lines that don't start with {."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
@@ -917,15 +927,15 @@ class TestCallMcpTool:
         mock_proc = MagicMock()
         mock_proc.communicate.return_value = (multiline_response.encode(), b"")
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'test', {})
         
         assert result == {"data": "found"}
 
-    def test_handles_invalid_json_line(self):
+    def test_handles_invalid_json_line(self, reset_atlassian_globals):
         """Test handles line that looks like JSON but isn't valid."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": []}}
         
@@ -937,15 +947,15 @@ class TestCallMcpTool:
         mock_proc = MagicMock()
         mock_proc.communicate.return_value = (multiline_response.encode(), b"")
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc):
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc):
                 result = call_mcp_tool('slack', 'test', {})
         
         assert result == {"valid": "data"}
 
-    def test_uses_shell_true(self):
+    def test_uses_shell_true(self, reset_atlassian_globals):
         """Test subprocess is run with shell=True."""
-        from search_server_funcs import call_mcp_tool
+        from lib.atlassian import call_mcp_tool
         
         config = {"slack": {"command": "npx", "args": ["-y", "mcp-slack"]}}
         
@@ -955,8 +965,8 @@ class TestCallMcpTool:
             b""
         )
         
-        with patch('search_server_funcs.load_mcp_config', return_value=config):
-            with patch('search_server_funcs.subprocess.Popen', return_value=mock_proc) as mock_popen:
+        with patch('lib.atlassian.load_mcp_config', return_value=config):
+            with patch('lib.atlassian.subprocess.Popen', return_value=mock_proc) as mock_popen:
                 call_mcp_tool('slack', 'test', {})
         
         call_args = mock_popen.call_args
@@ -972,7 +982,7 @@ class TestSearchAtlassian:
 
     def test_returns_both_jira_and_confluence(self, reset_atlassian_globals):
         """Test returns both Jira and Confluence results."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         # Combined response with both Jira and Confluence
         combined_response = {
@@ -987,7 +997,7 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=combined_response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=combined_response):
             result = search_atlassian('test query', limit=5)
         
         assert 'jira' in result
@@ -997,7 +1007,7 @@ class TestSearchAtlassian:
 
     def test_extracts_jira_key_from_title(self, reset_atlassian_globals):
         """Test extracts Jira issue key from title."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1010,14 +1020,14 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert result['jira'][0]['key'] == 'ABC-123'
 
     def test_respects_limit_parameter(self, reset_atlassian_globals):
         """Test respects the limit parameter."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1031,16 +1041,16 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=3)
         
         assert len(result['jira']) <= 3
 
     def test_handles_error_response(self, reset_atlassian_globals):
         """Test handles error from call_atlassian_tool."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value={"error": "MCP not available"}):
+        with patch('lib.atlassian.call_atlassian_tool', return_value={"error": "MCP not available"}):
             result = search_atlassian('test', limit=5)
         
         assert result['jira'] == []
@@ -1049,7 +1059,7 @@ class TestSearchAtlassian:
 
     def test_fallback_line_parsing(self, reset_atlassian_globals):
         """Test fallback to line-based parsing when JSON fails."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1058,7 +1068,7 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert len(result['jira']) > 0
@@ -1066,11 +1076,11 @@ class TestSearchAtlassian:
 
     def test_handles_empty_content(self, reset_atlassian_globals):
         """Test handles empty content array."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {"content": []}
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert result['jira'] == []
@@ -1078,7 +1088,7 @@ class TestSearchAtlassian:
 
     def test_handles_non_text_content_items(self, reset_atlassian_globals):
         """Test ignores non-text content items."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [
@@ -1087,18 +1097,18 @@ class TestSearchAtlassian:
             ]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert len(result['jira']) == 1
 
     def test_handles_content_not_list(self, reset_atlassian_globals):
         """Test handles case where content is not a list."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {"content": "not a list"}
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert result['jira'] == []
@@ -1106,7 +1116,7 @@ class TestSearchAtlassian:
 
     def test_truncates_long_titles(self, reset_atlassian_globals):
         """Test truncates titles longer than 150 characters."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         long_title = "PROJ-1: " + "x" * 200
         response = {
@@ -1118,14 +1128,14 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert len(result['jira'][0]['title']) == 150
 
     def test_extracts_confluence_space_name(self, reset_atlassian_globals):
         """Test extracts Confluence space name from response."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1141,14 +1151,14 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert result['confluence'][0]['space'] == 'Engineering'
 
     def test_handles_missing_url(self, reset_atlassian_globals):
         """Test handles missing URL in results."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1159,17 +1169,17 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
-            with patch('search_server_funcs.ATLASSIAN_DOMAIN', 'test.atlassian.net'):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
+            with patch('lib.atlassian._get_atlassian_domain', return_value='test.atlassian.net'):
                 result = search_atlassian('test', limit=5)
         
         assert result['jira'][0]['url'] == 'https://test.atlassian.net/browse/TEST-1'
 
     def test_handles_non_dict_result(self, reset_atlassian_globals):
         """Test handles non-dict result from call_atlassian_tool."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value="string result"):
+        with patch('lib.atlassian.call_atlassian_tool', return_value="string result"):
             result = search_atlassian('test', limit=5)
         
         assert result['jira'] == []
@@ -1178,7 +1188,7 @@ class TestSearchAtlassian:
 
     def test_identifies_jira_by_issue_in_ari(self, reset_atlassian_globals):
         """Test identifies Jira issues by :issue/ in ARI."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1189,14 +1199,14 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert len(result['jira']) == 1
 
     def test_identifies_confluence_by_page_in_ari(self, reset_atlassian_globals):
         """Test identifies Confluence pages by :page/ in ARI."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1207,7 +1217,7 @@ class TestSearchAtlassian:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert len(result['confluence']) == 1
@@ -1222,9 +1232,9 @@ class TestGetJiraContext:
 
     def test_returns_only_jira_results(self, reset_atlassian_globals):
         """Test returns only Jira results from search."""
-        from search_server_funcs import get_jira_context
+        from lib.atlassian import get_jira_context
         
-        with patch('search_server_funcs.search_atlassian', return_value={
+        with patch('lib.atlassian.search_atlassian', return_value={
             'jira': [{'key': 'PROJ-1', 'title': 'Test'}],
             'confluence': [{'title': 'Doc page'}]
         }):
@@ -1236,45 +1246,45 @@ class TestGetJiraContext:
 
     def test_passes_limit_to_search(self, reset_atlassian_globals):
         """Test passes limit parameter to search_atlassian."""
-        from search_server_funcs import get_jira_context
+        from lib.atlassian import get_jira_context
         
-        with patch('search_server_funcs.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
+        with patch('lib.atlassian.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
             get_jira_context('test', limit=10)
         
         mock_search.assert_called_once_with('test', 10)
 
     def test_returns_empty_list_on_error(self, reset_atlassian_globals):
         """Test returns empty list when search fails."""
-        from search_server_funcs import get_jira_context
+        from lib.atlassian import get_jira_context
         
-        with patch('search_server_funcs.search_atlassian', return_value={'error': 'Failed'}):
+        with patch('lib.atlassian.search_atlassian', return_value={'error': 'Failed'}):
             result = get_jira_context('test', limit=5)
         
         assert result == []
 
     def test_handles_non_dict_response(self, reset_atlassian_globals):
         """Test handles non-dict response gracefully."""
-        from search_server_funcs import get_jira_context
+        from lib.atlassian import get_jira_context
         
-        with patch('search_server_funcs.search_atlassian', return_value=None):
+        with patch('lib.atlassian.search_atlassian', return_value=None):
             result = get_jira_context('test', limit=5)
         
         assert result == []
 
     def test_default_limit_is_5(self, reset_atlassian_globals):
         """Test default limit is 5."""
-        from search_server_funcs import get_jira_context
+        from lib.atlassian import get_jira_context
         
-        with patch('search_server_funcs.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
+        with patch('lib.atlassian.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
             get_jira_context('test')
         
         mock_search.assert_called_once_with('test', 5)
 
     def test_returns_empty_when_jira_key_missing(self, reset_atlassian_globals):
         """Test returns empty list when jira key is missing from result."""
-        from search_server_funcs import get_jira_context
+        from lib.atlassian import get_jira_context
         
-        with patch('search_server_funcs.search_atlassian', return_value={'confluence': []}):
+        with patch('lib.atlassian.search_atlassian', return_value={'confluence': []}):
             result = get_jira_context('test', limit=5)
         
         assert result == []
@@ -1289,9 +1299,9 @@ class TestSearchConfluence:
 
     def test_returns_only_confluence_results(self, reset_atlassian_globals):
         """Test returns only Confluence results from search."""
-        from search_server_funcs import search_confluence
+        from lib.atlassian import search_confluence
         
-        with patch('search_server_funcs.search_atlassian', return_value={
+        with patch('lib.atlassian.search_atlassian', return_value={
             'jira': [{'key': 'PROJ-1', 'title': 'Test'}],
             'confluence': [{'title': 'Architecture Doc', 'space': 'TEAM'}]
         }):
@@ -1303,45 +1313,45 @@ class TestSearchConfluence:
 
     def test_passes_limit_to_search(self, reset_atlassian_globals):
         """Test passes limit parameter to search_atlassian."""
-        from search_server_funcs import search_confluence
+        from lib.atlassian import search_confluence
         
-        with patch('search_server_funcs.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
+        with patch('lib.atlassian.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
             search_confluence('docs', limit=15)
         
         mock_search.assert_called_once_with('docs', 15)
 
     def test_returns_empty_list_on_error(self, reset_atlassian_globals):
         """Test returns empty list when search fails."""
-        from search_server_funcs import search_confluence
+        from lib.atlassian import search_confluence
         
-        with patch('search_server_funcs.search_atlassian', return_value={'error': 'Connection failed'}):
+        with patch('lib.atlassian.search_atlassian', return_value={'error': 'Connection failed'}):
             result = search_confluence('test', limit=5)
         
         assert result == []
 
     def test_handles_non_dict_response(self, reset_atlassian_globals):
         """Test handles non-dict response gracefully."""
-        from search_server_funcs import search_confluence
+        from lib.atlassian import search_confluence
         
-        with patch('search_server_funcs.search_atlassian', return_value="unexpected"):
+        with patch('lib.atlassian.search_atlassian', return_value="unexpected"):
             result = search_confluence('test', limit=5)
         
         assert result == []
 
     def test_default_limit_is_5(self, reset_atlassian_globals):
         """Test default limit is 5."""
-        from search_server_funcs import search_confluence
+        from lib.atlassian import search_confluence
         
-        with patch('search_server_funcs.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
+        with patch('lib.atlassian.search_atlassian', return_value={'jira': [], 'confluence': []}) as mock_search:
             search_confluence('docs')
         
         mock_search.assert_called_once_with('docs', 5)
 
     def test_returns_empty_when_confluence_key_missing(self, reset_atlassian_globals):
         """Test returns empty list when confluence key is missing from result."""
-        from search_server_funcs import search_confluence
+        from lib.atlassian import search_confluence
         
-        with patch('search_server_funcs.search_atlassian', return_value={'jira': []}):
+        with patch('lib.atlassian.search_atlassian', return_value={'jira': []}):
             result = search_confluence('test', limit=5)
         
         assert result == []
@@ -1356,9 +1366,9 @@ class TestListAtlassianTools:
 
     def test_returns_error_when_no_process(self, reset_atlassian_globals):
         """Test returns error when process not available."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=None):
+        with patch('lib.atlassian.get_atlassian_process', return_value=None):
             result = list_atlassian_tools()
         
         assert 'error' in result
@@ -1366,12 +1376,12 @@ class TestListAtlassianTools:
 
     def test_returns_error_when_process_dead(self, reset_atlassian_globals):
         """Test returns error when process has exited."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = 1  # Exited
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
             result = list_atlassian_tools()
         
         assert 'error' in result
@@ -1379,7 +1389,7 @@ class TestListAtlassianTools:
 
     def test_successful_tools_list(self, reset_atlassian_globals):
         """Test successfully lists available tools."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -1396,8 +1406,8 @@ class TestListAtlassianTools:
             }
         }).encode()
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = list_atlassian_tools()
         
         assert 'tools' in result
@@ -1405,15 +1415,15 @@ class TestListAtlassianTools:
 
     def test_timeout_listing_tools(self, reset_atlassian_globals):
         """Test handles timeout when listing tools."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdin = MagicMock()
         mock_proc.stdout = MagicMock()
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([], [], [])):
                 result = list_atlassian_tools()
         
         assert 'error' in result
@@ -1421,22 +1431,21 @@ class TestListAtlassianTools:
 
     def test_exception_during_listing(self, reset_atlassian_globals):
         """Test handles exception during tools listing."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
         mock_proc.stdin = MagicMock()
         mock_proc.stdin.write.side_effect = IOError("Broken pipe")
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
             result = list_atlassian_tools()
         
         assert 'error' in result
 
     def test_increments_message_id(self, reset_atlassian_globals):
         """Test message ID increments when listing tools."""
-        import search_server_funcs
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -1446,18 +1455,17 @@ class TestListAtlassianTools:
             "jsonrpc": "2.0", "id": 1, "result": {"tools": []}
         }).encode()
         
-        initial_id = search_server_funcs._atlassian_msg_id
+        initial_id = atlassian_module._atlassian_msg_id
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 list_atlassian_tools()
         
-        assert search_server_funcs._atlassian_msg_id == initial_id + 1
+        assert atlassian_module._atlassian_msg_id == initial_id + 1
 
     def test_sends_correct_method(self, reset_atlassian_globals):
         """Test sends tools/list method."""
-        import search_server_funcs
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -1467,8 +1475,8 @@ class TestListAtlassianTools:
             "jsonrpc": "2.0", "id": 1, "result": {"tools": []}
         }).encode()
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 list_atlassian_tools()
         
         write_call = mock_proc.stdin.write.call_args[0][0].decode()
@@ -1477,7 +1485,7 @@ class TestListAtlassianTools:
 
     def test_uses_10_second_timeout(self, reset_atlassian_globals):
         """Test uses 10 second timeout for listing tools."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -1487,15 +1495,15 @@ class TestListAtlassianTools:
             "jsonrpc": "2.0", "id": 1, "result": {"tools": []}
         }).encode()
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])) as mock_select:
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])) as mock_select:
                 list_atlassian_tools()
         
         mock_select.assert_called_with([mock_proc.stdout], [], [], 10)
 
     def test_returns_empty_result_on_empty_response(self, reset_atlassian_globals):
         """Test returns empty dict when response is empty."""
-        from search_server_funcs import list_atlassian_tools
+        from lib.atlassian import list_atlassian_tools
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -1503,8 +1511,8 @@ class TestListAtlassianTools:
         mock_proc.stdout = MagicMock()
         mock_proc.stdout.readline.return_value = b""
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = list_atlassian_tools()
         
         # Should return timeout since empty response
@@ -1520,8 +1528,7 @@ class TestAtlassianIntegration:
 
     def test_process_restart_on_death(self, reset_atlassian_globals, mock_mcp_config):
         """Test process is restarted when it dies between calls."""
-        import search_server_funcs
-        from search_server_funcs import get_atlassian_process
+        from lib.atlassian import get_atlassian_process
         
         # First call - start process
         proc1 = MagicMock()
@@ -1543,9 +1550,9 @@ class TestAtlassianIntegration:
         
         popen_calls = [proc1, proc2]
         
-        with patch('search_server_funcs.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
-            with patch('search_server_funcs.subprocess.Popen', side_effect=popen_calls):
-                with patch('search_server_funcs.time.sleep'):
+        with patch('lib.atlassian.load_mcp_config', return_value=mock_mcp_config['mcpServers']):
+            with patch('lib.atlassian.subprocess.Popen', side_effect=popen_calls):
+                with patch('lib.atlassian.time.sleep'):
                     # First call starts process
                     result1 = get_atlassian_process()
                     assert result1 is proc1
@@ -1559,8 +1566,7 @@ class TestAtlassianIntegration:
 
     def test_full_search_flow(self, reset_atlassian_globals):
         """Test complete search flow from query to results."""
-        import search_server_funcs
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         # Set up initialized state
         mock_proc = MagicMock()
@@ -1583,10 +1589,10 @@ class TestAtlassianIntegration:
             }
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = search_atlassian('search query', limit=5)
         
         assert len(result['jira']) == 1
@@ -1595,14 +1601,14 @@ class TestAtlassianIntegration:
 
     def test_jira_and_confluence_use_same_search(self, reset_atlassian_globals):
         """Test get_jira_context and search_confluence both use search_atlassian."""
-        from search_server_funcs import get_jira_context, search_confluence
+        from lib.atlassian import get_jira_context, search_confluence
         
         mock_results = {
             'jira': [{'key': 'TEST-1'}],
             'confluence': [{'title': 'Test Doc'}]
         }
         
-        with patch('search_server_funcs.search_atlassian', return_value=mock_results) as mock_search:
+        with patch('lib.atlassian.search_atlassian', return_value=mock_results) as mock_search:
             jira_results = get_jira_context('query', limit=5)
             confluence_results = search_confluence('query', limit=5)
         
@@ -1612,20 +1618,20 @@ class TestAtlassianIntegration:
 
     def test_search_atlassian_calls_correct_tool(self, reset_atlassian_globals):
         """Test search_atlassian calls the 'search' tool with correct arguments."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value={"content": []}) as mock_call:
+        with patch('lib.atlassian.call_atlassian_tool', return_value={"content": []}) as mock_call:
             search_atlassian('my search query', limit=10)
         
         mock_call.assert_called_once_with('search', {'query': 'my search query'})
 
     def test_error_propagates_through_wrapper_functions(self, reset_atlassian_globals):
         """Test errors from search_atlassian propagate to wrapper functions."""
-        from search_server_funcs import get_jira_context, search_confluence
+        from lib.atlassian import get_jira_context, search_confluence
         
         error_result = {'jira': [], 'confluence': [], 'error': 'Connection failed'}
         
-        with patch('search_server_funcs.search_atlassian', return_value=error_result):
+        with patch('lib.atlassian.search_atlassian', return_value=error_result):
             jira = get_jira_context('test', limit=5)
             confluence = search_confluence('test', limit=5)
         
@@ -1643,8 +1649,7 @@ class TestEdgeCases:
 
     def test_call_atlassian_tool_with_complex_arguments(self, reset_atlassian_globals):
         """Test call_atlassian_tool with complex nested arguments."""
-        import search_server_funcs
-        from search_server_funcs import call_atlassian_tool
+        from lib.atlassian import call_atlassian_tool
         
         mock_proc = MagicMock()
         mock_proc.poll.return_value = None
@@ -1654,7 +1659,7 @@ class TestEdgeCases:
             "jsonrpc": "2.0", "id": 1, "result": {}
         }).encode()
         
-        search_server_funcs._atlassian_initialized = True
+        atlassian_module._atlassian_initialized = True
         
         complex_args = {
             "query": "test",
@@ -1662,8 +1667,8 @@ class TestEdgeCases:
             "options": {"limit": 10, "offset": 0}
         }
         
-        with patch('search_server_funcs.get_atlassian_process', return_value=mock_proc):
-            with patch('search_server_funcs.select.select', return_value=([mock_proc.stdout], [], [])):
+        with patch('lib.atlassian.get_atlassian_process', return_value=mock_proc):
+            with patch('lib.atlassian.select.select', return_value=([mock_proc.stdout], [], [])):
                 result = call_atlassian_tool('advanced_search', complex_args)
         
         # Verify the complex arguments were serialized correctly
@@ -1673,9 +1678,9 @@ class TestEdgeCases:
 
     def test_search_atlassian_with_special_characters_in_query(self, reset_atlassian_globals):
         """Test search_atlassian handles special characters in query."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value={"content": []}) as mock_call:
+        with patch('lib.atlassian.call_atlassian_tool', return_value={"content": []}) as mock_call:
             search_atlassian('test "with quotes" & special <chars>', limit=5)
         
         mock_call.assert_called_once()
@@ -1684,7 +1689,7 @@ class TestEdgeCases:
 
     def test_handles_unicode_in_response(self, reset_atlassian_globals):
         """Test handles Unicode characters in MCP response."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         response = {
             "content": [{
@@ -1699,7 +1704,7 @@ class TestEdgeCases:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         assert 'PROJ-1' in result['jira'][0]['key']
@@ -1707,7 +1712,7 @@ class TestEdgeCases:
 
     def test_very_large_response(self, reset_atlassian_globals):
         """Test handles very large response with many results."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         # Generate 100 results
         results = [
@@ -1722,7 +1727,7 @@ class TestEdgeCases:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=5)
         
         # Should be limited to 5
@@ -1730,7 +1735,7 @@ class TestEdgeCases:
 
     def test_mixed_jira_and_confluence_ordering(self, reset_atlassian_globals):
         """Test correctly separates Jira and Confluence when mixed."""
-        from search_server_funcs import search_atlassian
+        from lib.atlassian import search_atlassian
         
         results = [
             {"id": "ari:cloud:jira:site:issue/1", "title": "PROJ-1: Jira 1", "url": ""},
@@ -1747,7 +1752,7 @@ class TestEdgeCases:
             }]
         }
         
-        with patch('search_server_funcs.call_atlassian_tool', return_value=response):
+        with patch('lib.atlassian.call_atlassian_tool', return_value=response):
             result = search_atlassian('test', limit=10)
         
         assert len(result['jira']) == 3
