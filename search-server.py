@@ -148,6 +148,9 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_slack_thread(params)
         elif path == "/slack/mark-read":
             self.handle_slack_mark_read(params)
+        # Setup page
+        elif path == "/setup":
+            self.handle_setup_page()
         else:
             self.send_json({"error": "Not found"})
     
@@ -173,6 +176,9 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_hub_settings(data)
         elif path == "/hub/ai-search":
             self.handle_ai_search(data)
+        # Setup endpoints
+        elif path == "/setup/slack":
+            self.handle_setup_slack(data)
         else:
             self.send_json({"error": "Not found"})
     
@@ -697,7 +703,76 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
             "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
             "gmail": {"configured": auth_status.get("gmail", False), "authenticated": auth_status.get("gmail", False)},
+            "calendar": {"configured": os.path.exists(CREDENTIALS_PATH), 
+                        "authenticated": os.path.exists(TOKEN_PATH)},
         })
+    
+    def handle_setup_page(self):
+        """Serve the setup page."""
+        setup_path = os.path.join(CONFIG_DIR, 'setup.html')
+        if os.path.exists(setup_path):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            with open(setup_path, 'rb') as f:
+                self.wfile.write(f.read())
+        else:
+            self.send_json({"error": "Setup page not found"})
+    
+    def handle_setup_slack(self, data):
+        """Save Slack tokens to MCP config."""
+        xoxc = data.get('xoxc', '').strip()
+        xoxd = data.get('xoxd', '').strip()
+        
+        if not xoxc or not xoxd:
+            self.send_json({"success": False, "error": "Both tokens required"})
+            return
+        
+        if not xoxc.startswith('xoxc-') or not xoxd.startswith('xoxd-'):
+            self.send_json({"success": False, "error": "Invalid token format"})
+            return
+        
+        try:
+            # Load existing MCP config
+            mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+            config = {}
+            if os.path.exists(mcp_config_path):
+                with open(mcp_config_path, 'r') as f:
+                    config = json.load(f)
+            
+            # Ensure mcpServers exists
+            if 'mcpServers' not in config:
+                config['mcpServers'] = {}
+            
+            # Add/update Slack config
+            config['mcpServers']['slack'] = {
+                "command": "npx",
+                "args": ["-y", "slack-mcp-server"],
+                "env": {
+                    "SLACK_MCP_XOXC_TOKEN": xoxc,
+                    "SLACK_MCP_XOXD_TOKEN": xoxd
+                }
+            }
+            
+            # Save config
+            with open(mcp_config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            logger.info("[Setup] Slack tokens saved to MCP config")
+            
+            # Test the connection by trying to load the tokens
+            from lib.slack import slack_api_call
+            result = slack_api_call('auth.test', xoxc_token=xoxc, xoxd_token=xoxd)
+            
+            if result and result.get('ok'):
+                self.send_json({"success": True, "team": result.get('team', 'Unknown')})
+            else:
+                self.send_json({"success": True, "warning": "Tokens saved but could not verify"})
+                
+        except Exception as e:
+            logger.error(f"[Setup] Slack setup error: {e}")
+            self.send_json({"success": False, "error": str(e)})
     
     def handle_service_health(self):
         """Check health of all BriefDesk services."""

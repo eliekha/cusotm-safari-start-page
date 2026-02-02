@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BriefDesk Setup</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  min-height: 100vh;
+  color: #fff;
+  padding: 40px 20px;
+}
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.header h1 {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.header p {
+  color: rgba(255,255,255,.6);
+  font-size: 16px;
+}
+.card {
+  background: rgba(255,255,255,.08);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,.1);
+  backdrop-filter: blur(12px);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-title svg {
+  width: 24px;
+  height: 24px;
+}
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-connected {
+  background: rgba(74, 222, 128, .2);
+  color: #4ade80;
+}
+.status-not-configured {
+  background: rgba(251, 191, 36, .2);
+  color: #fbbf24;
+}
+.status-error {
+  background: rgba(248, 113, 113, .2);
+  color: #f87171;
+}
+.status-checking {
+  background: rgba(96, 165, 250, .2);
+  color: #60a5fa;
+}
+.card-body {
+  color: rgba(255,255,255,.7);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.card-body p {
+  margin-bottom: 12px;
+}
+.card-body code {
+  background: rgba(0,0,0,.3);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 12px;
+}
+.card-body pre {
+  background: rgba(0,0,0,.3);
+  padding: 12px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, monospace;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all .2s;
+  text-decoration: none;
+}
+.btn-primary {
+  background: #6366f1;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #4f46e5;
+}
+.btn-secondary {
+  background: rgba(255,255,255,.1);
+  color: #fff;
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,.15);
+}
+.btn-success {
+  background: #22c55e;
+  color: #fff;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.services-grid {
+  display: grid;
+  gap: 16px;
+}
+.service-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255,255,255,.04);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+}
+.service-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.service-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.service-icon.google { background: rgba(66, 133, 244, .2); }
+.service-icon.slack { background: rgba(74, 21, 75, .3); }
+.service-icon.atlassian { background: rgba(0, 82, 204, .2); }
+.service-icon.gmail { background: rgba(234, 67, 53, .2); }
+.service-info {
+  flex: 1;
+}
+.service-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.service-status {
+  font-size: 12px;
+  color: rgba(255,255,255,.5);
+}
+.service-status.connected { color: #4ade80; }
+.service-status.warning { color: #fbbf24; }
+.service-status.error { color: #f87171; }
+.service-action {
+  flex-shrink: 0;
+}
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,.1);
+  margin: 20px 0;
+}
+.footer {
+  text-align: center;
+  margin-top: 40px;
+}
+.footer a {
+  color: #60a5fa;
+  text-decoration: none;
+}
+.footer a:hover {
+  text-decoration: underline;
+}
+.loading {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.collapsible {
+  cursor: pointer;
+}
+.collapsible-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .3s ease;
+}
+.collapsible-content.show {
+  max-height: 500px;
+}
+.step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.step-number {
+  width: 24px;
+  height: 24px;
+  background: rgba(99, 102, 241, .3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.step-content {
+  flex: 1;
+}
+.input-group {
+  margin-bottom: 12px;
+}
+.input-group label {
+  display: block;
+  font-size: 12px;
+  color: rgba(255,255,255,.6);
+  margin-bottom: 6px;
+}
+.input-group input, .input-group textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(0,0,0,.3);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-family: 'SF Mono', Monaco, monospace;
+}
+.input-group input:focus, .input-group textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.alert-success {
+  background: rgba(74, 222, 128, .15);
+  border: 1px solid rgba(74, 222, 128, .3);
+  color: #4ade80;
+}
+.alert-error {
+  background: rgba(248, 113, 113, .15);
+  border: 1px solid rgba(248, 113, 113, .3);
+  color: #f87171;
+}
+.alert-info {
+  background: rgba(96, 165, 250, .15);
+  border: 1px solid rgba(96, 165, 250, .3);
+  color: #60a5fa;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🚀 BriefDesk Setup</h1>
+    <p>Configure your integrations to get the most out of BriefDesk</p>
+  </div>
+
+  <!-- Server Status -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        Server Status
+      </div>
+      <span class="status-badge status-checking" id="server-status-badge">Checking...</span>
+    </div>
+    <div class="card-body">
+      <div id="server-status-content">Checking server status...</div>
+    </div>
+  </div>
+
+  <!-- Integrations -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        Integrations
+      </div>
+    </div>
+    <div class="services-grid" id="services-grid">
+      <!-- Populated by JavaScript -->
+    </div>
+  </div>
+
+  <!-- Google Calendar Setup -->
+  <div class="card" id="google-setup" style="display:none">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="#4285f4"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+        Google Calendar Setup
+      </div>
+      <button class="btn btn-secondary" onclick="hideSetup('google')">✕</button>
+    </div>
+    <div class="card-body">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p><strong>Create Google Cloud credentials</strong></p>
+          <p>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:#60a5fa">Google Cloud Console</a> and create an OAuth 2.0 Client ID (Desktop app).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p><strong>Enable Calendar API</strong></p>
+          <p>In APIs & Services → Library, search for "Google Calendar API" and enable it.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p><strong>Download and authenticate</strong></p>
+          <p>Download the JSON credentials file, then run:</p>
+          <pre>mv ~/Downloads/client_secret_*.json ~/.local/share/briefdesk/google_credentials.json
+python3 ~/.local/share/briefdesk/search-server.py --auth</pre>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="testGoogle()">Test Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slack Setup -->
+  <div class="card" id="slack-setup" style="display:none">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 127 127" fill="#e01e5a"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2S.8 87.3.8 80s5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V80z"/><path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2S39.7.6 47 .6s13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2H14c-7.3 0-13.2-5.9-13.2-13.2S6.7 33.7 14 33.7h33z" fill="#36c5f0"/><path d="M99.9 46.9c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2-5.9 13.2-13.2 13.2H99.9V46.9zm-6.6 0c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V14c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v32.9z" fill="#2eb67d"/><path d="M80.1 99.8c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2-13.2-5.9-13.2-13.2V99.8h13.2zm0-6.6c-7.3 0-13.2-5.9-13.2-13.2s5.9-13.2 13.2-13.2h33c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2h-33z" fill="#ecb22e"/></svg>
+        Slack Setup
+      </div>
+      <button class="btn btn-secondary" onclick="hideSetup('slack')">✕</button>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        Slack uses browser tokens for direct API access. No app creation needed!
+      </div>
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p><strong>Open Slack in browser</strong></p>
+          <p>Go to <a href="https://app.slack.com" target="_blank" style="color:#60a5fa">app.slack.com</a> and sign in to your workspace.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p><strong>Get the xoxd token (cookie)</strong></p>
+          <p>Open DevTools (Cmd+Option+I) → Application → Cookies → <code>d</code> cookie value</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <p><strong>Get the xoxc token (localStorage)</strong></p>
+          <p>In Console tab, paste:</p>
+          <pre>JSON.parse(localStorage.getItem('localConfig_v2'))?.teams?.[Object.keys(JSON.parse(localStorage.getItem('localConfig_v2'))?.teams||{})[0]]?.token</pre>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="input-group">
+        <label>XOXC Token (starts with xoxc-)</label>
+        <input type="text" id="slack-xoxc" placeholder="xoxc-...">
+      </div>
+      <div class="input-group">
+        <label>XOXD Token (starts with xoxd-)</label>
+        <input type="text" id="slack-xoxd" placeholder="xoxd-...">
+      </div>
+      <div id="slack-result"></div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="saveSlackTokens()">Save & Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Atlassian Setup -->
+  <div class="card" id="atlassian-setup" style="display:none">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 -30.63 255.32 285.96" fill="#2684ff"><path d="M244.66 0H121.71a55.5 55.5 0 0 0 55.5 55.5h22.65v21.87c.02 30.63 24.84 55.45 55.47 55.47V10.67c0-5.89-4.78-10.67-10.67-10.67z"/><path d="M183.82 61.26H60.87c.02 30.63 24.84 55.45 55.47 55.47h22.65v21.94c.04 30.62 24.88 55.43 55.5 55.43V71.93c0-5.89-4.78-10.67-10.67-10.67z" fill="url(#jg1)"/></svg>
+        Atlassian Setup (Jira & Confluence)
+      </div>
+      <button class="btn btn-secondary" onclick="hideSetup('atlassian')">✕</button>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        Atlassian uses OAuth - a browser window will open for authentication.
+      </div>
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p><strong>Run the authentication command</strong></p>
+          <p>This will open a browser for Atlassian OAuth:</p>
+          <pre>npx -y mcp-remote https://mcp.atlassian.com/v1/mcp</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p><strong>Authorize access</strong></p>
+          <p>Sign in to Atlassian and grant access. Tokens are cached automatically.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="testAtlassian()">Test Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gmail Setup -->
+  <div class="card" id="gmail-setup" style="display:none">
+    <div class="card-header">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="#ea4335"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
+        Gmail Setup
+      </div>
+      <button class="btn btn-secondary" onclick="hideSetup('gmail')">✕</button>
+    </div>
+    <div class="card-body">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <p><strong>Create Gmail API credentials</strong></p>
+          <p>In Google Cloud Console, enable Gmail API and create OAuth credentials (same project as Calendar).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <p><strong>Set up and authenticate</strong></p>
+          <pre>mkdir -p ~/.gmail-mcp
+mv ~/Downloads/client_secret_*.json ~/.gmail-mcp/gcp-oauth.keys.json
+npx @anthropic/gmail-mcp-server</pre>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="testGmail()">Test Connection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Launch Button -->
+  <div class="card" style="text-align:center">
+    <a href="/start.html" class="btn btn-success" style="font-size:16px;padding:14px 32px">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>
+      Launch BriefDesk
+    </a>
+    <p style="margin-top:12px;color:rgba(255,255,255,.5);font-size:13px">
+      You can always return to this page at <code>/setup</code>
+    </p>
+  </div>
+
+  <div class="footer">
+    <p style="color:rgba(255,255,255,.4);font-size:13px">
+      Need help? Check the <a href="https://github.com/eliekha/BriefDesk" target="_blank">documentation</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:18765';
+
+async function checkStatus() {
+  const badge = document.getElementById('server-status-badge');
+  const content = document.getElementById('server-status-content');
+  
+  try {
+    const res = await fetch(API + '/hub/status', { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    
+    badge.textContent = 'Running';
+    badge.className = 'status-badge status-connected';
+    
+    content.innerHTML = `
+      <p>✅ Search server is running on port 18765</p>
+      <p>✅ Static server is running on port 8765</p>
+    `;
+    
+    // Update integrations
+    updateServices(data);
+  } catch (e) {
+    badge.textContent = 'Not Running';
+    badge.className = 'status-badge status-error';
+    content.innerHTML = `
+      <p>❌ Server is not responding. Try restarting:</p>
+      <pre>launchctl kickstart -k gui/$(id -u)/com.briefdesk.server</pre>
+    `;
+    updateServicesOffline();
+  }
+}
+
+function updateServices(data) {
+  const grid = document.getElementById('services-grid');
+  const atlassian = data.atlassian || {};
+  const slack = data.slack || {};
+  const gmail = data.gmail || {};
+  const calendar = data.calendar || {};
+  
+  grid.innerHTML = `
+    <div class="service-item">
+      <div class="service-icon google">
+        <svg viewBox="0 0 24 24" fill="#4285f4"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+      </div>
+      <div class="service-info">
+        <div class="service-name">Google Calendar</div>
+        <div class="service-status ${calendar.authenticated ? 'connected' : 'warning'}">
+          ${calendar.authenticated ? 'Connected' : 'Not configured'}
+        </div>
+      </div>
+      <div class="service-action">
+        <button class="btn btn-secondary" onclick="showSetup('google')">
+          ${calendar.authenticated ? 'Reconfigure' : 'Setup'}
+        </button>
+      </div>
+    </div>
+    
+    <div class="service-item">
+      <div class="service-icon slack">
+        <svg viewBox="0 0 127 127"><path d="M27.2 80c0 7.3-5.9 13.2-13.2 13.2S.8 87.3.8 80s5.9-13.2 13.2-13.2h13.2V80zm6.6 0c0-7.3 5.9-13.2 13.2-13.2s13.2 5.9 13.2 13.2v33c0 7.3-5.9 13.2-13.2 13.2s-13.2-5.9-13.2-13.2V80z" fill="#E01E5A"/><path d="M47 27c-7.3 0-13.2-5.9-13.2-13.2S39.7.6 47 .6s13.2 5.9 13.2 13.2V27H47zm0 6.7c7.3 0 13.2 5.9 13.2 13.2s-5.9 13.2-13.2 13.2H14c-7.3 0-13.2-5.9-13.2-13.2S6.7 33.7 14 33.7h33z" fill="#36C5F0"/></svg>
+      </div>
+      <div class="service-info">
+        <div class="service-name">Slack</div>
+        <div class="service-status ${slack.authenticated ? 'connected' : slack.configured ? 'warning' : 'warning'}">
+          ${slack.authenticated ? 'Connected' : slack.configured ? 'Token expired' : 'Not configured'}
+        </div>
+      </div>
+      <div class="service-action">
+        <button class="btn btn-secondary" onclick="showSetup('slack')">
+          ${slack.authenticated ? 'Reconfigure' : 'Setup'}
+        </button>
+      </div>
+    </div>
+    
+    <div class="service-item">
+      <div class="service-icon atlassian">
+        <svg viewBox="0 -30.63 255.32 285.96"><path d="M244.66 0H121.71a55.5 55.5 0 0 0 55.5 55.5h22.65v21.87c.02 30.63 24.84 55.45 55.47 55.47V10.67c0-5.89-4.78-10.67-10.67-10.67z" fill="#2684ff"/></svg>
+      </div>
+      <div class="service-info">
+        <div class="service-name">Atlassian (Jira & Confluence)</div>
+        <div class="service-status ${atlassian.authenticated ? 'connected' : atlassian.configured ? 'warning' : 'warning'}">
+          ${atlassian.authenticated ? 'Connected' : atlassian.configured ? 'Auth required' : 'Not configured'}
+        </div>
+      </div>
+      <div class="service-action">
+        <button class="btn btn-secondary" onclick="showSetup('atlassian')">
+          ${atlassian.authenticated ? 'Reconfigure' : 'Setup'}
+        </button>
+      </div>
+    </div>
+    
+    <div class="service-item">
+      <div class="service-icon gmail">
+        <svg viewBox="0 0 24 24" fill="#ea4335"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
+      </div>
+      <div class="service-info">
+        <div class="service-name">Gmail</div>
+        <div class="service-status ${gmail.authenticated ? 'connected' : 'warning'}">
+          ${gmail.authenticated ? 'Connected' : 'Not configured'}
+        </div>
+      </div>
+      <div class="service-action">
+        <button class="btn btn-secondary" onclick="showSetup('gmail')">
+          ${gmail.authenticated ? 'Reconfigure' : 'Setup'}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function updateServicesOffline() {
+  const grid = document.getElementById('services-grid');
+  grid.innerHTML = '<p style="color:rgba(255,255,255,.5);padding:20px;text-align:center">Start the server to see integration status</p>';
+}
+
+function showSetup(service) {
+  document.querySelectorAll('[id$="-setup"]').forEach(el => el.style.display = 'none');
+  document.getElementById(service + '-setup').style.display = 'block';
+  document.getElementById(service + '-setup').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideSetup(service) {
+  document.getElementById(service + '-setup').style.display = 'none';
+}
+
+async function saveSlackTokens() {
+  const xoxc = document.getElementById('slack-xoxc').value.trim();
+  const xoxd = document.getElementById('slack-xoxd').value.trim();
+  const result = document.getElementById('slack-result');
+  
+  if (!xoxc || !xoxd) {
+    result.innerHTML = '<div class="alert alert-error">Please enter both tokens</div>';
+    return;
+  }
+  
+  if (!xoxc.startsWith('xoxc-') || !xoxd.startsWith('xoxd-')) {
+    result.innerHTML = '<div class="alert alert-error">Invalid token format. XOXC should start with xoxc-, XOXD with xoxd-</div>';
+    return;
+  }
+  
+  result.innerHTML = '<div class="alert alert-info"><span class="loading"></span> Saving and testing...</div>';
+  
+  try {
+    const res = await fetch(API + '/setup/slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ xoxc, xoxd })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      result.innerHTML = '<div class="alert alert-success">✅ Slack connected successfully!</div>';
+      setTimeout(checkStatus, 1000);
+    } else {
+      result.innerHTML = `<div class="alert alert-error">❌ ${data.error || 'Failed to connect'}</div>`;
+    }
+  } catch (e) {
+    result.innerHTML = '<div class="alert alert-error">❌ Server error. Make sure the server is running.</div>';
+  }
+}
+
+async function testGoogle() {
+  alert('Run this in Terminal:\npython3 ~/.local/share/briefdesk/search-server.py --auth');
+}
+
+async function testAtlassian() {
+  alert('Run this in Terminal:\nnpx -y mcp-remote https://mcp.atlassian.com/v1/mcp');
+}
+
+async function testGmail() {
+  alert('Run this in Terminal:\nnpx @anthropic/gmail-mcp-server');
+}
+
+// Initial check
+checkStatus();
+// Refresh every 10 seconds
+setInterval(checkStatus, 10000);
+</script>
+</body>
+</html>
