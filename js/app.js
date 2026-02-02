@@ -261,3 +261,260 @@ fetchCalendar();
 setInterval(fetchCalendar,60000);
 }
 
+// =============================================================================
+// AI Search
+// =============================================================================
+var aiSearchOpen=false;
+var aiSearchSources={slack:true,jira:true,confluence:true,gmail:true,drive:true};
+var aiSearchAbort=null;
+
+function openAISearch(){
+if(aiSearchOpen)return;
+aiSearchOpen=true;
+var overlay=document.getElementById('ai-search-overlay');
+var mainSearch=document.getElementById('s');
+overlay.classList.add('show');
+// Blur main search and focus AI search
+if(mainSearch)mainSearch.blur();
+setTimeout(function(){
+var aiInput=document.getElementById('ai-search-input');
+if(aiInput){aiInput.value='';aiInput.focus();}
+},50);
+document.body.style.overflow='hidden';
+}
+
+function closeAISearch(){
+if(!aiSearchOpen)return;
+aiSearchOpen=false;
+var overlay=document.getElementById('ai-search-overlay');
+overlay.classList.remove('show');
+document.body.style.overflow='';
+if(aiSearchAbort){aiSearchAbort.abort();aiSearchAbort=null;}
+// Reset results
+setTimeout(function(){
+showAIEmpty();
+},300);
+}
+
+function toggleAISource(source){
+var pill=document.querySelector('.ai-source-pill[data-source="'+source+'"]');
+aiSearchSources[source]=!aiSearchSources[source];
+pill.classList.toggle('active');
+}
+
+function getActiveSources(){
+var sources=[];
+if(aiSearchSources.slack)sources.push('slack');
+if(aiSearchSources.jira)sources.push('jira');
+if(aiSearchSources.confluence)sources.push('confluence');
+if(aiSearchSources.gmail)sources.push('gmail');
+if(aiSearchSources.drive)sources.push('drive');
+return sources;
+}
+
+function submitAISearch(){
+var input=document.getElementById('ai-search-input');
+var query=input.value.trim();
+if(!query)return;
+var sources=getActiveSources();
+if(sources.length===0){
+showAIError('Select at least one source');
+return;
+}
+showAILoading(sources);
+if(aiSearchAbort)aiSearchAbort.abort();
+aiSearchAbort=new AbortController();
+fetch(S+'/hub/ai-search',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({query:query,sources:sources}),
+signal:aiSearchAbort.signal
+})
+.then(function(r){return r.json();})
+.then(function(data){
+if(data.error){
+showAIError(data.error);
+}else{
+showAIResponse(data.response,sources);
+}
+})
+.catch(function(e){
+if(e.name!=='AbortError'){
+showAIError('Search failed. Please try again.');
+}
+});
+}
+
+var aiLoadingMessages={
+slack:['Searching Slack channels...','Reading recent conversations...','Finding relevant threads...'],
+jira:['Searching Jira tickets...','Checking recent issues...','Looking through projects...'],
+confluence:['Searching Confluence pages...','Reading documentation...','Checking knowledge base...'],
+gmail:['Searching emails...','Checking inbox...','Finding relevant messages...'],
+drive:['Searching Google Drive...','Looking through documents...','Checking shared files...']
+};
+var aiLoadingInterval=null;
+
+function showAILoading(sources){
+var results=document.getElementById('ai-search-results');
+results.innerHTML='<div class="ai-search-loading">'+
+'<div class="ai-loading-spinner"></div>'+
+'<div class="ai-loading-text" id="ai-loading-text">Searching...</div>'+
+'</div>';
+
+// Build message pool from selected sources
+var messages=[];
+sources.forEach(function(s){
+if(aiLoadingMessages[s]){
+aiLoadingMessages[s].forEach(function(m){messages.push(m);});
+}
+});
+if(messages.length===0)messages=['Searching...'];
+
+var idx=0;
+var textEl=document.getElementById('ai-loading-text');
+if(textEl)textEl.textContent=messages[0];
+
+// Clear any existing interval
+if(aiLoadingInterval)clearInterval(aiLoadingInterval);
+
+// Rotate messages
+aiLoadingInterval=setInterval(function(){
+idx=(idx+1)%messages.length;
+var el=document.getElementById('ai-loading-text');
+if(el){
+el.style.opacity='0';
+setTimeout(function(){
+if(document.getElementById('ai-loading-text')){
+el.textContent=messages[idx];
+el.style.opacity='1';
+}
+},150);
+}
+},2000);
+}
+
+function stopAILoading(){
+if(aiLoadingInterval){
+clearInterval(aiLoadingInterval);
+aiLoadingInterval=null;
+}
+}
+
+function showAIResponse(response,sources){
+stopAILoading();
+var results=document.getElementById('ai-search-results');
+var html='<div class="ai-search-response">'+
+'<div class="ai-response-content" id="ai-response-content"></div>'+
+'<div class="ai-response-actions">'+
+'<button class="ai-action-btn copy" onclick="copyAIResponse()"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>'+
+'<button class="ai-action-btn" onclick="clearAISearch()"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>New search</button>'+
+'</div>'+
+'</div>';
+results.innerHTML=html;
+typewriterEffect(response);
+}
+
+function typewriterEffect(text){
+var content=document.getElementById('ai-response-content');
+var formatted=formatMarkdown(text);
+// Show instantly instead of typewriter for better UX
+content.innerHTML=formatted;
+}
+
+function formatMarkdown(text){
+text=text.replace(/^### (.+)$/gm,'<h4>$1</h4>');
+text=text.replace(/^## (.+)$/gm,'<h3>$1</h3>');
+text=text.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+text=text.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+text=text.replace(/`([^`]+)`/g,'<code>$1</code>');
+text=text.replace(/^- (.+)$/gm,'<li>$1</li>');
+text=text.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+text=text.replace(/\n\n/g,'</p><p>');
+text='<p>'+text+'</p>';
+text=text.replace(/<p><\/p>/g,'');
+text=text.replace(/<p>(<h[34]>)/g,'$1');
+text=text.replace(/(<\/h[34]>)<\/p>/g,'$1');
+text=text.replace(/<p>(<ul>)/g,'$1');
+text=text.replace(/(<\/ul>)<\/p>/g,'$1');
+return text;
+}
+
+function showAIError(message){
+stopAILoading();
+var results=document.getElementById('ai-search-results');
+results.innerHTML='<div class="ai-search-error">'+
+'<div class="ai-error-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>'+
+'<div class="ai-error-text">'+message+'</div>'+
+'<button class="ai-error-retry" onclick="submitAISearch()">Try again</button>'+
+'</div>';
+}
+
+function showAIEmpty(){
+var results=document.getElementById('ai-search-results');
+results.innerHTML='<div class="ai-search-empty">'+
+'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'+
+'<span>Ask a question to search across your connected tools</span>'+
+'</div>';
+}
+
+function clearAISearch(){
+var input=document.getElementById('ai-search-input');
+if(input){input.value='';input.focus();}
+showAIEmpty();
+}
+
+function copyAIResponse(){
+var content=document.getElementById('ai-response-content');
+if(!content)return;
+navigator.clipboard.writeText(content.innerText).then(function(){
+var btn=document.querySelector('.ai-action-btn.copy');
+btn.classList.add('copied');
+btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Copied';
+setTimeout(function(){
+btn.classList.remove('copied');
+btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy';
+},2000);
+});
+}
+
+// Keyboard shortcuts for AI search
+document.addEventListener('keydown',function(e){
+// Open AI search with Cmd+/ (works from anywhere)
+if(e.key==='/'&&(e.metaKey||e.ctrlKey)&&!aiSearchOpen){
+e.preventDefault();
+openAISearch();
+}
+// Close with Escape
+if(e.key==='Escape'&&aiSearchOpen){
+e.preventDefault();
+closeAISearch();
+}
+// Submit with Enter
+if(e.key==='Enter'&&aiSearchOpen&&document.activeElement.id==='ai-search-input'){
+e.preventDefault();
+submitAISearch();
+}
+});
+
+// Handle AI search input events
+document.addEventListener('DOMContentLoaded',function(){
+var aiInput=document.getElementById('ai-search-input');
+if(aiInput){
+aiInput.addEventListener('keydown',function(e){
+e.stopPropagation();
+// Handle Enter key for submit
+if(e.key==='Enter'){
+e.preventDefault();
+submitAISearch();
+}
+// Handle Escape to close
+if(e.key==='Escape'){
+e.preventDefault();
+closeAISearch();
+}
+});
+aiInput.addEventListener('keyup',function(e){e.stopPropagation();});
+aiInput.addEventListener('keypress',function(e){e.stopPropagation();});
+}
+});
+

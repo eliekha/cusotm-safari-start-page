@@ -171,6 +171,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_set_prompt(data)
         elif path == "/hub/settings":
             self.handle_hub_settings(data)
+        elif path == "/hub/ai-search":
+            self.handle_ai_search(data)
         else:
             self.send_json({"error": "Not found"})
     
@@ -184,6 +186,107 @@ class SearchHandler(BaseHTTPRequestHandler):
             logger.info(f"[Settings] Model updated to: {model}")
         
         self.send_json({"success": True, "model": get_hub_model()})
+    
+    def handle_ai_search(self, data):
+        """Handle AI-powered search across multiple sources."""
+        from lib.ai_search import ai_search
+        from lib.config import get_hub_model
+        
+        query = data.get('query', '').strip()
+        sources = data.get('sources', ['slack', 'jira', 'confluence', 'gmail', 'drive'])
+        
+        if not query:
+            self.send_json({"error": "Query is required"})
+            return
+        
+        logger.info(f"[AI Search] Query: '{query}' | Sources: {sources}")
+        
+        # Build the search prompt
+        source_names = ', '.join([s.title() for s in sources])
+        
+        # Add source-specific instructions
+        source_instructions = ""
+        
+        if 'slack' in sources:
+            source_instructions += """
+SLACK SEARCH INSTRUCTIONS:
+When searching for conversations with a specific person:
+1. FIRST use channels_list with channel_types: "im" to find their 1:1 DM channel
+2. THEN use conversations_history with that channel_id to get recent messages
+3. ALSO use conversations_search_messages for broader searches in channels
+ALWAYS check 1:1 DMs when searching for discussions with specific people.
+"""
+        
+        if 'jira' in sources:
+            source_instructions += """
+JIRA SEARCH INSTRUCTIONS:
+1. FIRST call "Get Accessible Atlassian Resources" to get the cloudId - do NOT ask the user for it
+2. THEN use that cloudId for all Jira searches (e.g., "Search Jira issues using JQL")
+3. Use JQL queries like: text ~ "keyword" OR summary ~ "keyword" ORDER BY updated DESC
+4. NEVER ask the user for cloudId or site URL - discover it automatically with step 1
+"""
+        
+        if 'confluence' in sources:
+            source_instructions += """
+CONFLUENCE SEARCH INSTRUCTIONS:
+1. FIRST call "Get Accessible Atlassian Resources" to get the cloudId - do NOT ask the user for it
+2. THEN use that cloudId for all Confluence searches (e.g., "Search Confluence Using CQL")
+3. Use CQL queries like: text ~ "keyword" OR title ~ "keyword" ORDER BY lastmodified DESC
+4. NEVER ask the user for cloudId or site URL - discover it automatically with step 1
+"""
+        
+        if 'drive' in sources:
+            from lib.config import GOOGLE_DRIVE_BASE
+            drive_path = GOOGLE_DRIVE_BASE or "~/Library/CloudStorage/GoogleDrive-*"
+            source_instructions += f"""
+GOOGLE DRIVE SEARCH INSTRUCTIONS:
+1. Use find_files or search_files to search for documents in the local Google Drive folder
+2. Search path: {drive_path}/My Drive/
+3. Use patterns like: {drive_path}/My Drive/**/*keyword* to find files matching keywords
+4. For links, convert filenames to Google Drive search URLs:
+   - Extract just the filename (without path and extension)
+   - URL encode spaces as +
+   - Return as: https://drive.google.com/drive/search?q=FILENAME
+   - Example: "My Document.gdoc" -> https://drive.google.com/drive/search?q=My+Document
+"""
+        
+        prompt = f"""Search {source_names} to answer this question: {query}
+{source_instructions}
+Provide a comprehensive but concise answer based on the information found.
+
+RULES:
+- Be specific: include ticket numbers, document names, channel names, dates
+- ALWAYS include clickable markdown links to sources:
+  - Slack: [#channel-name](slack_permalink) or [DM with Name](slack_permalink)
+  - Jira: [PROJ-123](jira_url)
+  - Confluence: [Page Title](confluence_url)
+  - Gmail: [Email Subject](gmail_url) (if available)
+  - Drive: [Document Name](drive_url)
+- At the end, add a "Sources" section with all referenced links
+- If you find conflicting information, mention it
+- If no relevant information is found, say so clearly
+- Keep the response under 300 words unless more detail is needed
+
+FORMAT EXAMPLE:
+Based on discussions in [DM with John](https://slack.com/...) and [#project-alpha](https://slack.com/...), ...
+
+**Sources:**
+- [DM with John](url) - Direct message
+- [#project-alpha](url) - Slack channel"""
+        
+        try:
+            model = get_hub_model()
+            result = ai_search(prompt, sources=sources, model=model, timeout=90)
+            
+            if result and result.get('response'):
+                self.send_json({"response": result['response'], "sources": sources})
+            elif result and result.get('error'):
+                self.send_json({"error": result['error']})
+            else:
+                self.send_json({"error": "No response received. Please try again."})
+        except Exception as e:
+            logger.error(f"[AI Search] Error: {e}")
+            self.send_json({"error": f"Search failed: {str(e)}"})
     
     # =========================================================================
     # Search Handlers

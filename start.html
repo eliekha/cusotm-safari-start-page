@@ -14,7 +14,7 @@
 <div class="t" id="t">12<span class="ts">:</span>00</div>
 <div class="dt" id="d">Wednesday, January 28</div>
 <div class="sc" id="sc">
-<input type="text" class="si" id="s" placeholder="Search Google or your history..." autocomplete="off" autofocus>
+<input type="text" class="si" id="s" placeholder="Search Google or your history...  ⌘/ for AI" autocomplete="off" autofocus>
 <div class="sg" id="r"></div>
 </div>
 <div class="ql" id="ql"></div>
@@ -59,6 +59,34 @@
 <button class="edit-btn" id="edit-btn" onclick="openModal()" title="Customize">
 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
 </button>
+
+<!-- AI Search Overlay -->
+<div class="ai-search-overlay" id="ai-search-overlay">
+<div class="ai-search-backdrop" onclick="closeAISearch()"></div>
+<div class="ai-search-panel" id="ai-search-panel">
+<div class="ai-search-header">
+<div class="ai-search-icon">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+</div>
+<input type="text" class="ai-search-input" id="ai-search-input" placeholder="Ask anything about your work..." autocomplete="off">
+<kbd class="ai-search-esc">esc</kbd>
+</div>
+<div class="ai-search-sources" id="ai-search-sources">
+<span class="ai-sources-label">Search in:</span>
+<button class="ai-source-pill active" data-source="slack" onclick="toggleAISource('slack')"><span class="ai-source-dot"></span>Slack</button>
+<button class="ai-source-pill active" data-source="jira" onclick="toggleAISource('jira')"><span class="ai-source-dot"></span>Jira</button>
+<button class="ai-source-pill active" data-source="confluence" onclick="toggleAISource('confluence')"><span class="ai-source-dot"></span>Confluence</button>
+<button class="ai-source-pill active" data-source="gmail" onclick="toggleAISource('gmail')"><span class="ai-source-dot"></span>Gmail</button>
+<button class="ai-source-pill active" data-source="drive" onclick="toggleAISource('drive')"><span class="ai-source-dot"></span>Drive</button>
+</div>
+<div class="ai-search-results" id="ai-search-results">
+<div class="ai-search-empty">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+<span>Ask a question to search across your connected tools</span>
+</div>
+</div>
+</div>
+</div>
 
 <!-- AI Chat Button and Panel -->
 <svg style="display:none">

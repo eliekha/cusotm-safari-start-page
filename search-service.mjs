@@ -28,6 +28,7 @@ const LOCAL_DEVSAI_PATH = path.join(HOME, '.local/share/devsai/dist/lib');
 
 let MCPManager, createApiClient, getMCPToolDefinitions, executeMCPTool, isMCPTool;
 let isAuthenticated, getConfig;
+let CLI_TOOLS, executeSearchFiles, executeFindFiles, executeReadFile, executeListDirectory;
 
 const PORT = parseInt(process.env.SEARCH_SERVICE_PORT || '19765', 10);
 const HOST = '127.0.0.1';
@@ -56,6 +57,14 @@ async function loadDevsaiModules() {
     const configModule = await import(`file://${LOCAL_DEVSAI_PATH}/config.js`);
     isAuthenticated = configModule.isAuthenticated;
     getConfig = configModule.getConfig;
+    
+    // Load CLI tools for file operations
+    const cliToolsModule = await import(`file://${LOCAL_DEVSAI_PATH}/cli-tools.js`);
+    CLI_TOOLS = cliToolsModule.CLI_TOOLS;
+    executeSearchFiles = cliToolsModule.executeSearchFiles;
+    executeFindFiles = cliToolsModule.executeFindFiles;
+    executeReadFile = cliToolsModule.executeReadFile;
+    executeListDirectory = cliToolsModule.executeListDirectory;
     
     console.log('[SearchService] Loaded devsai modules from:', LOCAL_DEVSAI_PATH);
     return true;
@@ -141,10 +150,30 @@ async function executeQuery(prompt, options = {}) {
     
     // Filter tools by source if specified
     if (sources && sources.length > 0) {
+      const beforeCount = tools.length;
       tools = tools.filter(t => {
         const name = t.function.name.toLowerCase();
+        
+        // Include all atlassian tools when jira or confluence is selected
+        if (sources.some(s => ['jira', 'confluence'].includes(s.toLowerCase()))) {
+          if (name.includes('atlassian')) {
+            return true;
+          }
+        }
+        
         return sources.some(s => name.includes(s.toLowerCase()));
       });
+      
+      // Add CLI file tools when drive is in sources
+      if (sources.some(s => s.toLowerCase() === 'drive')) {
+        const fileTools = CLI_TOOLS.filter(t => 
+          ['search_files', 'find_files', 'read_file', 'list_directory'].includes(t.function.name)
+        );
+        tools = [...tools, ...fileTools];
+        console.log(`[SearchService] Added ${fileTools.length} CLI file tools for drive`);
+      }
+      
+      console.log(`[SearchService] Filtered tools: ${beforeCount} -> ${tools.length} for sources: ${sources.join(', ')}`);
     }
   } catch (err) {
     console.error('[SearchService] Error getting MCP tools:', err.message);
@@ -154,7 +183,8 @@ async function executeQuery(prompt, options = {}) {
   const messages = [];
   
   // System message
-  const defaultSystem = `You are a search assistant. Search across connected services and return relevant results.
+  // Build system prompt based on sources
+  let defaultSystem = `You are a search assistant with access to various tools. You MUST use the available tools to search and retrieve information. Do not ask the user for configuration - use the tools to discover what you need.
 
 Return your findings as a JSON array with objects containing:
 - title: string (item title or subject)
@@ -164,6 +194,47 @@ Return your findings as a JSON array with objects containing:
 - metadata: object (optional extra info like date, author, etc.)
 
 Be concise. Focus on the most relevant results.`;
+
+  // Add Atlassian-specific instructions if jira/confluence is in sources
+  if (sources && sources.some(s => ['jira', 'confluence'].includes(s.toLowerCase()))) {
+    defaultSystem += `
+
+IMPORTANT FOR JIRA/CONFLUENCE:
+1. FIRST call mcp_atlassian_getAccessibleAtlassianResources to get the cloudId
+2. THEN use that cloudId with mcp_atlassian_searchJiraIssuesUsingJql or mcp_atlassian_searchConfluenceUsingCql
+3. NEVER ask the user for cloudId - always discover it with step 1`;
+  }
+  
+  // Add Drive-specific instructions
+  if (sources && sources.some(s => s.toLowerCase() === 'drive')) {
+    // Read config to get explicit Google Drive path
+    let gdriveBase = path.join(HOME, 'Library/CloudStorage/GoogleDrive-*');
+    try {
+      const fs = await import('fs');
+      const configPath = path.join(HOME, '.local/share/briefdesk/config.json');
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.google_drive_path) {
+          gdriveBase = config.google_drive_path;
+        }
+      }
+    } catch (e) {
+      // Use default pattern
+    }
+    
+    defaultSystem += `
+
+IMPORTANT FOR GOOGLE DRIVE:
+1. Use find_files or search_files to search for documents in the Google Drive folder
+2. The Google Drive is synced locally at: ${gdriveBase}
+3. Search for files using patterns like: ${gdriveBase}/My Drive/**/*keyword*
+4. Use read_file to read file contents if needed
+5. For links, convert filenames to Google Drive search URLs:
+   - Extract just the filename (without path and extension)
+   - URL encode spaces as +
+   - Return as: https://drive.google.com/drive/search?q=FILENAME
+   - Example: "My Document.gdoc" -> https://drive.google.com/drive/search?q=My+Document`;
+  }
 
   messages.push({
     role: 'system',
@@ -223,10 +294,23 @@ Be concise. Focus on the most relevant results.`;
         let toolResult = '';
         
         try {
+          const args = JSON.parse(toolCall.function.arguments || '{}');
+          
           if (isMCPTool(toolName)) {
-            const args = JSON.parse(toolCall.function.arguments || '{}');
             const result = await executeMCPTool(toolName, args);
             toolResult = result.message || JSON.stringify(result);
+          } else if (toolName === 'search_files' && executeSearchFiles) {
+            const result = executeSearchFiles(args);
+            toolResult = typeof result === 'string' ? result : JSON.stringify(result);
+          } else if (toolName === 'find_files' && executeFindFiles) {
+            const result = executeFindFiles(args);
+            toolResult = typeof result === 'string' ? result : JSON.stringify(result);
+          } else if (toolName === 'read_file' && executeReadFile) {
+            const result = executeReadFile(args);
+            toolResult = typeof result === 'string' ? result : JSON.stringify(result);
+          } else if (toolName === 'list_directory' && executeListDirectory) {
+            const result = executeListDirectory(args);
+            toolResult = typeof result === 'string' ? result : JSON.stringify(result);
           } else {
             toolResult = `Unknown tool: ${toolName}`;
           }
@@ -334,7 +418,7 @@ async function handleRequest(req, res) {
         return;
       }
       
-      console.log(`[SearchService] Search: "${query.substring(0, 50)}..." sources=${sources?.join(',') || 'all'}`);
+      console.log(`[SearchService] Search: "${query.substring(0, 50)}..." sources=${sources?.join(',') || 'all'} model=${model || 'default'}`);
       
       const startTime = Date.now();
       const result = await executeQuery(query, { sources, model });

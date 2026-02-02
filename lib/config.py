@@ -148,6 +148,11 @@ Title: {title}
 Attendees: {attendees}
 Description: {description}
 
+IMPORTANT: 
+1. FIRST call "Get Accessible Atlassian Resources" to get the cloudId
+2. THEN use that cloudId with "Search Jira issues using JQL" 
+3. NEVER ask the user for cloudId - discover it automatically
+
 Find up to {limit} relevant Jira tickets. Return results as a JSON array with objects containing:
 - title: ticket key and summary (e.g., "PROJ-123: Fix login bug")
 - url: full Jira URL
@@ -162,6 +167,11 @@ Focus on tickets that are:
 Title: {title}
 Attendees: {attendees}
 Description: {description}
+
+IMPORTANT:
+1. FIRST call "Get Accessible Atlassian Resources" to get the cloudId
+2. THEN use that cloudId with "Search Confluence Using CQL"
+3. NEVER ask the user for cloudId - discover it automatically
 
 Find up to {limit} relevant Confluence pages. Return results as a JSON array with objects containing:
 - title: page title
@@ -179,16 +189,27 @@ Title: {title}
 Attendees: {attendees}
 Description: {description}
 
+IMPORTANT - To find 1:1 DMs with attendees:
+1. FIRST use channels_list with channel_types: "im" to find DM channels with attendees
+2. THEN use conversations_history with that channel_id to get recent messages
+3. ALSO use conversations_search_messages for broader channel searches
+
+Search across ALL Slack conversations including:
+- 1:1 Direct messages with attendees (use channels_list + conversations_history)
+- Group DMs
+- Public and private channels (use conversations_search_messages)
+
 Find up to {limit} relevant Slack messages or threads. Return results as a JSON array with objects containing:
 - title: message preview or thread topic
 - url: Slack message permalink
 - type: "slack"
-- channel: channel name
+- channel: channel name or "DM with [name]" for direct messages
 
-Focus on messages that are:
-1. From or mentioning attendees
-2. Related to meeting topics
-3. Recent discussions about the subject""",
+Prioritize:
+1. 1:1 DMs with meeting attendees (ALWAYS check these first)
+2. Group DMs involving attendees
+3. Channel messages from/to attendees
+4. Recent discussions about the subject""",
 
     'gmail': """Search Gmail for emails related to this meeting. Meeting context:
 Title: {title}
