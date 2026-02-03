@@ -324,7 +324,7 @@ if(!confirm('Force mode will refresh ALL meetings regardless of cache.\n\nThis m
 return;
 }
 }
-fetch(S+'/hub/prefetch-force')
+fetch(S+'/hub/prefetch/control?action=force')
 .then(function(r){return r.json();})
 .then(function(d){
 console.log('Prefetch mode:',d.message);
