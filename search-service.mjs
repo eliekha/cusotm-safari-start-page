@@ -11,6 +11,7 @@
  * Endpoints:
  *   GET /health - Health check
  *   GET /status - MCP server connection status
+ *   GET /reconnect?mcp=name - Force reconnect a specific MCP (after re-auth)
  *   POST /search - AI-powered search across sources
  *   POST /query - Raw AI query with MCP tools
  *   POST /retry - Retry failed MCP server connections
@@ -270,6 +271,55 @@ export function isRetryableError(error) {
  */
 export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Force reconnect a specific MCP server (used after re-authentication)
+ * Works even if the server never connected initially (e.g., timed out on startup)
+ */
+export async function reconnectServer(serverName) {
+  if (!mcpManager) {
+    throw new Error('MCP manager not initialized');
+  }
+  
+  console.log(`[SearchService] Force reconnecting ${serverName}...`);
+  
+  const statuses = mcpManager.getServerStatuses();
+  const existingServer = statuses.find(s => s.name === serverName);
+  
+  try {
+    // If server exists, try to disconnect first (ignore errors)
+    if (existingServer) {
+      try {
+        await mcpManager.disconnectServer(serverName);
+        console.log(`[SearchService] Disconnected ${serverName}`);
+      } catch (e) {
+        console.log(`[SearchService] Disconnect: ${e.message}`);
+      }
+    }
+    
+    // Wait a moment for cleanup
+    await sleep(500);
+    
+    // Try to connect (this works for both reconnect and first-time connect)
+    await mcpManager.connectServer(serverName);
+    
+    // Check result
+    const newStatuses = mcpManager.getServerStatuses();
+    const newStatus = newStatuses.find(s => s.name === serverName);
+    
+    if (newStatus?.status === 'connected') {
+      console.log(`[SearchService] ✓ ${serverName} reconnected successfully (${newStatus.toolCount} tools)`);
+      return { success: true, status: newStatus };
+    } else {
+      const error = newStatus?.error || 'Unknown error';
+      console.log(`[SearchService] ✗ ${serverName} reconnect failed: ${error}`);
+      return { success: false, error, status: newStatus };
+    }
+  } catch (err) {
+    console.log(`[SearchService] ✗ ${serverName} reconnect error: ${err.message}`);
+    return { success: false, error: err.message };
+  }
 }
 
 /**
@@ -851,6 +901,38 @@ export async function handleRequest(req, res) {
         message: 'Retry completed',
         servers: statuses,
       });
+      return;
+    }
+    
+    // Force reconnect a specific MCP server (after re-auth)
+    if (path === '/reconnect') {
+      if (!mcpManager) {
+        sendJson(res, { error: 'MCP manager not initialized' }, 503);
+        return;
+      }
+      
+      const serverName = url.searchParams.get('mcp');
+      if (!serverName) {
+        sendJson(res, { error: 'Missing mcp parameter' }, 400);
+        return;
+      }
+      
+      console.log(`[SearchService] Reconnect requested for: ${serverName}`);
+      const result = await reconnectServer(serverName);
+      
+      if (result.success) {
+        sendJson(res, {
+          success: true,
+          message: `${serverName} reconnected successfully`,
+          server: result.status,
+        });
+      } else {
+        sendJson(res, {
+          success: false,
+          error: result.error,
+          server: result.status,
+        });
+      }
       return;
     }
     

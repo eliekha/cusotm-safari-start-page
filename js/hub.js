@@ -390,17 +390,11 @@ html+='</div>';
 html+='<div style="font-size:11px;color:'+statusColor+';font-weight:500">'+(isOk?'OK':'Error')+'</div>';
 html+='</div>';
 });
-// Add retry/restart buttons if there are failed MCP servers
+// Add retry button if there are failed MCP servers
 if(hasFailedMCP){
-html+='<div style="margin-top:8px;padding:10px 12px;background:rgba(248,113,113,.1);border-radius:8px">';
-html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+html+='<div style="margin-top:8px;padding:10px 12px;background:rgba(248,113,113,.1);border-radius:8px;display:flex;align-items:center;justify-content:space-between">';
 html+='<div style="font-size:12px;color:#f87171">Some MCP servers failed to connect</div>';
-html+='<button id="mcp-retry-btn" onclick="retryFailedMCP()" style="padding:6px 12px;background:#f87171;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Retry</button>';
-html+='</div>';
-html+='<div style="display:flex;align-items:center;justify-content:space-between">';
-html+='<div style="font-size:11px;color:rgba(255,255,255,.5)">After re-auth, restart to apply new credentials:</div>';
-html+='<button onclick="restartSearchService()" style="padding:6px 12px;background:#3b82f6;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Restart Service</button>';
-html+='</div>';
+html+='<button id="mcp-retry-btn" onclick="retryFailedMCP()" style="padding:6px 12px;background:#f87171;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Retry All</button>';
 html+='</div>';
 }
 container.innerHTML=html;
@@ -456,11 +450,22 @@ alert('Slack tokens have expired.\n\nTo re-authenticate:\n1. Open app.slack.com 
 }
 
 function triggerMcpReauth(mcp){
+// Map frontend mcp names to backend server names
+var serverNameMap={
+'atlassian':'atlassian',
+'gmail':'gmail',
+'drive':'briefdesk-gdrive-mcp'
+};
+var serverName=serverNameMap[mcp]||mcp;
+
 fetch(S+'/hub/mcp-reauth?mcp='+mcp)
 .then(function(r){return r.json();})
 .then(function(data){
 if(data.success){
-alert(data.message+'\n\nAfter signing in, click "Restart Search Service" to apply new credentials.');
+// Show message and prompt to reconnect after auth
+if(confirm(data.message+'\n\nAfter signing in and closing Terminal, click OK to reconnect.')){
+reconnectMcp(serverName);
+}
 }else{
 alert('Error: '+(data.error||'Unknown error'));
 }
@@ -470,8 +475,25 @@ alert('Failed to start re-authentication: '+e.message);
 });
 }
 
+function reconnectMcp(serverName){
+// Call the search service reconnect endpoint directly
+fetch('http://127.0.0.1:19765/reconnect?mcp='+encodeURIComponent(serverName))
+.then(function(r){return r.json();})
+.then(function(data){
+if(data.success){
+alert('✓ '+serverName+' reconnected successfully!');
+fetchServiceHealth();
+}else{
+alert('Reconnect failed: '+(data.error||'Unknown error')+'\n\nYou may need to restart the search service.');
+}
+})
+.catch(function(e){
+alert('Failed to reconnect: '+e.message);
+});
+}
+
 function restartSearchService(){
-if(!confirm('Restart the search service to apply new credentials?'))return;
+if(!confirm('Restart the search service? (Only needed if reconnect fails)'))return;
 fetch(S+'/hub/restart-search-service')
 .then(function(r){return r.json();})
 .then(function(data){
