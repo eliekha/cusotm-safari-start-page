@@ -991,7 +991,8 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         
         python_fda = False
         node_fda = 'not_installed'
-        python_path = sys.executable  # Return the actual Python path being used
+        # Resolve symlinks to get the actual binary path for FDA
+        python_path = os.path.realpath(sys.executable)
         
         # Test Python FDA by trying to read Safari history
         try:
