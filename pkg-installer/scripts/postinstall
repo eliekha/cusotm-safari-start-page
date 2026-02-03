@@ -1,0 +1,194 @@
+#!/bin/bash
+# BriefDesk Post-Install Script
+# This runs as root after pkg installation, but we need to set up user-space components
+
+set -e
+
+# Get the user who invoked the installer (not root)
+INSTALL_USER="${USER:-$(stat -f '%Su' /dev/console)}"
+USER_HOME=$(eval echo ~$INSTALL_USER)
+
+# Source files installed by pkg to /usr/local/share/briefdesk
+PKG_SOURCE="/usr/local/share/briefdesk"
+
+# User directories
+INSTALL_DIR="$USER_HOME/.local/share/briefdesk"
+DEVSAI_DIR="$USER_HOME/.local/share/devsai"
+LAUNCHAGENTS_DIR="$USER_HOME/Library/LaunchAgents"
+
+echo "Setting up BriefDesk for user: $INSTALL_USER"
+
+# Create directories
+sudo -u "$INSTALL_USER" mkdir -p "$INSTALL_DIR"
+sudo -u "$INSTALL_USER" mkdir -p "$DEVSAI_DIR"
+sudo -u "$INSTALL_USER" mkdir -p "$LAUNCHAGENTS_DIR"
+
+# Copy application files
+cp -R "$PKG_SOURCE/"* "$INSTALL_DIR/"
+chown -R "$INSTALL_USER" "$INSTALL_DIR"
+
+# Find Python
+SYSTEM_PYTHON=""
+if [ -f "/opt/homebrew/bin/python3" ]; then
+    SYSTEM_PYTHON="/opt/homebrew/bin/python3"
+elif [ -f "/usr/local/bin/python3" ]; then
+    SYSTEM_PYTHON="/usr/local/bin/python3"
+elif [ -f "/usr/bin/python3" ]; then
+    SYSTEM_PYTHON="/usr/bin/python3"
+else
+    SYSTEM_PYTHON=$(which python3 2>/dev/null || echo "/usr/bin/python3")
+fi
+
+# Create Python wrapper
+cat > "$INSTALL_DIR/python3" << PYEOF
+#!/bin/bash
+exec "$SYSTEM_PYTHON" "\$@"
+PYEOF
+chmod +x "$INSTALL_DIR/python3"
+chown "$INSTALL_USER" "$INSTALL_DIR/python3"
+
+# Find Node.js
+NODE_PATH=""
+if [ -f "/usr/local/bin/node" ]; then
+    NODE_PATH="/usr/local/bin/node"
+elif [ -f "/opt/homebrew/bin/node" ]; then
+    NODE_PATH="/opt/homebrew/bin/node"
+elif [ -f "/opt/homebrew/opt/node/bin/node" ]; then
+    NODE_PATH="/opt/homebrew/opt/node/bin/node"
+fi
+
+# Set up Node for devsai if found
+if [ -n "$NODE_PATH" ]; then
+    cp "$NODE_PATH" "$DEVSAI_DIR/node"
+    chmod +x "$DEVSAI_DIR/node"
+    chown "$INSTALL_USER" "$DEVSAI_DIR/node"
+fi
+
+# Create LaunchAgent for static server
+cat > "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.briefdesk.static</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$INSTALL_DIR/python3</string>
+        <string>-m</string>
+        <string>http.server</string>
+        <string>8765</string>
+        <string>--bind</string>
+        <string>127.0.0.1</string>
+        <string>--directory</string>
+        <string>$INSTALL_DIR</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/briefdesk-static.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/briefdesk-static.log</string>
+</dict>
+</plist>
+EOF
+chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist"
+
+# Create LaunchAgent for search server
+cat > "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.briefdesk.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$INSTALL_DIR/python3</string>
+        <string>$INSTALL_DIR/search-server.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/briefdesk-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/briefdesk-server.log</string>
+</dict>
+</plist>
+EOF
+chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist"
+
+# Create LaunchAgent for search service (if node available)
+if [ -n "$NODE_PATH" ]; then
+    cat > "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.briefdesk.search-service</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$DEVSAI_DIR/node</string>
+        <string>$INSTALL_DIR/search-service.mjs</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$INSTALL_DIR</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>$USER_HOME</string>
+        <key>SEARCH_SERVICE_PORT</key>
+        <string>19765</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/briefdesk-search-service.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/briefdesk-search-service.log</string>
+</dict>
+</plist>
+EOF
+    chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist"
+fi
+
+# Build gdrive-mcp if present
+if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NODE_PATH" ]; then
+    cd "$INSTALL_DIR/gdrive-mcp"
+    sudo -u "$INSTALL_USER" npm install --silent 2>/dev/null || true
+    sudo -u "$INSTALL_USER" npm run build --silent 2>/dev/null || true
+fi
+
+# Start services as the user
+USER_ID=$(id -u "$INSTALL_USER")
+
+# Unload any existing services first
+sudo -u "$INSTALL_USER" launchctl bootout "gui/$USER_ID/com.briefdesk.static" 2>/dev/null || true
+sudo -u "$INSTALL_USER" launchctl bootout "gui/$USER_ID/com.briefdesk.server" 2>/dev/null || true
+sudo -u "$INSTALL_USER" launchctl bootout "gui/$USER_ID/com.briefdesk.search-service" 2>/dev/null || true
+
+sleep 1
+
+# Load services
+sudo -u "$INSTALL_USER" launchctl bootstrap "gui/$USER_ID" "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" 2>/dev/null || true
+sudo -u "$INSTALL_USER" launchctl bootstrap "gui/$USER_ID" "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" 2>/dev/null || true
+if [ -f "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" ]; then
+    sudo -u "$INSTALL_USER" launchctl bootstrap "gui/$USER_ID" "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" 2>/dev/null || true
+fi
+
+echo "BriefDesk installation complete!"
+
+# Wait for server to start, then open installer
+sleep 3
+sudo -u "$INSTALL_USER" open "http://127.0.0.1:8765/installer.html"
+
+exit 0

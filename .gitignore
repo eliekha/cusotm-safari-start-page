@@ -28,3 +28,5 @@ __pycache__/
 .cursor/rules/
 .cursor/settings.json
 .cursor/mcp.json
+*.pkg
+pkg-build/
