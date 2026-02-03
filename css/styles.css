@@ -515,8 +515,8 @@ input[type="file"]{display:none}
 .ai-model-picker{display:flex;align-items:center;gap:5px;margin-left:auto;flex-shrink:0;padding:4px 8px;border-radius:6px;cursor:pointer;transition:background .15s}
 .ai-model-picker:hover{background:var(--bg-card-hover)}
 .ai-model-logo{width:14px;height:14px;border-radius:2px;flex-shrink:0;background-size:contain;background-repeat:no-repeat;background-position:center}
-.ai-model-logo.anthropic{background-image:url('../assets/logos/anthropic.png')}
-.ai-model-logo.openai{background-image:url('../assets/logos/openai.png')}
+.ai-model-logo.anthropic{background-image:url('../assets/logos/anthropic.svg')}
+.ai-model-logo.openai{background-image:url('../assets/logos/openai.svg')}
 .ai-model-logo.google{background-image:url('../assets/logos/gemini.png')}
 .ai-model-picker select{background:transparent;border:none;color:var(--text-secondary);font-size:11px;padding:0;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none}
 .ai-model-picker select:hover{color:var(--text-primary)}
