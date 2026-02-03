@@ -34,7 +34,7 @@ body {
   border-radius: 16px;
   border: 1px solid var(--border-color);
   width: 100%;
-  max-width: 540px;
+  max-width: 680px;
   position: relative;
   z-index: 1;
   box-shadow: 0 8px 32px rgba(0,0,0,.3);
@@ -71,14 +71,11 @@ body {
 }
 .steps-nav {
   display: flex;
-  padding: 12px 16px;
-  gap: 4px;
+  padding: 16px 24px;
+  gap: 8px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0,0,0,.15);
-  overflow-x: auto;
-  flex-wrap: nowrap;
 }
-.steps-nav::-webkit-scrollbar { display: none; }
 .step-indicator {
   display: flex;
   align-items: center;
@@ -87,10 +84,6 @@ body {
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
-}
-.step-indicator span { display: none; }
-@media (min-width: 520px) {
-  .step-indicator span { display: inline; }
 }
 .step-indicator.active { color: var(--text-primary); }
 .step-indicator.completed { color: var(--accent-green); }
@@ -115,10 +108,9 @@ body {
 }
 .step-indicator.completed .step-num svg { width: 12px; height: 12px; fill: #fff; }
 .step-connector {
-  width: 12px;
+  width: 16px;
   height: 1px;
   background: var(--border-color);
-  flex-shrink: 0;
 }
 .content {
   padding: 24px 28px;
