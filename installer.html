@@ -71,17 +71,26 @@ body {
 }
 .steps-nav {
   display: flex;
-  padding: 16px 28px;
-  gap: 8px;
+  padding: 12px 16px;
+  gap: 4px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0,0,0,.15);
+  overflow-x: auto;
+  flex-wrap: nowrap;
 }
+.steps-nav::-webkit-scrollbar { display: none; }
 .step-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.step-indicator span { display: none; }
+@media (min-width: 520px) {
+  .step-indicator span { display: inline; }
 }
 .step-indicator.active { color: var(--text-primary); }
 .step-indicator.completed { color: var(--accent-green); }
@@ -106,9 +115,10 @@ body {
 }
 .step-indicator.completed .step-num svg { width: 12px; height: 12px; fill: #fff; }
 .step-connector {
-  width: 20px;
+  width: 12px;
   height: 1px;
   background: var(--border-color);
+  flex-shrink: 0;
 }
 .content {
   padding: 24px 28px;
@@ -490,6 +500,43 @@ h2 {
 }
 .modal-actions .btn { flex: 1; }
 
+/* Browser tabs */
+#browser-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.browser-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all .15s;
+}
+.browser-tab:hover {
+  background: rgba(255,255,255,.08);
+  border-color: var(--border-hover);
+}
+.browser-tab.active {
+  background: rgba(79,140,255,.15);
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+.browser-tab img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
 /* Server Error Overlay */
 .server-error {
   position: fixed;
@@ -570,6 +617,11 @@ h2 {
     <div class="step-indicator" data-step="5">
       <div class="step-num">5</div>
       <span>Connect</span>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step-indicator" data-step="6">
+      <div class="step-num">6</div>
+      <span>Browser</span>
     </div>
   </div>
   
@@ -760,8 +812,87 @@ h2 {
       <span class="skip-link" onclick="goToStep(6)">Skip for now, configure later</span>
     </div>
     
-    <!-- Step 6: Complete -->
+    <!-- Step 6: Browser Setup -->
     <div class="step" id="step-6">
+      <h2>Set Up New Tab</h2>
+      <p class="step-desc">Make BriefDesk your browser's new tab page for instant access to your dashboard.</p>
+      
+      <div id="browser-tabs">
+        <div class="browser-tab active" data-browser="chrome" onclick="selectBrowser('chrome')">
+          <img src="icons/chrome.png" width="20" height="20" alt="Chrome">
+          Chrome
+        </div>
+        <div class="browser-tab" data-browser="firefox" onclick="selectBrowser('firefox')">
+          <img src="icons/firefox.svg" width="20" height="20" alt="Firefox">
+          Firefox
+        </div>
+        <div class="browser-tab" data-browser="safari" onclick="selectBrowser('safari')">
+          <img src="icons/safari.svg" width="20" height="20" alt="Safari">
+          Safari
+        </div>
+      </div>
+      
+      <!-- Chrome Instructions -->
+      <div class="browser-content" id="browser-chrome">
+        <div class="help-box" style="margin-top:0;">
+          <strong>Install "New Tab Redirect" Extension</strong><br><br>
+          1. Click the button below to open the Chrome Web Store<br>
+          2. Click "Add to Chrome" to install the extension<br>
+          3. After install, paste this URL in the extension settings:
+          <div class="copyable" style="margin:12px 0 8px;">
+            <code>http://127.0.0.1:8765/start.html</code>
+            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+          </div>
+          4. Open a new tab to verify it works
+        </div>
+        <a href="https://chrome.google.com/webstore/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna" target="_blank" class="btn btn-primary" style="width:100%;text-align:center;margin-top:12px;text-decoration:none;display:block;">
+          Open Chrome Web Store
+        </a>
+      </div>
+      
+      <!-- Firefox Instructions -->
+      <div class="browser-content" id="browser-firefox" style="display:none;">
+        <div class="help-box" style="margin-top:0;">
+          <strong>Install "New Tab Override" Extension</strong><br><br>
+          1. Click the button below to open Firefox Add-ons<br>
+          2. Click "Add to Firefox" to install the extension<br>
+          3. After install, paste this URL in the extension settings:
+          <div class="copyable" style="margin:12px 0 8px;">
+            <code>http://127.0.0.1:8765/start.html</code>
+            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+          </div>
+          4. Open a new tab to verify it works
+        </div>
+        <a href="https://addons.mozilla.org/en-US/firefox/addon/new-tab-override/" target="_blank" class="btn btn-primary" style="width:100%;text-align:center;margin-top:12px;text-decoration:none;display:block;">
+          Open Firefox Add-ons
+        </a>
+      </div>
+      
+      <!-- Safari Instructions -->
+      <div class="browser-content" id="browser-safari" style="display:none;">
+        <div class="help-box" style="margin-top:0;">
+          <strong>Set Homepage in Safari</strong><br><br>
+          Safari doesn't support new tab redirect extensions, but you can set BriefDesk as your homepage:<br><br>
+          1. Open <strong>Safari → Settings</strong> (or press <strong>Cmd+,</strong>)<br>
+          2. Go to the <strong>General</strong> tab<br>
+          3. Set "Homepage" to:
+          <div class="copyable" style="margin:12px 0 8px;">
+            <code>http://127.0.0.1:8765/start.html</code>
+            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+          </div>
+          4. Set "New windows open with" and "New tabs open with" to <strong>Homepage</strong><br><br>
+          <em style="color:var(--text-muted);">Tip: Press <strong>Cmd+Shift+H</strong> anytime to go to your homepage.</em>
+        </div>
+        <button class="btn btn-secondary" onclick="openSafariSettings()" style="width:100%;margin-top:12px;">
+          Open Safari Settings
+        </button>
+      </div>
+      
+      <span class="skip-link" onclick="goToStep(7)">Skip for now</span>
+    </div>
+    
+    <!-- Step 7: Complete -->
+    <div class="step" id="step-7">
       <div class="complete-section">
         <div class="complete-icon">
           <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -1096,10 +1227,14 @@ function updateUI() {
     nextBtn.disabled = false;
     nextBtn.className = 'btn btn-primary';
   } else if (currentStep === 5) {
-    nextBtn.textContent = 'Finish';
+    nextBtn.textContent = 'Continue';
     nextBtn.disabled = false;
     nextBtn.className = 'btn btn-primary';
   } else if (currentStep === 6) {
+    nextBtn.textContent = 'Finish';
+    nextBtn.disabled = false;
+    nextBtn.className = 'btn btn-primary';
+  } else if (currentStep === 7) {
     nextBtn.textContent = 'Open BriefDesk';
     nextBtn.disabled = false;
     nextBtn.className = 'btn btn-success';
@@ -1116,7 +1251,7 @@ function goToStep(step) {
 }
 
 function nextStep() {
-  if (currentStep === 6) {
+  if (currentStep === 7) {
     window.open('http://127.0.0.1:8765/start.html', '_blank');
     return;
   }
@@ -1336,6 +1471,36 @@ function showAtlassianSetup() { document.getElementById('atlassian-modal').class
 function closeAtlassianModal() { document.getElementById('atlassian-modal').classList.remove('show'); }
 function showDriveSetup() { document.getElementById('drive-modal').classList.add('show'); }
 function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); }
+
+function selectBrowser(browser) {
+  // Update tabs
+  document.querySelectorAll('.browser-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.browser === browser);
+  });
+  // Update content
+  document.querySelectorAll('.browser-content').forEach(content => {
+    content.style.display = 'none';
+  });
+  document.getElementById('browser-' + browser).style.display = 'block';
+}
+
+function openSafariSettings() {
+  // This will try to open Safari preferences - may not work from browser
+  window.location.href = 'x-apple.systempreferences:com.apple.Safari';
+}
+
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (ua.includes('Chrome') && !ua.includes('Edg')) return 'chrome';
+  if (ua.includes('Firefox')) return 'firefox';
+  if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
+  return 'chrome'; // default
+}
+
+// Auto-select browser on page load
+document.addEventListener('DOMContentLoaded', () => {
+  selectBrowser(detectBrowser());
+});
 
 async function saveSlackTokens() {
   const xoxc = document.getElementById('modal-slack-xoxc').value.trim();
