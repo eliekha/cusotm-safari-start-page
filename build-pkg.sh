@@ -107,40 +107,40 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
-        h1 { color: #34d399; margin-bottom: 8px; }
+        h1 { color: #34d399; margin-bottom: 8px; font-size: 22px; }
         p { line-height: 1.6; margin: 8px 0; }
-        .subtitle { color: #a0a0a0; font-size: 14px; }
-        .next-box { margin: 20px 0; padding: 16px; background: rgba(79,140,255,0.1); border: 1px solid rgba(79,140,255,0.3); border-radius: 12px; }
-        .next-title { color: #4f8cff; font-weight: 600; margin-bottom: 8px; }
-        .url-box { margin: 12px 0; padding: 12px 16px; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; color: #34d399; word-break: break-all; }
-        .instructions { margin-top: 16px; font-size: 13px; color: #a0a0a0; }
-        .instructions li { margin: 6px 0; }
+        .subtitle { color: #a0a0a0; font-size: 14px; margin-bottom: 16px; }
+        .open-btn { display: inline-block; margin: 16px 0; padding: 12px 24px; background: #4f8cff; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; }
+        .open-btn:hover { background: #3d7ae8; }
+        .features { margin: 16px 0; font-size: 13px; color: #a0a0a0; }
+        .features li { margin: 4px 0; }
+        .tip { margin-top: 16px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 12px; color: #808080; }
+        .tip code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; }
     </style>
 </head>
 <body>
-    <h1>✓ Installation Complete!</h1>
-    <p class="subtitle">BriefDesk has been installed and services are starting.</p>
+    <h1>Installation Complete</h1>
+    <p class="subtitle">BriefDesk is installed and running in the background.</p>
     
-    <div class="next-box">
-        <div class="next-title">Next: Complete Setup</div>
-        <p>Click <strong>Close</strong> below, then open this URL in your browser:</p>
-        <div class="url-box">http://127.0.0.1:8765/installer.html</div>
-    </div>
+    <p><strong>One more step:</strong> Open the setup wizard to configure permissions and connect your accounts.</p>
     
-    <div class="instructions">
-        <strong>The setup wizard will help you:</strong>
+    <a href="http://127.0.0.1:8765/installer.html" class="open-btn" target="_blank">Open Setup Wizard</a>
+    
+    <div class="features">
+        <strong>The wizard will help you:</strong>
         <ul>
-            <li>Grant Full Disk Access permissions</li>
-            <li>Connect Slack, Gmail, and Calendar</li>
-            <li>Set up AI-powered search</li>
+            <li>Grant Full Disk Access for Safari history search</li>
+            <li>Connect Slack, Gmail, Calendar, and Drive</li>
+            <li>Enable AI-powered semantic search</li>
         </ul>
     </div>
     
-    <p style="margin-top: 16px; font-size: 12px; color: #606060;">
-        Tip: Set your browser homepage to <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">http://127.0.0.1:8765/start.html</code>
-    </p>
+    <div class="tip">
+        <strong>Tip:</strong> After setup, set your browser homepage to <code>http://127.0.0.1:8765/start.html</code>
+    </div>
 </body>
 </html>
 EOF
