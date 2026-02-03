@@ -226,14 +226,16 @@ sleep 2
 echo ""
 echo "🤖 Setting up devsai CLI for Productivity Hub..."
 
-# Check if Node.js is installed (check common Homebrew paths too)
+# Check if Node.js is installed (check common paths)
 NODE_PATH=""
-if command -v node &> /dev/null; then
-    NODE_PATH=$(which node)
+if [ -f "/usr/local/bin/node" ]; then
+    NODE_PATH="/usr/local/bin/node"
 elif [ -f "/opt/homebrew/bin/node" ]; then
     NODE_PATH="/opt/homebrew/bin/node"
-elif [ -f "/usr/local/bin/node" ]; then
-    NODE_PATH="/usr/local/bin/node"
+elif [ -f "/opt/homebrew/opt/node/bin/node" ]; then
+    NODE_PATH="/opt/homebrew/opt/node/bin/node"
+elif command -v node &> /dev/null; then
+    NODE_PATH=$(which node)
 fi
 
 if [ -n "$NODE_PATH" ]; then
