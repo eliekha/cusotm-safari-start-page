@@ -244,8 +244,18 @@ saveToStorage(settings);
 // Sync main hub model picker
 var hubModel=document.getElementById('hub-model');
 if(hubModel)hubModel.value=model;
+// Update provider logo
+updateAIModelLogo();
 // Notify backend of model change
 fetch(S+'/hub/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model})}).catch(function(){});
+}
+function updateAIModelLogo(){
+var select=document.getElementById('ai-search-model');
+var logo=document.getElementById('ai-model-logo');
+if(!select||!logo)return;
+var opt=select.options[select.selectedIndex];
+var provider=opt?opt.getAttribute('data-provider'):'anthropic';
+logo.className='ai-model-logo '+(provider||'anthropic');
 }
 function fetchHubAuthStatus(){
 fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})
@@ -327,6 +337,7 @@ var aiModelPicker=document.getElementById('ai-search-model');
 if(aiModelPicker&&settings.hubModel){
 aiModelPicker.value=settings.hubModel;
 }
+updateAIModelLogo();
 // Blur main search and focus AI search
 if(mainSearch)mainSearch.blur();
 setTimeout(function(){
