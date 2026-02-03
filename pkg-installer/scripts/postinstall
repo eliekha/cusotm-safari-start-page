@@ -186,20 +186,6 @@ if [ -f "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" ]; then
 fi
 
 echo "BriefDesk installation complete!"
-
-# Wait for server to be ready, then open installer
-echo "Waiting for server to start..."
-for i in {1..15}; do
-    if curl -s http://127.0.0.1:18765/debug > /dev/null 2>&1; then
-        echo "Server is ready!"
-        break
-    fi
-    sleep 1
-done
-
-# Open the setup wizard in the user's browser
-sudo -u "$INSTALL_USER" open "http://127.0.0.1:8765/installer.html" 2>/dev/null || \
-    osascript -e "tell application \"Safari\" to open location \"http://127.0.0.1:8765/installer.html\"" 2>/dev/null || \
-    echo "Please open http://127.0.0.1:8765/installer.html in your browser"
+echo "Services are starting in the background..."
 
 exit 0

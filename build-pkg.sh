@@ -109,36 +109,37 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
 <head>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; background: #1a1a2e; color: #e0e0e0; }
-        h1 { color: #34d399; }
-        p { line-height: 1.6; }
-        code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; }
-        .step { margin: 12px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; }
-        .step-num { display: inline-block; width: 24px; height: 24px; background: #4f8cff; color: white; border-radius: 50%; text-align: center; line-height: 24px; margin-right: 8px; font-size: 12px; }
+        h1 { color: #34d399; margin-bottom: 8px; }
+        p { line-height: 1.6; margin: 8px 0; }
+        .subtitle { color: #a0a0a0; font-size: 14px; }
+        .next-box { margin: 20px 0; padding: 16px; background: rgba(79,140,255,0.1); border: 1px solid rgba(79,140,255,0.3); border-radius: 12px; }
+        .next-title { color: #4f8cff; font-weight: 600; margin-bottom: 8px; }
+        .url-box { margin: 12px 0; padding: 12px 16px; background: rgba(0,0,0,0.3); border-radius: 8px; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; color: #34d399; word-break: break-all; }
+        .instructions { margin-top: 16px; font-size: 13px; color: #a0a0a0; }
+        .instructions li { margin: 6px 0; }
     </style>
 </head>
 <body>
-    <h1>Installation Complete!</h1>
-    <p>BriefDesk has been installed and services are starting.</p>
+    <h1>✓ Installation Complete!</h1>
+    <p class="subtitle">BriefDesk has been installed and services are starting.</p>
     
-    <h3 style="margin-top: 20px; color: #a0a0a0;">Next Steps:</h3>
-    
-    <div class="step">
-        <span class="step-num">1</span>
-        The setup wizard will open automatically in your browser
+    <div class="next-box">
+        <div class="next-title">Next: Complete Setup</div>
+        <p>Click <strong>Close</strong> below, then open this URL in your browser:</p>
+        <div class="url-box">http://127.0.0.1:8765/installer.html</div>
     </div>
     
-    <div class="step">
-        <span class="step-num">2</span>
-        Grant Full Disk Access to enable Safari history search
+    <div class="instructions">
+        <strong>The setup wizard will help you:</strong>
+        <ul>
+            <li>Grant Full Disk Access permissions</li>
+            <li>Connect Slack, Gmail, and Calendar</li>
+            <li>Set up AI-powered search</li>
+        </ul>
     </div>
     
-    <div class="step">
-        <span class="step-num">3</span>
-        Set your browser homepage to: <code>http://127.0.0.1:8765/start.html</code>
-    </div>
-    
-    <p style="margin-top: 20px; font-size: 12px; color: #808080;">
-        If the wizard doesn't open, visit: http://127.0.0.1:8765/installer.html
+    <p style="margin-top: 16px; font-size: 12px; color: #606060;">
+        Tip: Set your browser homepage to <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">http://127.0.0.1:8765/start.html</code>
     </p>
 </body>
 </html>
