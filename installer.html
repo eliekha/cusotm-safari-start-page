@@ -674,10 +674,13 @@ h2 {
         <strong>How to grant Full Disk Access:</strong><br><br>
         1. Click "Open System Settings" below<br>
         2. Click the <strong>+</strong> button to add an app<br>
-        3. Press <strong>Cmd+Shift+G</strong> and paste these paths:
+        3. Press <strong>Cmd+Shift+G</strong> and paste one of these Python paths:
         <div class="copyable" style="margin:8px 0 4px;">
-          <code>~/.local/share/briefdesk/python3</code>
+          <code id="python-path-primary">/opt/homebrew/bin/python3</code>
           <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px 0;">
+          Or try: <code style="background:rgba(0,0,0,.2);padding:2px 4px;border-radius:3px">/usr/local/bin/python3</code> or <code style="background:rgba(0,0,0,.2);padding:2px 4px;border-radius:3px">/usr/bin/python3</code>
         </div>
         <div class="copyable" style="margin:4px 0 12px;">
           <code>~/.local/share/devsai/node</code>
@@ -1300,6 +1303,12 @@ async function checkFDA() {
       nodeEl.className = 'check-item error';
       nodeIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
       nodeStatus.textContent = 'Not granted - add to Full Disk Access';
+    }
+    
+    // Update the Python path in instructions if server provided it
+    if (data.python_path) {
+      const pathEl = document.getElementById('python-path-primary');
+      if (pathEl) pathEl.textContent = data.python_path;
     }
   } catch (e) {
     console.error('FDA check failed:', e);

@@ -987,9 +987,11 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
     def handle_installer_check_fda(self):
         """Check if Full Disk Access is granted for Python and Node."""
         import sqlite3
+        import sys
         
         python_fda = False
         node_fda = 'not_installed'
+        python_path = sys.executable  # Return the actual Python path being used
         
         # Test Python FDA by trying to read Safari history
         try:
@@ -1018,7 +1020,8 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         
         self.send_json({
             "python_fda": python_fda,
-            "node_fda": node_fda
+            "node_fda": node_fda,
+            "python_path": python_path
         })
     
     def handle_service_health(self):
