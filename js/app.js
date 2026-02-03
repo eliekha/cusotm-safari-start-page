@@ -231,6 +231,19 @@ function updateHubModel(){
 var model=document.getElementById('hub-model').value;
 settings.hubModel=model;
 saveToStorage(settings);
+// Sync AI search model picker
+var aiModelPicker=document.getElementById('ai-search-model');
+if(aiModelPicker)aiModelPicker.value=model;
+// Notify backend of model change
+fetch(S+'/hub/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model})}).catch(function(){});
+}
+function updateAISearchModel(){
+var model=document.getElementById('ai-search-model').value;
+settings.hubModel=model;
+saveToStorage(settings);
+// Sync main hub model picker
+var hubModel=document.getElementById('hub-model');
+if(hubModel)hubModel.value=model;
 // Notify backend of model change
 fetch(S+'/hub/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model})}).catch(function(){});
 }
@@ -309,6 +322,11 @@ aiSearchOpen=true;
 var overlay=document.getElementById('ai-search-overlay');
 var mainSearch=document.getElementById('s');
 overlay.classList.add('show');
+// Sync model picker with current setting
+var aiModelPicker=document.getElementById('ai-search-model');
+if(aiModelPicker&&settings.hubModel){
+aiModelPicker.value=settings.hubModel;
+}
 // Blur main search and focus AI search
 if(mainSearch)mainSearch.blur();
 setTimeout(function(){

@@ -78,6 +78,24 @@
 <button class="ai-source-pill active" data-source="confluence" onclick="toggleAISource('confluence')"><span class="ai-source-dot"></span>Confluence</button>
 <button class="ai-source-pill active" data-source="gmail" onclick="toggleAISource('gmail')"><span class="ai-source-dot"></span>Gmail</button>
 <button class="ai-source-pill active" data-source="drive" onclick="toggleAISource('drive')"><span class="ai-source-dot"></span>Drive</button>
+<div class="ai-model-picker">
+<svg class="ai-model-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+<select id="ai-search-model" onchange="updateAISearchModel()">
+<optgroup label="Fast">
+<option value="anthropic-claude-4-5-haiku">Claude Haiku</option>
+<option value="gemini-2.0-flash">Gemini Flash</option>
+<option value="gemini-2.5-flash-preview">Gemini 2.5 Flash</option>
+</optgroup>
+<optgroup label="Balanced">
+<option value="anthropic-claude-4-5-sonnet">Claude Sonnet</option>
+<option value="gemini-2.5-preview">Gemini 2.5 Pro</option>
+</optgroup>
+<optgroup label="Best">
+<option value="claude-opus-4-5">Claude Opus</option>
+<option value="gemini-3-pro">Gemini 3 Pro</option>
+</optgroup>
+</select>
+</div>
 </div>
 <div class="ai-search-results" id="ai-search-results">
 <div class="ai-search-empty">
