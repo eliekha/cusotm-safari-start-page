@@ -375,14 +375,7 @@ html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+':
 });
 }
 }
-// Show GDrive MCP status
-if(svc.gdriveMcp){
-var driveAvailable=svc.gdriveMcp.available;
-var driveColor=driveAvailable?'#4ade80':'#f59e0b';
-var driveIcon=driveAvailable?'✓':'⚠';
-var driveMode=driveAvailable?'API Mode (full-text search)':'Local Fallback (filename only)';
-html+='<div style="font-size:10px;color:'+driveColor+';margin-top:2px">'+driveIcon+' Google Drive: '+driveMode+'</div>';
-}
+// GDrive MCP is now shown as part of the MCP list (briefdesk-gdrive-mcp)
 if(svc.error){
 html+='<div style="font-size:10px;color:#f87171;margin-top:2px">'+svc.error+'</div>';
 }
