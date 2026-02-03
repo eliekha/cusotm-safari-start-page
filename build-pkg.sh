@@ -127,7 +127,7 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
     <p><strong>One more step:</strong> Open the setup wizard to configure permissions and connect your accounts.</p>
     
     <p style="margin: 16px 0;">
-        <a href="http://127.0.0.1:8765/installer.html" target="_blank" style="display: inline-block; padding: 12px 24px; background-color: #4f8cff; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Open Setup Wizard</a>
+        <a href="http://127.0.0.1:8765/installer.html" target="_blank" style="display: inline-block; padding: 12px 24px; background-color: #ffffff; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none;">Open Setup Wizard</a>
     </p>
     
     <div class="features">
