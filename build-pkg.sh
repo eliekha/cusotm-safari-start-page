@@ -113,8 +113,10 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
         h1 { color: #34d399; margin-bottom: 8px; font-size: 22px; }
         p { line-height: 1.6; margin: 8px 0; }
         .subtitle { color: #a0a0a0; font-size: 14px; margin-bottom: 16px; }
-        .open-btn { display: inline-block; margin: 16px 0; padding: 12px 24px; background: #4f8cff; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; }
-        .open-btn:hover { background: #3d7ae8; }
+        .open-btn { display: inline-block; margin: 16px 0; padding: 12px 24px; background-color: #4f8cff; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; border: none; }
+        a.open-btn { color: #ffffff !important; }
+        .open-btn:hover { background-color: #3d7ae8; }
+        .open-btn:visited { color: #ffffff !important; }
         .features { margin: 16px 0; font-size: 13px; color: #a0a0a0; }
         .features li { margin: 4px 0; }
         .tip { margin-top: 16px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 12px; color: #808080; }
