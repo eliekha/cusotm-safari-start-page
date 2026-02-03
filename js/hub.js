@@ -472,7 +472,7 @@ alert('Failed to start re-authentication: '+e.message);
 
 function restartSearchService(){
 if(!confirm('Restart the search service to apply new credentials?'))return;
-fetch(S+'/hub/restart-search-service',{method:'POST'})
+fetch(S+'/hub/restart-search-service')
 .then(function(r){return r.json();})
 .then(function(data){
 if(data.success){
