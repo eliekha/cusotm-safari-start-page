@@ -56,15 +56,21 @@ fi
 [ -f "$SCRIPT_DIR/config.example.json" ] && cp "$SCRIPT_DIR/config.example.json" "$INSTALL_DIR/"
 
 # ============================================
-# Create local Python binary for Full Disk Access
+# Create Python wrapper for Full Disk Access
 # ============================================
 echo ""
-echo "🐍 Setting up Python binary for Full Disk Access..."
+echo "🐍 Setting up Python for Full Disk Access..."
 SYSTEM_PYTHON=$(python3 -c "import sys; print(sys.executable)" 2>/dev/null || echo "/usr/bin/python3")
 if [ -f "$SYSTEM_PYTHON" ]; then
-    cp "$SYSTEM_PYTHON" "$INSTALL_DIR/python3"
+    # Create a wrapper script instead of copying the binary
+    # (copying breaks dynamic library paths on macOS)
+    cat > "$INSTALL_DIR/python3" << PYEOF
+#!/bin/bash
+exec "$SYSTEM_PYTHON" "\$@"
+PYEOF
     chmod +x "$INSTALL_DIR/python3"
-    echo "   ✓ Copied Python to $INSTALL_DIR/python3"
+    echo "   ✓ Created Python wrapper at $INSTALL_DIR/python3"
+    echo "   ℹ️  Note: Grant Full Disk Access to: $SYSTEM_PYTHON"
 else
     echo "   ⚠️  Could not find Python binary. You may need to set this up manually."
 fi
@@ -340,7 +346,7 @@ echo "Open: System Settings → Privacy & Security → Full Disk Access"
 echo ""
 echo "Add these binaries (use Cmd+Shift+G to paste paths):"
 echo ""
-echo "  1. $INSTALL_DIR/python3"
+echo "  1. $SYSTEM_PYTHON"
 echo "     (Required for Safari history search)"
 echo ""
 if [ -f "$DEVSAI_DIR/node" ]; then
