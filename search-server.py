@@ -1066,10 +1066,21 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                     status_data = json.loads(resp.read().decode())
                     servers = status_data.get('servers', [])
                     connected = [s for s in servers if s.get('status') == 'connected']
+                    failed = [s for s in servers if s.get('status') != 'connected']
+                    # Include ALL servers (connected and failed) with their status and error
+                    all_servers = []
+                    for s in servers:
+                        server_info = {
+                            'name': s.get('name'),
+                            'tools': s.get('toolCount', 0),
+                            'status': s.get('status', 'unknown'),
+                            'error': s.get('error')
+                        }
+                        all_servers.append(server_info)
                     mcp_servers = {
                         'connected': len(connected),
                         'total': len(servers),
-                        'servers': [{'name': s.get('name'), 'tools': s.get('toolCount', 0), 'status': 'connected'} for s in connected]
+                        'servers': all_servers
                     }
                     # Get GDrive MCP status
                     gdrive_mcp = status_data.get('gdriveMcp', {})

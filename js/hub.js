@@ -361,7 +361,17 @@ html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: '+connected
 if(errorServers.length>0){
 hasFailedMCP=true;
 errorServers.forEach(function(es){
-html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+': '+(es.error||'Connection error').substring(0,80)+'</div>';
+var errorMsg=(es.error||'Connection error').substring(0,60);
+var reAuthLink='';
+// Add re-auth links for known MCPs
+if(es.name==='atlassian'){
+reAuthLink=' <a href="#" onclick="showAtlassianReauth();return false;" style="color:#60a5fa;text-decoration:underline">Re-authenticate</a>';
+}else if(es.name==='gmail'){
+reAuthLink=' <a href="#" onclick="showGmailReauth();return false;" style="color:#60a5fa;text-decoration:underline">Re-authenticate</a>';
+}else if(es.name==='slack'){
+reAuthLink=' <a href="#" onclick="showSlackReauth();return false;" style="color:#60a5fa;text-decoration:underline">Re-authenticate</a>';
+}
+html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+': '+errorMsg+reAuthLink+'</div>';
 });
 }
 }
@@ -414,6 +424,29 @@ btn.disabled=false;
 btn.textContent='Retry Failed';
 }
 });
+}
+
+// Re-authentication helper functions for failed MCPs
+function showAtlassianReauth(){
+var cmd='npx -y mcp-remote https://mcp.atlassian.com/v1/sse';
+if(confirm('Atlassian needs re-authentication.\n\nRun this command in Terminal:\n\n'+cmd+'\n\nCopy to clipboard?')){
+navigator.clipboard.writeText(cmd).then(function(){
+alert('Command copied! Paste it in Terminal and sign in with your Atlassian account.');
+});
+}
+}
+
+function showGmailReauth(){
+var cmd='npx @monsoft/mcp-gmail auth';
+if(confirm('Gmail needs re-authentication.\n\nRun this command in Terminal:\n\n'+cmd+'\n\nCopy to clipboard?')){
+navigator.clipboard.writeText(cmd).then(function(){
+alert('Command copied! Paste it in Terminal and sign in with Google.');
+});
+}
+}
+
+function showSlackReauth(){
+alert('Slack tokens have expired.\n\nTo re-authenticate:\n1. Open app.slack.com in your browser\n2. Open DevTools (Cmd+Option+I)\n3. Go to Application → Cookies → copy the "d" cookie (XOXD)\n4. In Console, run the snippet to get XOXC token\n5. Update tokens in Settings or .devsai.json');
 }
 
 function fetchPrefetchStatus(){
