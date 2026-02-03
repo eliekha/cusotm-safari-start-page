@@ -135,6 +135,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_prefetch_control(params)
         elif path == "/hub/mcp-reauth":
             self.handle_mcp_reauth(params)
+        elif path == "/hub/restart-search-service":
+            self.handle_restart_search_service()
         elif path == "/hub/prompts":
             self.handle_get_prompts()
         elif path == "/hub/batch":
@@ -1200,6 +1202,31 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         
         else:
             self.send_json({"error": f"Unknown MCP: {mcp}. Supported: atlassian, gmail, drive"})
+    
+    def handle_restart_search_service(self):
+        """Restart the search-service to pick up new credentials."""
+        import subprocess
+        import os
+        
+        try:
+            # Use launchctl to restart the search-service
+            user_id = os.getuid()
+            cmd = ["launchctl", "kickstart", "-k", f"gui/{user_id}/com.briefdesk.search-service"]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                self.send_json({
+                    "success": True,
+                    "message": "Search service restarting..."
+                })
+            else:
+                self.send_json({
+                    "error": f"Failed to restart: {result.stderr or result.stdout}"
+                })
+        except subprocess.TimeoutExpired:
+            self.send_json({"success": True, "message": "Restart initiated"})
+        except Exception as e:
+            self.send_json({"error": f"Failed to restart: {str(e)}"})
     
     def handle_get_prompts(self):
         """Get all prompts with current values and defaults."""

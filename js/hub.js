@@ -390,11 +390,17 @@ html+='</div>';
 html+='<div style="font-size:11px;color:'+statusColor+';font-weight:500">'+(isOk?'OK':'Error')+'</div>';
 html+='</div>';
 });
-// Add retry button if there are failed MCP servers
+// Add retry/restart buttons if there are failed MCP servers
 if(hasFailedMCP){
-html+='<div style="margin-top:8px;padding:10px 12px;background:rgba(248,113,113,.1);border-radius:8px;display:flex;align-items:center;justify-content:space-between">';
+html+='<div style="margin-top:8px;padding:10px 12px;background:rgba(248,113,113,.1);border-radius:8px">';
+html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
 html+='<div style="font-size:12px;color:#f87171">Some MCP servers failed to connect</div>';
-html+='<button id="mcp-retry-btn" onclick="retryFailedMCP()" style="padding:6px 12px;background:#f87171;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Retry Failed</button>';
+html+='<button id="mcp-retry-btn" onclick="retryFailedMCP()" style="padding:6px 12px;background:#f87171;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Retry</button>';
+html+='</div>';
+html+='<div style="display:flex;align-items:center;justify-content:space-between">';
+html+='<div style="font-size:11px;color:rgba(255,255,255,.5)">After re-auth, restart to apply new credentials:</div>';
+html+='<button onclick="restartSearchService()" style="padding:6px 12px;background:#3b82f6;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;font-weight:500">Restart Service</button>';
+html+='</div>';
 html+='</div>';
 }
 container.innerHTML=html;
@@ -454,13 +460,30 @@ fetch(S+'/hub/mcp-reauth?mcp='+mcp)
 .then(function(r){return r.json();})
 .then(function(data){
 if(data.success){
-alert(data.message+'\n\nAfter signing in, click "Retry Failed" or refresh the page.');
+alert(data.message+'\n\nAfter signing in, click "Restart Search Service" to apply new credentials.');
 }else{
 alert('Error: '+(data.error||'Unknown error'));
 }
 })
 .catch(function(e){
 alert('Failed to start re-authentication: '+e.message);
+});
+}
+
+function restartSearchService(){
+if(!confirm('Restart the search service to apply new credentials?'))return;
+fetch(S+'/hub/restart-search-service',{method:'POST'})
+.then(function(r){return r.json();})
+.then(function(data){
+if(data.success){
+alert('Search service restarting... Please wait a few seconds then refresh.');
+setTimeout(fetchServiceHealth,3000);
+}else{
+alert('Error: '+(data.error||'Unknown error'));
+}
+})
+.catch(function(e){
+alert('Failed to restart: '+e.message);
 });
 }
 
