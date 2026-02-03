@@ -50,8 +50,8 @@ cat > "$BUILD_DIR/distribution.xml" << EOF
 <installer-gui-script minSpecVersion="2">
     <title>BriefDesk</title>
     <organization>com.briefdesk</organization>
-    <domains enable_localSystem="false" enable_currentUserHome="true"/>
-    <options customize="never" require-scripts="true" rootVolumeOnly="true"/>
+    <domains enable_localSystem="true"/>
+    <options customize="never" require-scripts="true" rootVolumeOnly="true" hostArchitectures="arm64,x86_64"/>
     
     <welcome file="welcome.html"/>
     <conclusion file="conclusion.html"/>
