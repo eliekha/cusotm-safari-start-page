@@ -939,12 +939,25 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             self.send_json({"ok": False, "error": "No command specified"})
             return
         
+        # Add common Homebrew and system paths that may not be in LaunchAgent environment
+        env = os.environ.copy()
+        extra_paths = [
+            '/opt/homebrew/bin',
+            '/opt/homebrew/opt/node/bin',
+            '/usr/local/bin',
+            '/usr/bin',
+            '/bin'
+        ]
+        current_path = env.get('PATH', '')
+        env['PATH'] = ':'.join(extra_paths) + ':' + current_path
+        
         try:
             result = subprocess.run(
                 cmd.split(),
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                env=env
             )
             if result.returncode == 0:
                 version = result.stdout.strip() or result.stderr.strip()
