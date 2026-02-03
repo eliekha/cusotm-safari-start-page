@@ -45,6 +45,12 @@ if [ -f "$SCRIPT_DIR/search-service.mjs" ]; then
     echo "   ✓ Copied search-service.mjs"
 fi
 
+# Copy Google Drive MCP
+if [ -d "$SCRIPT_DIR/gdrive-mcp" ]; then
+    cp -r "$SCRIPT_DIR/gdrive-mcp" "$INSTALL_DIR/"
+    echo "   ✓ Copied gdrive-mcp"
+fi
+
 # Copy example configs if they exist
 [ -f "$SCRIPT_DIR/devsai.example.json" ] && cp "$SCRIPT_DIR/devsai.example.json" "$INSTALL_DIR/"
 [ -f "$SCRIPT_DIR/config.example.json" ] && cp "$SCRIPT_DIR/config.example.json" "$INSTALL_DIR/"
@@ -250,6 +256,20 @@ exec "$HOME/.local/share/devsai/node" "$HOME/.local/share/devsai/dist/index.js" 
 EOF
     chmod +x "$DEVSAI_DIR/devsai.sh"
     echo "   ✓ Created devsai wrapper at $DEVSAI_DIR/devsai.sh"
+    
+    # ============================================
+    # Setup Google Drive MCP
+    # ============================================
+    if [ -d "$INSTALL_DIR/gdrive-mcp" ]; then
+        echo ""
+        echo "📁 Setting up Google Drive MCP..."
+        cd "$INSTALL_DIR/gdrive-mcp"
+        npm install --silent 2>/dev/null
+        npm run build --silent 2>/dev/null
+        echo "   ✓ Google Drive MCP ready"
+        echo "   To authenticate: cd ~/.local/share/briefdesk/gdrive-mcp && npm run auth"
+        cd "$INSTALL_DIR"
+    fi
     
     # ============================================
     # Setup Node.js Search Service

@@ -183,6 +183,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_hub_settings(data)
         elif path == "/hub/ai-search":
             self.handle_ai_search(data)
+        elif path == "/hub/ai-search-stream":
+            self.handle_ai_search_stream(data)
         # Setup endpoints
         elif path == "/setup/slack":
             self.handle_setup_slack(data)
@@ -303,6 +305,66 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         except Exception as e:
             logger.error(f"[AI Search] Error: {e}")
             self.send_json({"error": f"Search failed: {str(e)}"})
+    
+    def handle_ai_search_stream(self, data):
+        """Handle AI-powered search with streaming progress updates via SSE."""
+        from lib.ai_search import ai_search_stream
+        from lib.config import get_hub_model
+        
+        query = data.get('query', '').strip()
+        sources = data.get('sources', ['slack', 'jira', 'confluence', 'gmail', 'drive'])
+        
+        if not query:
+            self.send_response(400)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Query is required"}).encode())
+            return
+        
+        logger.info(f"[AI Search Stream] Query: '{query}' | Sources: {sources}")
+        
+        # Build the search prompt (same as non-streaming)
+        source_names = ', '.join([s.title() for s in sources])
+        source_instructions = ""
+        
+        if 'slack' in sources:
+            source_instructions += "\nSLACK: Use channels_list with channel_types: 'im' to find DMs, then conversations_history for messages."
+        if 'jira' in sources:
+            source_instructions += "\nJIRA: FIRST call 'Get Accessible Atlassian Resources' for cloudId, THEN search."
+        if 'confluence' in sources:
+            source_instructions += "\nCONFLUENCE: FIRST call 'Get Accessible Atlassian Resources' for cloudId, THEN search."
+        if 'drive' in sources:
+            from lib.config import GOOGLE_DRIVE_BASE
+            drive_path = GOOGLE_DRIVE_BASE or "~/Library/CloudStorage/GoogleDrive-*"
+            source_instructions += f"\nDRIVE: Search files in {drive_path}/My Drive/"
+        
+        prompt = f"Search {source_names} for: {query}\n{source_instructions}\nInclude links to sources. Keep response concise."
+        
+        # Set up SSE response
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/event-stream')
+        self.send_header('Cache-Control', 'no-cache')
+        self.send_header('Connection', 'keep-alive')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        
+        def send_event(event_type, data):
+            try:
+                event_str = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+                self.wfile.write(event_str.encode())
+                self.wfile.flush()
+            except Exception as e:
+                logger.error(f"[AI Search Stream] Failed to send event: {e}")
+        
+        try:
+            model = get_hub_model()
+            
+            for event_type, event_data in ai_search_stream(prompt, sources=sources, model=model, timeout=120):
+                send_event(event_type, event_data)
+                
+        except Exception as e:
+            logger.error(f"[AI Search Stream] Error: {e}")
+            send_event("error", {"error": str(e)})
     
     # =========================================================================
     # Search Handlers
@@ -761,6 +823,11 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             except Exception as e:
                 calendar_error = str(e)
         
+        # Check Drive MCP token
+        drive_token_path = os.path.join(CONFIG_DIR, "google_drive_token.json")
+        drive_configured = os.path.exists(CREDENTIALS_PATH)  # Uses same OAuth client as calendar
+        drive_authenticated = os.path.exists(drive_token_path)
+        
         # Format auth status for frontend (expects objects with .configured/.authenticated properties)
         self.send_json({
             **status,
@@ -772,6 +839,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             "calendar": {"configured": calendar_configured, 
                         "authenticated": calendar_authenticated,
                         "error": calendar_error},
+            "drive": {"configured": drive_configured, "authenticated": drive_authenticated},
         })
     
     def handle_setup_page(self):
@@ -988,8 +1056,9 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         except Exception as e:
             search_error = str(e)
         
-        # Get MCP server count if available
+        # Get MCP server count and GDrive MCP status if available
         mcp_servers = None
+        gdrive_mcp = None
         if search_ok:
             try:
                 req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
@@ -1002,6 +1071,8 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                         'total': len(servers),
                         'servers': [{'name': s.get('name'), 'tools': s.get('toolCount', 0), 'status': 'connected'} for s in connected]
                     }
+                    # Get GDrive MCP status
+                    gdrive_mcp = status_data.get('gdriveMcp', {})
             except:
                 pass
         
@@ -1011,7 +1082,8 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             'status': 'ok' if search_ok else 'error',
             'error': search_error,
             'description': 'AI queries, MCP connections',
-            'mcp': mcp_servers
+            'mcp': mcp_servers,
+            'gdriveMcp': gdrive_mcp
         })
         
         self.send_json({

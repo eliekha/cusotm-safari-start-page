@@ -98,6 +98,73 @@ def ai_search(
         return {"error": error_msg, "response": None}
 
 
+def ai_search_stream(
+    query: str,
+    sources: Optional[List[str]] = None,
+    model: str = "gpt-4o",
+    timeout: int = DEFAULT_TIMEOUT
+):
+    """
+    Perform AI-powered search with streaming progress updates.
+    
+    Yields SSE events as they come from the search service.
+    
+    Args:
+        query: Natural language search query
+        sources: List of sources to search
+        model: AI model to use
+        timeout: Request timeout in seconds
+        
+    Yields:
+        Tuples of (event_type, data_dict)
+    """
+    try:
+        payload = {
+            "query": query,
+            "model": model,
+        }
+        if sources:
+            payload["sources"] = sources
+        
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            f"{SEARCH_SERVICE_URL}/search-stream",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        
+        logger.info(f"[AISearch] Stream searching: {query[:50]}... sources={sources}")
+        
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            buffer = ""
+            for chunk in iter(lambda: response.read(1024).decode('utf-8'), ''):
+                buffer += chunk
+                while '\n\n' in buffer:
+                    event_block, buffer = buffer.split('\n\n', 1)
+                    event_type = None
+                    event_data = None
+                    
+                    for line in event_block.split('\n'):
+                        if line.startswith('event: '):
+                            event_type = line[7:]
+                        elif line.startswith('data: '):
+                            try:
+                                event_data = json.loads(line[6:])
+                            except json.JSONDecodeError:
+                                event_data = {"raw": line[6:]}
+                    
+                    if event_type and event_data:
+                        yield (event_type, event_data)
+                        
+    except urllib.error.URLError as e:
+        logger.error(f"[AISearch] Stream error: {e.reason}")
+        yield ("error", {"error": f"Search service unavailable: {e.reason}"})
+    except Exception as e:
+        logger.error(f"[AISearch] Stream error: {e}")
+        yield ("error", {"error": str(e)})
+
+
 def ai_query(
     prompt: str,
     system_prompt: Optional[str] = None,

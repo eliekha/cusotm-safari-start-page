@@ -67,9 +67,7 @@
 <div class="ai-search-backdrop" onclick="closeAISearch()"></div>
 <div class="ai-search-panel" id="ai-search-panel">
 <div class="ai-search-header">
-<div class="ai-search-icon">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-</div>
+<svg class="ai-search-lucide" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
 <input type="text" class="ai-search-input" id="ai-search-input" placeholder="Ask anything about your work..." autocomplete="off">
 <kbd class="ai-search-esc">esc</kbd>
 </div>
@@ -232,7 +230,7 @@
 <div class="hub-source">
 <input type="checkbox" id="hub-drive" checked>
 <div class="hub-source-info"><span class="hub-source-name">Google Drive</span></div>
-<span class="hub-source-status available">Available</span>
+<span class="hub-source-status" id="hub-drive-status">Checking...</span>
 </div>
 </div>
 <div class="hub-setup-hint" id="hub-setup-hint" style="display:none"></div>

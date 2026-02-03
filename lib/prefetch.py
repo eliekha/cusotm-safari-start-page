@@ -129,12 +129,13 @@ def check_services_auth():
     """Check which services are authenticated (for prefetch to avoid triggering OAuth).
     
     Returns:
-        dict: Authentication status for each service (atlassian, slack, gmail)
+        dict: Authentication status for each service (atlassian, slack, gmail, drive)
     """
     auth_status = {
         'atlassian': False,
         'slack': False,
-        'gmail': False
+        'gmail': False,
+        'drive': False,  # True = gdrive MCP available (API mode), False = local fallback
     }
     
     # Check Atlassian auth by looking for mcp-remote tokens
@@ -190,6 +191,14 @@ def check_services_auth():
         if has_creds and has_tokens:
             auth_status['gmail'] = True
     
+    # Check Google Drive MCP auth - gdrive MCP token in briefdesk config
+    # If token exists, we use API mode; otherwise fallback to local filesystem search
+    gdrive_token_path = os.path.expanduser('~/.local/share/briefdesk/google_drive_token.json')
+    gdrive_mcp_path = os.path.expanduser('~/.local/share/briefdesk/gdrive-mcp/dist/index.js')
+    if os.path.exists(gdrive_token_path) and os.path.exists(gdrive_mcp_path):
+        auth_status['drive'] = True  # API mode available
+    # Note: drive=False just means local fallback, drive still works
+    
     return auth_status
 
 
@@ -223,8 +232,10 @@ def prefetch_meeting_data(meeting):
     
     # Check auth status to avoid triggering OAuth dialogs from background
     auth_status = check_services_auth()
+    drive_mode = "API" if auth_status.get('drive') else "local"
     logger.info(f"[Prefetch] Auth status: atlassian={auth_status.get('atlassian')}, "
-                f"slack={auth_status.get('slack')}, gmail={auth_status.get('gmail')}")
+                f"slack={auth_status.get('slack')}, gmail={auth_status.get('gmail')}, "
+                f"drive={drive_mode}")
     
     # Determine which sources we can safely fetch
     sources_to_fetch = []

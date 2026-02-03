@@ -312,7 +312,7 @@ def call_cli_for_source(source, meeting_title, attendees_str, description='', ti
             'confluence': ['atlassian'],
             'slack': ['slack'],
             'gmail': ['gmail'],
-            'drive': ['atlassian'],  # Drive uses find command, but we still route through service
+            'drive': ['drive'],  # Drive uses gdrive MCP (API) or CLI file tools (fallback)
         }
         sources_filter = source_mapping.get(source, [source])
         

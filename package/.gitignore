@@ -1,0 +1,5 @@
+# Built files - don't commit these
+*.app
+*.dmg
+dmg_temp/
+temp_*.dmg

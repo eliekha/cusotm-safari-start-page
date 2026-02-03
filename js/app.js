@@ -347,6 +347,9 @@ if(aiSearchSources.drive)sources.push('drive');
 return sources;
 }
 
+var aiEventSource=null;
+var aiProgressSteps=[];
+
 function submitAISearch(){
 var input=document.getElementById('ai-search-input');
 var query=input.value.trim();
@@ -356,28 +359,254 @@ if(sources.length===0){
 showAIError('Select at least one source');
 return;
 }
-showAILoading(sources);
+
+// Reset state
+aiProgressSteps=[];
+aiHasAddedResponding=false;
+showAIProgress([]);
+
+// Close any existing connection
+if(aiEventSource){
+aiEventSource.close();
+aiEventSource=null;
+}
+
+// Use SSE for streaming progress
+aiEventSource=new EventSource(S+'/hub/ai-search-stream?'+new URLSearchParams({
+query:query,
+sources:sources.join(',')
+}));
+
+// Actually, EventSource only does GET. Let's use fetch with streaming instead
+aiEventSource.close();
+aiEventSource=null;
+
+// Use fetch with streaming response
 if(aiSearchAbort)aiSearchAbort.abort();
 aiSearchAbort=new AbortController();
-fetch(S+'/hub/ai-search',{
+
+fetch(S+'/hub/ai-search-stream',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({query:query,sources:sources}),
 signal:aiSearchAbort.signal
-})
-.then(function(r){return r.json();})
-.then(function(data){
-if(data.error){
-showAIError(data.error);
-}else{
-showAIResponse(data.response,sources);
+}).then(function(response){
+var reader=response.body.getReader();
+var decoder=new TextDecoder();
+var buffer='';
+
+function processChunk(){
+reader.read().then(function(result){
+if(result.done){
+return;
 }
-})
-.catch(function(e){
+buffer+=decoder.decode(result.value,{stream:true});
+
+// Parse SSE events from buffer
+while(buffer.indexOf('\n\n')!==-1){
+var idx=buffer.indexOf('\n\n');
+var eventBlock=buffer.substring(0,idx);
+buffer=buffer.substring(idx+2);
+
+var eventType=null;
+var eventData=null;
+var lines=eventBlock.split('\n');
+for(var i=0;i<lines.length;i++){
+var line=lines[i];
+if(line.indexOf('event: ')===0){
+eventType=line.substring(7);
+}else if(line.indexOf('data: ')===0){
+try{
+eventData=JSON.parse(line.substring(6));
+}catch(e){
+eventData={raw:line.substring(6)};
+}
+}
+}
+
+if(eventType&&eventData){
+handleAIProgressEvent(eventType,eventData);
+}
+}
+
+processChunk();
+}).catch(function(e){
+if(e.name!=='AbortError'){
+console.error('Stream error:',e);
+}
+});
+}
+processChunk();
+}).catch(function(e){
 if(e.name!=='AbortError'){
 showAIError('Search failed. Please try again.');
 }
 });
+}
+
+var aiHasAddedResponding=false;
+
+function handleAIProgressEvent(eventType,data){
+if(eventType==='progress'){
+if(data.type==='thinking'){
+addAIProgressStep('thinking','Thinking',null,'active');
+}else if(data.type==='tool_start'){
+addAIProgressStep('tool',data.description||data.tool,data.tool,'active');
+}else if(data.type==='tool_complete'){
+updateLastProgressStep(data.success?'complete':'error');
+}else if(data.type==='content'&&!aiHasAddedResponding){
+// AI is generating response
+aiHasAddedResponding=true;
+// Mark all previous steps as complete
+for(var i=0;i<aiProgressSteps.length;i++){
+if(aiProgressSteps[i].status==='active'){
+aiProgressSteps[i].status='complete';
+}
+}
+addAIProgressStep('responding','Responding',null,'active');
+}else if(data.type==='done'){
+// Mark responding as complete
+updateLastProgressStep('complete');
+}
+}else if(eventType==='complete'){
+// Brief delay to show completed state
+setTimeout(function(){
+showAIResponse(data.response,getActiveSources());
+},300);
+}else if(eventType==='error'){
+showAIError(data.error||'Search failed');
+}
+}
+
+var aiWorkflowExpanded=false;
+
+function addAIProgressStep(type,text,tool,status){
+// Build detailed step info
+var label='',detail='';
+if(type==='thinking'){
+label='Analyzing';
+detail='Processing query context';
+}else if(type==='responding'){
+label='Generating';
+detail='Writing response';
+}else if(type==='tool'){
+var t=text.toLowerCase();
+if(t.indexOf('slack')!==-1){
+label='Slack';
+detail=extractDetail(text,'messages');
+}else if(t.indexOf('jira')!==-1){
+label='Jira';
+detail=extractDetail(text,'issues');
+}else if(t.indexOf('confluence')!==-1){
+label='Confluence';
+detail=extractDetail(text,'pages');
+}else if(t.indexOf('gmail')!==-1){
+label='Gmail';
+detail=extractDetail(text,'emails');
+}else if(t.indexOf('drive')!==-1||t.indexOf('file')!==-1){
+label='Drive';
+detail=extractDetail(text,'files');
+}else if(t.indexOf('atlassian')!==-1){
+label='Atlassian';
+detail='Fetching workspace info';
+}else{
+label='Search';
+detail=text.length>40?text.substring(0,40)+'...':text;
+}
+}
+aiProgressSteps.push({type:type,label:label,detail:detail,tool:tool,status:status});
+showAIProgress(aiProgressSteps);
+}
+
+function extractDetail(text,fallback){
+// Try to extract meaningful detail from tool description
+var match=text.match(/["']([^"']+)["']/);
+if(match)return'Searching "'+match[1]+'"';
+if(text.indexOf('search')!==-1)return'Searching '+fallback;
+return'Querying '+fallback;
+}
+
+function updateLastProgressStep(status){
+if(aiProgressSteps.length>0){
+aiProgressSteps[aiProgressSteps.length-1].status=status;
+showAIProgress(aiProgressSteps);
+}
+}
+
+function toggleAIWorkflowExpand(){
+aiWorkflowExpanded=!aiWorkflowExpanded;
+showAIProgress(aiProgressSteps);
+}
+
+function showAIProgress(steps){
+var results=document.getElementById('ai-search-results');
+
+// Deduplicate consecutive "Analyzing" steps
+var displaySteps=[];
+for(var i=0;i<steps.length;i++){
+var step=steps[i];
+if(step.label==='Analyzing'&&displaySteps.length>0&&displaySteps[displaySteps.length-1].label==='Analyzing'){
+displaySteps[displaySteps.length-1].status=step.status;
+}else{
+displaySteps.push({label:step.label,detail:step.detail,status:step.status,type:step.type});
+}
+}
+
+var totalSteps=displaySteps.length;
+var completedSteps=displaySteps.filter(function(s){return s.status==='complete'}).length;
+var hasActive=displaySteps.some(function(s){return s.status==='active'});
+// If no steps yet, treat as "starting" (active), not "done"
+var isStarting=displaySteps.length===0;
+var isInProgress=hasActive||isStarting;
+var showAll=aiWorkflowExpanded||totalSteps<=3;
+var visibleSteps=showAll?displaySteps:displaySteps.slice(-3);
+var hiddenCount=totalSteps-visibleSteps.length;
+
+var html='<div class="ai-wf'+(isInProgress?'':' done')+'">';
+html+='<div class="ai-wf-header">';
+html+='<div class="ai-wf-orb'+(isInProgress?' active':' done')+'"><div class="ai-orb-core"></div><div class="ai-orb-ring"></div></div>';
+html+='<span class="ai-wf-title">Progress</span>';
+html+='<span class="ai-wf-count">'+(isStarting?'Starting...':(hasActive?completedSteps+'/'+totalSteps:'Done'))+'</span>';
+html+='</div>';
+
+html+='<div class="ai-wf-steps">';
+
+if(hiddenCount>0){
+html+='<div class="ai-wf-expand" onclick="toggleAIWorkflowExpand()">';
+html+='<span>+'+hiddenCount+' more</span>';
+html+='</div>';
+}
+
+if(displaySteps.length===0){
+html+='<div class="ai-wf-step active"><div class="ai-wf-spinner"></div><div class="ai-wf-text"><span class="ai-wf-label">Starting</span></div></div>';
+}else{
+for(var i=0;i<visibleSteps.length;i++){
+var step=visibleSteps[i];
+var stepClass='ai-wf-step';
+var iconHtml='';
+
+if(step.status==='complete'){
+stepClass+=' complete';
+iconHtml='<svg class="ai-wf-check" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+}else if(step.status==='error'){
+stepClass+=' error';
+iconHtml='<svg class="ai-wf-error" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+}else{
+stepClass+=' active';
+iconHtml='<div class="ai-wf-spinner"></div>';
+}
+
+html+='<div class="'+stepClass+'">';
+html+=iconHtml;
+html+='<div class="ai-wf-text">';
+html+='<span class="ai-wf-label">'+step.label+'</span>';
+if(step.detail)html+='<span class="ai-wf-detail">'+step.detail+'</span>';
+html+='</div></div>';
+}
+}
+
+html+='</div></div>';
+results.innerHTML=html;
 }
 
 var aiLoadingMessages={
@@ -390,42 +619,8 @@ drive:['Searching Google Drive...','Looking through documents...','Checking shar
 var aiLoadingInterval=null;
 
 function showAILoading(sources){
-var results=document.getElementById('ai-search-results');
-results.innerHTML='<div class="ai-search-loading">'+
-'<div class="ai-loading-spinner"></div>'+
-'<div class="ai-loading-text" id="ai-loading-text">Searching...</div>'+
-'</div>';
-
-// Build message pool from selected sources
-var messages=[];
-sources.forEach(function(s){
-if(aiLoadingMessages[s]){
-aiLoadingMessages[s].forEach(function(m){messages.push(m);});
-}
-});
-if(messages.length===0)messages=['Searching...'];
-
-var idx=0;
-var textEl=document.getElementById('ai-loading-text');
-if(textEl)textEl.textContent=messages[0];
-
-// Clear any existing interval
-if(aiLoadingInterval)clearInterval(aiLoadingInterval);
-
-// Rotate messages
-aiLoadingInterval=setInterval(function(){
-idx=(idx+1)%messages.length;
-var el=document.getElementById('ai-loading-text');
-if(el){
-el.style.opacity='0';
-setTimeout(function(){
-if(document.getElementById('ai-loading-text')){
-el.textContent=messages[idx];
-el.style.opacity='1';
-}
-},150);
-}
-},2000);
+// Legacy loading - now using showAIProgress instead
+showAIProgress([]);
 }
 
 function stopAILoading(){
@@ -438,25 +633,121 @@ aiLoadingInterval=null;
 function showAIResponse(response,sources){
 stopAILoading();
 var results=document.getElementById('ai-search-results');
+
+// Parse sources from response
+var parsed=parseAIResponseWithSources(response);
+var mainContent=parsed.content;
+var citedSources=parsed.sources;
+
 var html='<div class="ai-search-response">'+
-'<div class="ai-response-content" id="ai-response-content"></div>'+
-'<div class="ai-response-actions">'+
-'<button class="ai-action-btn copy" onclick="copyAIResponse()"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>'+
-'<button class="ai-action-btn" onclick="clearAISearch()"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>New search</button>'+
+'<div class="ai-response-content" id="ai-response-content"></div>';
+
+// Add sources section if we have any
+if(citedSources.length>0){
+html+='<div class="ai-sources-section">'+
+'<div class="ai-sources-header">'+
+'<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>'+
+'<span>Sources</span>'+
+'<span class="ai-sources-count">'+citedSources.length+'</span>'+
 '</div>'+
-'</div>';
-results.innerHTML=html;
-typewriterEffect(response);
+'<div class="ai-sources-list">';
+
+for(var i=0;i<citedSources.length;i++){
+var src=citedSources[i];
+var icon=getSourceIcon(src.type);
+html+='<a href="'+src.url+'" target="_blank" class="ai-source-card">'+
+'<span class="ai-source-num">'+src.num+'</span>'+
+'<span class="ai-source-icon">'+icon+'</span>'+
+'<span class="ai-source-info">'+
+'<span class="ai-source-title">'+escapeHtml(src.title)+'</span>'+
+'<span class="ai-source-type">'+src.type+'</span>'+
+'</span>'+
+'<svg class="ai-source-arrow" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>'+
+'</a>';
 }
 
-function typewriterEffect(text){
-var content=document.getElementById('ai-response-content');
-var formatted=formatMarkdown(text);
-// Show instantly instead of typewriter for better UX
-content.innerHTML=formatted;
+html+='</div></div>';
+}
+
+html+='<div class="ai-response-actions">'+
+'<button class="ai-action-btn copy" onclick="copyAIResponse()"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>'+
+'<button class="ai-action-btn" onclick="clearAISearch()"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>New search</button>'+
+'</div></div>';
+
+results.innerHTML=html;
+renderAIContent(mainContent,citedSources);
+}
+
+function parseAIResponseWithSources(response){
+var sources=[];
+var content=response;
+
+// Look for ---SOURCES--- section
+var sourcesMatch=response.match(/---SOURCES---\s*([\s\S]*?)\s*---END_SOURCES---/);
+if(sourcesMatch){
+content=response.replace(/---SOURCES---[\s\S]*---END_SOURCES---/,'').trim();
+var sourcesText=sourcesMatch[1];
+var lines=sourcesText.split('\n');
+
+for(var i=0;i<lines.length;i++){
+var line=lines[i].trim();
+if(!line)continue;
+
+// Parse: [1] Title | source_type | url
+var match=line.match(/^\[(\d+)\]\s*([^|]+)\|\s*(\w+)\s*\|\s*(.+)$/);
+if(match){
+sources.push({
+num:match[1],
+title:match[2].trim(),
+type:match[3].trim().toLowerCase(),
+url:match[4].trim()
+});
+}
+}
+}
+
+return{content:content,sources:sources};
+}
+
+function getSourceIcon(type){
+var icons={
+slack:'<svg viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.124 2.521a2.528 2.528 0 0 1 2.52-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.52V8.834zm-1.271 0a2.528 2.528 0 0 1-2.521 2.521 2.528 2.528 0 0 1-2.521-2.521V2.522A2.528 2.528 0 0 1 15.166 0a2.528 2.528 0 0 1 2.521 2.522v6.312zm-2.521 10.124a2.528 2.528 0 0 1 2.521 2.52A2.528 2.528 0 0 1 15.166 24a2.528 2.528 0 0 1-2.521-2.522v-2.52h2.521zm0-1.271a2.528 2.528 0 0 1-2.521-2.521 2.528 2.528 0 0 1 2.521-2.521h6.312A2.528 2.528 0 0 1 24 15.166a2.528 2.528 0 0 1-2.522 2.521h-6.312z"/></svg>',
+jira:'<svg viewBox="0 0 24 24"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z"/></svg>',
+confluence:'<svg viewBox="0 0 24 24"><path d="M.87 18.257c-.248.382-.53.875-.763 1.245a.764.764 0 0 0 .255 1.04l4.965 3.054a.764.764 0 0 0 1.058-.26c.199-.332.454-.763.733-1.221 1.967-3.247 3.945-2.853 7.508-1.146l4.957 2.377a.764.764 0 0 0 1.028-.382l2.245-5.185a.764.764 0 0 0-.378-1.019c-1.24-.574-3.122-1.444-4.959-2.32-5.458-2.597-9.65-2.923-12.65 3.817zm22.26-12.514c.249-.382.531-.875.764-1.245a.764.764 0 0 0-.256-1.04L18.673.404a.764.764 0 0 0-1.058.26c-.199.332-.454.763-.733 1.221-1.967 3.247-3.945 2.853-7.508 1.146L4.417.654a.764.764 0 0 0-1.028.382L1.144 6.221a.764.764 0 0 0 .378 1.019c1.24.574 3.122 1.444 4.959 2.32 5.458 2.597 9.65 2.923 12.65-3.817z"/></svg>',
+gmail:'<svg viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>',
+drive:'<svg viewBox="0 0 24 24"><path d="M12.01 1.485c-2.082 0-3.754.02-3.743.047.01.02 1.708 3.001 3.774 6.62l3.76 6.574h3.76c2.081 0 3.753-.02 3.742-.047-.005-.02-1.708-3.001-3.775-6.62l-3.76-6.574h-3.758zm-5.04 8.866l-3.758 6.574c-.02.047 1.598.067 3.68.047l3.782-.047 1.879-3.287 1.879-3.287-1.879-3.287c-1.035-1.808-1.889-3.287-1.899-3.287s-1.745 2.934-3.684 6.574zm10.045 6.621h-3.76L9.49 23.426c-.01.027 1.651.047 3.733.047h3.76l1.879-3.287 1.879-3.287-1.879-3.287c-1.035-1.808-1.889-3.287-1.899-3.287-.01 0-.009.022.037.047z"/></svg>'
+};
+return icons[type]||'<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>';
+}
+
+function escapeHtml(text){
+var div=document.createElement('div');
+div.textContent=text;
+return div.innerHTML;
+}
+
+function renderAIContent(content,sources){
+var el=document.getElementById('ai-response-content');
+if(!el)return;
+
+// Format markdown and convert citation refs to links
+var formatted=formatMarkdown(content);
+
+// Convert [1], [2] etc to clickable links that scroll to source
+if(sources.length>0){
+for(var i=0;i<sources.length;i++){
+var src=sources[i];
+var regex=new RegExp('\\['+src.num+'\\]','g');
+formatted=formatted.replace(regex,'<a href="'+src.url+'" target="_blank" class="ai-cite" title="'+escapeHtml(src.title)+'">['+src.num+']</a>');
+}
+}
+
+el.innerHTML=formatted;
 }
 
 function formatMarkdown(text){
+// Parse markdown tables first (before other transformations)
+text=parseMarkdownTables(text);
 text=text.replace(/^### (.+)$/gm,'<h4>$1</h4>');
 text=text.replace(/^## (.+)$/gm,'<h3>$1</h3>');
 text=text.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
@@ -471,7 +762,40 @@ text=text.replace(/<p>(<h[34]>)/g,'$1');
 text=text.replace(/(<\/h[34]>)<\/p>/g,'$1');
 text=text.replace(/<p>(<ul>)/g,'$1');
 text=text.replace(/(<\/ul>)<\/p>/g,'$1');
+text=text.replace(/<p>(<table)/g,'$1');
+text=text.replace(/(<\/table>)<\/p>/g,'$1');
 return text;
+}
+
+function parseMarkdownTables(text){
+// Match markdown table blocks
+var tableRegex=/(?:^|\n)((?:\|[^\n]+\|\n)+)/g;
+return text.replace(tableRegex,function(match,tableBlock){
+var lines=tableBlock.trim().split('\n').filter(function(l){return l.trim();});
+if(lines.length<2)return match;
+// Check if second line is separator (|---|---|)
+var sepLine=lines[1];
+if(!/^\|[\s\-:|]+\|$/.test(sepLine))return match;
+// Parse header
+var headerCells=lines[0].split('|').filter(function(c,i,arr){return i>0&&i<arr.length-1;});
+// Parse body rows (skip header and separator)
+var bodyRows=lines.slice(2);
+var html='<table class="md-table"><thead><tr>';
+headerCells.forEach(function(cell){
+html+='<th>'+cell.trim()+'</th>';
+});
+html+='</tr></thead><tbody>';
+bodyRows.forEach(function(row){
+var cells=row.split('|').filter(function(c,i,arr){return i>0&&i<arr.length-1;});
+html+='<tr>';
+cells.forEach(function(cell){
+html+='<td>'+cell.trim()+'</td>';
+});
+html+='</tr>';
+});
+html+='</tbody></table>';
+return '\n'+html+'\n';
+});
 }
 
 function showAIError(message){
@@ -487,8 +811,8 @@ results.innerHTML='<div class="ai-search-error">'+
 function showAIEmpty(){
 var results=document.getElementById('ai-search-results');
 results.innerHTML='<div class="ai-search-empty">'+
-'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'+
-'<span>Ask a question to search across your connected tools</span>'+
+'<svg class="ai-empty-lucide" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>'+
+'<span>Ask anything across your connected tools</span>'+
 '</div>';
 }
 

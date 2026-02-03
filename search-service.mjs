@@ -19,6 +19,8 @@
 import http from 'http';
 import { URL } from 'url';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { spawn } from 'child_process';
 
 // Import devsai library components from local installation
 // Uses ~/.local/share/devsai/dist/ which has Full Disk Access
@@ -40,6 +42,162 @@ export let mcpManager = null;
 export let apiClient = null;
 export let initialized = false;
 export let initError = null;
+export let gdriveMcpAvailable = false;
+
+// GDrive MCP paths
+const GDRIVE_MCP_PATH = path.join(HOME, '.local/share/briefdesk/gdrive-mcp');
+const GDRIVE_TOKEN_PATH = path.join(HOME, '.local/share/briefdesk/google_drive_token.json');
+
+/**
+ * Check if gdrive MCP is available (token exists and MCP is built)
+ */
+export function checkGdriveMcpAvailability() {
+  const tokenExists = fs.existsSync(GDRIVE_TOKEN_PATH);
+  const mcpExists = fs.existsSync(path.join(GDRIVE_MCP_PATH, 'dist/index.js'));
+  gdriveMcpAvailable = tokenExists && mcpExists;
+  console.log(`[SearchService] GDrive MCP: ${gdriveMcpAvailable ? 'available' : 'not available'} (token: ${tokenExists}, mcp: ${mcpExists})`);
+  return gdriveMcpAvailable;
+}
+
+/**
+ * Execute a gdrive MCP tool call
+ */
+export async function executeGdriveMcpTool(toolName, args) {
+  return new Promise((resolve, reject) => {
+    const mcpPath = path.join(GDRIVE_MCP_PATH, 'dist/index.js');
+    
+    // Build JSON-RPC request
+    const request = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: toolName,
+        arguments: args,
+      },
+    };
+    
+    const proc = spawn('node', [mcpPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: GDRIVE_MCP_PATH,
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    proc.on('close', (code) => {
+      // Parse JSON-RPC response from stdout
+      try {
+        // Skip the "BriefDesk Google Drive MCP server running" line
+        const lines = stdout.split('\n');
+        const jsonLine = lines.find(l => l.startsWith('{'));
+        if (jsonLine) {
+          const response = JSON.parse(jsonLine);
+          if (response.result?.content?.[0]?.text) {
+            resolve({ message: response.result.content[0].text });
+          } else if (response.error) {
+            reject(new Error(response.error.message || 'MCP error'));
+          } else {
+            resolve({ message: JSON.stringify(response.result) });
+          }
+        } else {
+          reject(new Error(`GDrive MCP returned no JSON: ${stdout.substring(0, 200)}`));
+        }
+      } catch (err) {
+        reject(new Error(`GDrive MCP parse error: ${err.message}`));
+      }
+    });
+    
+    proc.on('error', (err) => {
+      reject(new Error(`GDrive MCP spawn error: ${err.message}`));
+    });
+    
+    // Send the request and close stdin
+    proc.stdin.write(JSON.stringify(request) + '\n');
+    proc.stdin.end();
+    
+    // Timeout after 30 seconds
+    setTimeout(() => {
+      proc.kill();
+      reject(new Error('GDrive MCP timeout'));
+    }, 30000);
+  });
+}
+
+/**
+ * Get gdrive MCP tool definitions
+ */
+export function getGdriveMcpToolDefinitions() {
+  return [
+    {
+      type: 'function',
+      function: {
+        name: 'gdrive_search',
+        description: 'Search Google Drive for files by name or content. Returns file IDs, names, types, and direct URLs. Use the file ID with gdrive_read to get content.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query (searches file names and content)',
+            },
+            maxResults: {
+              type: 'number',
+              description: 'Maximum number of results to return (default: 20)',
+            },
+          },
+          required: ['query'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'gdrive_read',
+        description: 'Read the content of a Google Drive file. For Google Docs/Sheets/Slides, exports as text/markdown.',
+        parameters: {
+          type: 'object',
+          properties: {
+            fileId: {
+              type: 'string',
+              description: 'The Google Drive file ID (from search results)',
+            },
+          },
+          required: ['fileId'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'gdrive_list',
+        description: 'List files in a Google Drive folder.',
+        parameters: {
+          type: 'object',
+          properties: {
+            folderId: {
+              type: 'string',
+              description: 'Folder ID (optional, defaults to root)',
+            },
+            maxResults: {
+              type: 'number',
+              description: 'Maximum number of results (default: 50)',
+            },
+          },
+          required: [],
+        },
+      },
+    },
+  ];
+}
 
 // Retry configuration for MCP servers
 export const MCP_RETRY_CONFIG = {
@@ -53,11 +211,13 @@ export function _setMcpManager(manager) { mcpManager = manager; }
 export function _setApiClient(client) { apiClient = client; }
 export function _setInitialized(value) { initialized = value; }
 export function _setInitError(error) { initError = error; }
+export function _setGdriveMcpAvailable(value) { gdriveMcpAvailable = value; }
 export function _resetState() {
   mcpManager = null;
   apiClient = null;
   initialized = false;
   initError = null;
+  gdriveMcpAvailable = false;
 }
 
 /**
@@ -169,6 +329,9 @@ export async function retryFailedServers() {
 export async function initialize() {
   console.log('[SearchService] Initializing...');
   
+  // Check for GDrive MCP availability
+  checkGdriveMcpAvailability();
+  
   // Load modules
   const loaded = await loadDevsaiModules();
   if (!loaded) {
@@ -267,13 +430,21 @@ export async function executeQuery(prompt, options = {}) {
         return sources.some(s => name.includes(s.toLowerCase()));
       });
       
-      // Add CLI file tools when drive is in sources
+      // Add Drive tools when drive is in sources
       if (sources.some(s => s.toLowerCase() === 'drive')) {
-        const fileTools = CLI_TOOLS.filter(t => 
-          ['search_files', 'find_files', 'read_file', 'list_directory'].includes(t.function.name)
-        );
-        tools = [...tools, ...fileTools];
-        console.log(`[SearchService] Added ${fileTools.length} CLI file tools for drive`);
+        if (gdriveMcpAvailable) {
+          // Use GDrive MCP tools (API-based, can search content)
+          const gdriveTools = getGdriveMcpToolDefinitions();
+          tools = [...tools, ...gdriveTools];
+          console.log(`[SearchService] Added ${gdriveTools.length} GDrive MCP tools (API mode)`);
+        } else if (CLI_TOOLS) {
+          // Fallback to filesystem CLI tools (local sync folder)
+          const fileTools = CLI_TOOLS.filter(t => 
+            ['search_files', 'find_files', 'read_file', 'list_directory'].includes(t.function.name)
+          );
+          tools = [...tools, ...fileTools];
+          console.log(`[SearchService] Added ${fileTools.length} CLI file tools for drive (fallback mode)`);
+        }
       }
       
       console.log(`[SearchService] Filtered tools: ${beforeCount} -> ${tools.length} for sources: ${sources.join(', ')}`);
@@ -287,16 +458,29 @@ export async function executeQuery(prompt, options = {}) {
   
   // System message
   // Build system prompt based on sources
-  let defaultSystem = `You are a search assistant with access to various tools. You MUST use the available tools to search and retrieve information. Do not ask the user for configuration - use the tools to discover what you need.
+  let defaultSystem = `You are a helpful search assistant with access to various tools. You MUST use the available tools to search and retrieve information. Do not ask the user for configuration - use the tools to discover what you need.
 
-Return your findings as a JSON array with objects containing:
-- title: string (item title or subject)
-- snippet: string (brief preview/excerpt)
-- url: string (link to the item)
-- source: string (slack, jira, confluence, gmail, drive)
-- metadata: object (optional extra info like date, author, etc.)
+RESPONSE FORMAT:
+Write a clear, helpful narrative answer that synthesizes information from all sources. Use inline citations like [1], [2], etc. to reference your sources.
 
-Be concise. Focus on the most relevant results.`;
+After your answer, include a SOURCES section in this exact format:
+---SOURCES---
+[1] Title | source_type | url
+[2] Title | source_type | url
+---END_SOURCES---
+
+Where source_type is one of: slack, jira, confluence, gmail, drive
+
+Example:
+Based on the recent discussion in Slack [1], the project deadline has been moved to next Friday. The updated timeline is documented in the project plan [2], and Sarah mentioned she'll update the Jira tickets accordingly [3].
+
+---SOURCES---
+[1] #engineering-updates | slack | https://slack.com/archives/C123/p456
+[2] Q1 Project Timeline | confluence | https://company.atlassian.net/wiki/spaces/ENG/pages/123
+[3] PROJ-456: Update timeline | jira | https://company.atlassian.net/browse/PROJ-456
+---END_SOURCES---
+
+Be concise but thorough. Prioritize the most relevant information.`;
 
   // Add Atlassian-specific instructions if jira/confluence is in sources
   if (sources && sources.some(s => ['jira', 'confluence'].includes(s.toLowerCase()))) {
@@ -310,22 +494,41 @@ IMPORTANT FOR JIRA/CONFLUENCE:
   
   // Add Drive-specific instructions
   if (sources && sources.some(s => s.toLowerCase() === 'drive')) {
-    // Read config to get explicit Google Drive path
-    let gdriveBase = path.join(HOME, 'Library/CloudStorage/GoogleDrive-*');
-    try {
-      const fs = await import('fs');
-      const configPath = path.join(HOME, '.local/share/briefdesk/config.json');
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (config.google_drive_path) {
-          gdriveBase = config.google_drive_path;
+    if (gdriveMcpAvailable) {
+      // Using GDrive MCP (API-based)
+      defaultSystem += `
+
+CRITICAL FOR GOOGLE DRIVE - YOU MUST READ FILE CONTENTS:
+1. First use gdrive_search to find relevant documents
+2. From search results, get the "id" field of the top 2-3 most relevant files
+3. ALWAYS call gdrive_read with fileId for each relevant file to get its content
+   Example: gdrive_search returns {"files":[{"id":"abc123","name":"Meeting Notes",...}]}
+   Then call: gdrive_read({"fileId":"abc123"})
+4. Extract the ACTUAL information from file contents to answer the question
+5. NEVER just list files - you MUST read and summarize their contents
+6. Include direct quotes and the file URL as sources
+
+REQUIRED WORKFLOW:
+Step 1: gdrive_search({"query":"topic"}) - find files
+Step 2: gdrive_read({"fileId":"<id from search>"}) - read top 2-3 files  
+Step 3: Synthesize answer from the content you read
+Step 4: Include source URLs`;
+    } else {
+      // Fallback to filesystem mode
+      let gdriveBase = path.join(HOME, 'Library/CloudStorage/GoogleDrive-*');
+      try {
+        const configPath = path.join(HOME, '.local/share/briefdesk/config.json');
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          if (config.google_drive_path) {
+            gdriveBase = config.google_drive_path;
+          }
         }
+      } catch (e) {
+        // Use default pattern
       }
-    } catch (e) {
-      // Use default pattern
-    }
-    
-    defaultSystem += `
+      
+      defaultSystem += `
 
 IMPORTANT FOR GOOGLE DRIVE:
 1. Use find_files or search_files to search for documents in the Google Drive folder
@@ -337,6 +540,7 @@ IMPORTANT FOR GOOGLE DRIVE:
    - URL encode spaces as +
    - Return as: https://drive.google.com/drive/search?q=FILENAME
    - Example: "My Document.gdoc" -> https://drive.google.com/drive/search?q=My+Document`;
+    }
   }
 
   messages.push({
@@ -353,8 +557,14 @@ IMPORTANT FOR GOOGLE DRIVE:
   let iterations = 0;
   let finalResponse = '';
   
+  // Progress callback (optional)
+  const onProgress = options.onProgress || (() => {});
+  
   while (iterations < maxIterations) {
     iterations++;
+    
+    // Notify thinking
+    onProgress({ type: 'thinking', iteration: iterations });
     
     try {
       const result = await apiClient.streamChatWithTools(
@@ -364,8 +574,12 @@ IMPORTANT FOR GOOGLE DRIVE:
           tools,
           source: 'CLI',
         },
-        // No streaming callback - we want the full result
-        null
+        // Streaming callback for partial content
+        (chunk) => {
+          if (chunk && chunk.trim()) {
+            onProgress({ type: 'content', content: chunk });
+          }
+        }
       );
       
       const responseText = result.content;
@@ -396,11 +610,29 @@ IMPORTANT FOR GOOGLE DRIVE:
         const toolName = toolCall.function.name;
         let toolResult = '';
         
+        // Parse args for display
+        let argsObj = {};
         try {
-          const args = JSON.parse(toolCall.function.arguments || '{}');
+          argsObj = JSON.parse(toolCall.function.arguments || '{}');
+        } catch (e) {}
+        
+        // Notify tool call start
+        onProgress({ 
+          type: 'tool_start', 
+          tool: toolName, 
+          args: argsObj,
+          description: getToolDescription(toolName, argsObj)
+        });
+        
+        try {
+          const args = argsObj;
           
           if (isMCPTool(toolName)) {
             const result = await executeMCPTool(toolName, args);
+            toolResult = result.message || JSON.stringify(result);
+          } else if (toolName.startsWith('gdrive_') && gdriveMcpAvailable) {
+            // Execute GDrive MCP tool
+            const result = await executeGdriveMcpTool(toolName, args);
             toolResult = result.message || JSON.stringify(result);
           } else if (toolName === 'search_files' && executeSearchFiles) {
             const result = executeSearchFiles(args);
@@ -417,8 +649,22 @@ IMPORTANT FOR GOOGLE DRIVE:
           } else {
             toolResult = `Unknown tool: ${toolName}`;
           }
+          
+          // Notify tool call complete
+          onProgress({ 
+            type: 'tool_complete', 
+            tool: toolName,
+            success: true,
+            resultPreview: toolResult.substring(0, 200)
+          });
         } catch (err) {
           toolResult = `Tool error: ${err.message}`;
+          onProgress({ 
+            type: 'tool_complete', 
+            tool: toolName,
+            success: false,
+            error: err.message
+          });
         }
         
         messages.push({
@@ -432,10 +678,89 @@ IMPORTANT FOR GOOGLE DRIVE:
     }
   }
   
+  onProgress({ type: 'done', iterations });
+  
   return {
     response: finalResponse,
     iterations,
   };
+}
+
+/**
+ * Get human-readable description of a tool call
+ */
+function getToolDescription(toolName, args) {
+  const name = toolName.toLowerCase();
+  
+  // Slack tools
+  if (name.includes('slack')) {
+    if (name.includes('search') || name.includes('messages')) {
+      return `Searching Slack${args.query ? `: "${args.query}"` : ''}`;
+    }
+    if (name.includes('channels') || name.includes('conversations')) {
+      return 'Listing Slack channels';
+    }
+    if (name.includes('history')) {
+      return 'Reading Slack messages';
+    }
+    return 'Querying Slack';
+  }
+  
+  // Atlassian tools
+  if (name.includes('atlassian') || name.includes('jira') || name.includes('confluence')) {
+    if (name.includes('accessible') || name.includes('resources')) {
+      return 'Getting Atlassian workspace info';
+    }
+    if (name.includes('jira') && name.includes('search')) {
+      return `Searching Jira${args.jql ? `: ${args.jql.substring(0, 50)}` : ''}`;
+    }
+    if (name.includes('confluence') && name.includes('search')) {
+      return `Searching Confluence${args.cql ? `: ${args.cql.substring(0, 50)}` : ''}`;
+    }
+    if (name.includes('issue')) {
+      return `Reading Jira issue${args.issueKey ? `: ${args.issueKey}` : ''}`;
+    }
+    if (name.includes('page')) {
+      return 'Reading Confluence page';
+    }
+    return 'Querying Atlassian';
+  }
+  
+  // Gmail tools
+  if (name.includes('gmail') || name.includes('email')) {
+    if (name.includes('search') || name.includes('list')) {
+      return `Searching Gmail${args.query ? `: "${args.query}"` : ''}`;
+    }
+    if (name.includes('read') || name.includes('get')) {
+      return 'Reading email';
+    }
+    return 'Querying Gmail';
+  }
+  
+  // GDrive MCP tools
+  if (name === 'gdrive_search') {
+    return `Searching Google Drive${args.query ? `: "${args.query}"` : ''}`;
+  }
+  if (name === 'gdrive_read') {
+    return `Reading Drive file${args.file_id ? ` (${args.file_id.substring(0, 10)}...)` : ''}`;
+  }
+  if (name === 'gdrive_list') {
+    return 'Listing Drive folder';
+  }
+  
+  // File tools (Drive fallback)
+  if (name === 'search_files' || name === 'find_files') {
+    return `Searching files${args.pattern ? `: ${args.pattern}` : ''}`;
+  }
+  if (name === 'read_file') {
+    return `Reading file${args.path ? `: ${args.path.split('/').pop()}` : ''}`;
+  }
+  if (name === 'list_directory') {
+    return 'Listing directory';
+  }
+  
+  // Default
+  return `Running ${toolName}`;
 }
 
 /**
@@ -502,6 +827,11 @@ export async function handleRequest(req, res) {
         initialized,
         error: initError,
         servers: statuses,
+        gdriveMcp: {
+          available: gdriveMcpAvailable,
+          tokenPath: GDRIVE_TOKEN_PATH,
+          mcpPath: GDRIVE_MCP_PATH,
+        },
       });
       return;
     }
@@ -524,7 +854,7 @@ export async function handleRequest(req, res) {
       return;
     }
     
-    // Search endpoint
+    // Search endpoint (non-streaming)
     if (path === '/search' && req.method === 'POST') {
       if (!initialized) {
         sendJson(res, { error: 'Service not ready', initError }, 503);
@@ -551,6 +881,64 @@ export async function handleRequest(req, res) {
         ...result,
         elapsed_ms: elapsed,
       });
+      return;
+    }
+    
+    // Search endpoint with SSE streaming for live progress
+    if (path === '/search-stream' && req.method === 'POST') {
+      if (!initialized) {
+        sendJson(res, { error: 'Service not ready', initError }, 503);
+        return;
+      }
+      
+      const body = await parseBody(req);
+      const { query, sources, model } = body;
+      
+      if (!query) {
+        sendJson(res, { error: 'Missing query parameter' }, 400);
+        return;
+      }
+      
+      console.log(`[SearchService] Stream Search: "${query.substring(0, 50)}..." sources=${sources?.join(',') || 'all'}`);
+      
+      // Set up SSE headers
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+      
+      const sendEvent = (event, data) => {
+        res.write(`event: ${event}\n`);
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
+      
+      const startTime = Date.now();
+      
+      try {
+        const result = await executeQuery(query, { 
+          sources, 
+          model,
+          onProgress: (progress) => {
+            sendEvent('progress', progress);
+          }
+        });
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`[SearchService] Stream completed in ${elapsed}ms`);
+        
+        sendEvent('complete', {
+          response: result.response,
+          iterations: result.iterations,
+          elapsed_ms: elapsed,
+        });
+      } catch (err) {
+        console.error('[SearchService] Stream error:', err.message);
+        sendEvent('error', { error: err.message });
+      }
+      
+      res.end();
       return;
     }
     

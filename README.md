@@ -102,7 +102,7 @@ To show your upcoming meetings on the start page:
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing)
-3. Go to **APIs & Services** → **Library** → search "Google Calendar API" → **Enable**
+3. Enable the **Google Calendar API**: [Enable Calendar API →](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com)
 4. Go to **APIs & Services** → **OAuth consent screen**:
    - Choose **External** → Create
    - App name: "Calendar Widget", add your email
@@ -183,7 +183,7 @@ The start page integrates with external services via **Model Context Protocol (M
 | **Slack** | `slack-mcp-server` | Search messages, list channels, read history |
 | **Atlassian** | `mcp-remote` → Atlassian | Jira issues, Confluence pages, search |
 | **Gmail** | `@monsoft/mcp-gmail` | List/search/read emails |
-| **Google Drive** | Local filesystem | Read docs via Google Drive for Desktop |
+| **Google Drive** | `briefdesk-gdrive-mcp` | Full-text search, read Google Docs/Sheets/Slides |
 
 ---
 
@@ -292,7 +292,7 @@ Uses `@monsoft/mcp-gmail` server with OAuth authentication.
 1. **Create Google Cloud OAuth credentials** (if you haven't already for Calendar):
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Select your project (or create one)
-   - Go to **APIs & Services** → **Library** → search "Gmail API" → **Enable**
+   - Enable the **Gmail API**: [Enable Gmail API →](https://console.cloud.google.com/apis/library/gmail.googleapis.com)
    - Go to **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth client ID**
    - Application type: **Desktop app**
    - Download the JSON file
@@ -327,25 +327,34 @@ Uses `@monsoft/mcp-gmail` server with OAuth authentication.
    devsai -p "List my 5 most recent emails" --output text
    ```
 
-### Google Drive (AI-Powered Search)
+### Google Drive (Full-Text Search via API)
 
-Google Drive search uses the devsai CLI to intelligently search your locally synced Drive files:
+Google Drive search uses the built-in `briefdesk-gdrive-mcp` server to search file contents directly via Google Drive API.
 
-```
-~/Library/CloudStorage/GoogleDrive-{email}/My Drive/
-~/Library/CloudStorage/GoogleDrive-{email}/Shared drives/
-```
+**What it can do:**
+- **Full-text search** - Find documents by content, not just filename
+- **Read Google Docs/Sheets/Slides** - Exports content as text for AI analysis
+- **Direct file links** - Click results to open in Google Drive
 
-**Requirements:**
-1. **Google Drive for Desktop** installed and syncing
-2. **Full Disk Access** granted to the Node binary (see installation)
+**Setup:**
 
-**How it works:**
-- CLI uses `find` command to search file names in your Drive folder
-- AI interprets meeting context to choose relevant search terms
-- Results are cached along with other sources
+1. **Enable the Google Drive API** (same project as Calendar):
+   - [Enable Drive API →](https://console.cloud.google.com/apis/library/drive.googleapis.com)
 
-**No API setup required** - uses local filesystem access
+2. **(Optional)** Enable these for better content export:
+   - [Enable Sheets API →](https://console.cloud.google.com/apis/library/sheets.googleapis.com)
+   - [Enable Docs API →](https://console.cloud.google.com/apis/library/docs.googleapis.com)
+
+3. **Authenticate** (opens browser):
+   ```bash
+   cd ~/.local/share/briefdesk/gdrive-mcp && npm run auth
+   ```
+
+4. Sign in and authorize **drive.readonly** access
+
+**Note:** Uses read-only access. BriefDesk can search and read files but cannot modify them.
+
+**Fallback:** If the Drive MCP is not configured, BriefDesk falls back to searching locally synced files via filesystem (requires Google Drive for Desktop).
 
 ### Complete MCP Config Example
 
@@ -469,7 +478,7 @@ Model selection is persisted in `~/.local/share/briefdesk/config.json` and used 
 | Confluence page search | ✅ Working | CLI + Atlassian MCP |
 | Slack message search | ✅ Working | CLI + Slack MCP |
 | Gmail email search | ✅ Working | CLI + Gmail MCP |
-| Google Drive file search | ✅ Working | CLI + `find` command |
+| Google Drive file search | ✅ Working | Drive MCP (full-text) or filesystem fallback |
 | AI-generated meeting brief | ✅ Working | CLI + all sources |
 | 7-day prefetching | ✅ Working | Continuous background |
 | Persistent cache | ✅ Working | JSON file storage |
@@ -494,7 +503,7 @@ The Hub includes several reliability mechanisms:
 **Known limitations:**
 - Slack tokens (xoxc/xoxd) expire when you sign out - re-extract from browser
 - Atlassian OAuth may require re-auth after ~30 days
-- Google Drive requires FDA permission for Node binary
+- Google Drive MCP tokens may expire - re-run `npm run auth` in gdrive-mcp folder
 - CLI calls can timeout on slow networks (increase timeout in code if needed)
 
 ### Updating devsai CLI
@@ -577,12 +586,16 @@ grep -E "error|timeout|failed" /tmp/safari-hub-server.log | tail -10
 ```
 
 **Google Drive returning 0 items:**
-1. Verify FDA is granted to Node binary: `~/.local/share/devsai/node`
-2. Check if Google Drive is syncing: `ls ~/Library/CloudStorage/`
-3. Test manually:
+1. Check if Drive MCP is authenticated:
    ```bash
-   find ~/Library/CloudStorage/GoogleDrive-*/Shared\ drives -iname "*keyword*" -type f | head -5
+   ls ~/.local/share/briefdesk/google_drive_token.json
    ```
+2. If not authenticated, run:
+   ```bash
+   cd ~/.local/share/briefdesk/gdrive-mcp && npm run auth
+   ```
+3. Verify the Drive API is enabled: [Enable Drive API →](https://console.cloud.google.com/apis/library/drive.googleapis.com)
+4. **Fallback mode** (if MCP not set up): Requires Google Drive for Desktop syncing files locally
 
 **Slack/Gmail/Jira not working:**
 - Check credentials in `~/.local/share/briefdesk/.devsai.json`

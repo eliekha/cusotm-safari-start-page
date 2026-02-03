@@ -743,6 +743,17 @@ h2 {
         <button class="integration-action" onclick="showAtlassianSetup()">Setup</button>
       </div>
       
+      <div class="integration-item" id="int-drive">
+        <div class="integration-icon">
+          <svg viewBox="0 0 24 24" fill="#4285f4" width="26" height="26"><path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5zm1.14 0l6.57 11.5h6.56l-6.57-11.5H8.85zM8 14.5l-3.43 6h13.71l3.43-6H8z"/></svg>
+        </div>
+        <div class="integration-info">
+          <div class="integration-name">Google Drive</div>
+          <div class="integration-status" id="drive-status">Not configured</div>
+        </div>
+        <button class="integration-action" onclick="showDriveSetup()">Setup</button>
+      </div>
+      
       <span class="skip-link" onclick="goToStep(6)">Skip for now, configure later</span>
     </div>
     
@@ -828,7 +839,8 @@ h2 {
         Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-blue)">Google Cloud Console</a> and create an OAuth 2.0 Client ID (Desktop app)
       </li>
       <li>
-        Enable the <strong>Google Calendar API</strong> in APIs & Services → Library
+        Enable the <strong>Google Calendar API</strong>:<br>
+        <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" style="color:var(--accent-blue)">Enable Calendar API →</a>
       </li>
       <li>
         Download credentials JSON and save to:
@@ -868,7 +880,8 @@ h2 {
         Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-blue)">Google Cloud Console</a> and create OAuth credentials (same project as Calendar)
       </li>
       <li>
-        Enable the <strong>Gmail API</strong> in APIs & Services → Library
+        Enable the <strong>Gmail API</strong>:<br>
+        <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" style="color:var(--accent-blue)">Enable Gmail API →</a>
       </li>
       <li>
         Download the credentials JSON, then run this to set it up:
@@ -930,6 +943,53 @@ h2 {
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeAtlassianModal()">Close</button>
       <button class="btn btn-primary" onclick="checkAtlassianStatus()">Check Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drive Setup Modal -->
+<div class="modal" id="drive-modal">
+  <div class="modal-backdrop" onclick="closeDriveModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <svg viewBox="0 0 24 24" fill="#4285f4" width="24" height="24"><path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5zm1.14 0l6.57 11.5h6.56l-6.57-11.5H8.85zM8 14.5l-3.43 6h13.71l3.43-6H8z"/></svg>
+      <h3>Connect Google Drive</h3>
+      <button class="modal-close" onclick="closeDriveModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    </div>
+    
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+      Uses the same Google Cloud project as Calendar. Just needs Drive API enabled and a quick auth.
+    </p>
+    
+    <ol class="setup-steps">
+      <li>
+        Enable the <strong>Google Drive API</strong>:<br>
+        <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="color:var(--accent-blue)">Enable Drive API →</a>
+      </li>
+      <li>
+        <em>(Optional)</em> Enable these for better content reading:<br>
+        <a href="https://console.cloud.google.com/apis/library/sheets.googleapis.com" target="_blank" style="color:var(--accent-blue);margin-right:12px">Sheets API</a>
+        <a href="https://console.cloud.google.com/apis/library/docs.googleapis.com" target="_blank" style="color:var(--accent-blue)">Docs API</a>
+      </li>
+      <li>
+        Run authentication in Terminal (opens browser):
+        <div class="copyable">
+          <code>cd ~/.local/share/briefdesk/gdrive-mcp && npm run auth</code>
+          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+        </div>
+      </li>
+      <li>
+        Sign in and authorize <strong>drive.readonly</strong> access
+      </li>
+    </ol>
+    
+    <p style="color:var(--text-muted);font-size:11px;margin-top:16px;">
+      Note: Uses read-only access. BriefDesk can search and read your files but cannot modify them.
+    </p>
+    
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeDriveModal()">Close</button>
+      <button class="btn btn-primary" onclick="checkDriveStatus()">Check Status</button>
     </div>
   </div>
 </div>
@@ -1174,6 +1234,11 @@ async function checkIntegrations() {
       document.getElementById('int-atlassian').classList.add('configured');
       document.getElementById('atlassian-status').textContent = 'Connected';
     }
+    
+    if (data.drive?.authenticated) {
+      document.getElementById('int-drive').classList.add('configured');
+      document.getElementById('drive-status').textContent = 'Connected';
+    }
   } catch (e) {
     console.error('Failed to check integrations:', e);
   }
@@ -1260,6 +1325,8 @@ function showGmailSetup() { document.getElementById('gmail-modal').classList.add
 function closeGmailModal() { document.getElementById('gmail-modal').classList.remove('show'); }
 function showAtlassianSetup() { document.getElementById('atlassian-modal').classList.add('show'); }
 function closeAtlassianModal() { document.getElementById('atlassian-modal').classList.remove('show'); }
+function showDriveSetup() { document.getElementById('drive-modal').classList.add('show'); }
+function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); }
 
 async function saveSlackTokens() {
   const xoxc = document.getElementById('modal-slack-xoxc').value.trim();
@@ -1334,6 +1401,22 @@ async function checkAtlassianStatus() {
       checkIntegrations();
     } else {
       alert('Atlassian not yet connected. Run the authentication command first.');
+    }
+  } catch (e) {
+    alert('Could not check status');
+  }
+}
+
+async function checkDriveStatus() {
+  try {
+    const res = await fetch(API + '/hub/status');
+    const data = await res.json();
+    if (data.drive?.authenticated) {
+      alert('Google Drive is connected');
+      closeDriveModal();
+      checkIntegrations();
+    } else {
+      alert('Drive not yet connected. Run the authentication command first.');
     }
   } catch (e) {
     alert('Could not check status');

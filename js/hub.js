@@ -109,8 +109,20 @@ link=item.url||'';
 }else if(type==='drive'){
 iconClass='drive';
 icon='<img src="icons/drive.png" alt="Google Drive">';
-meta=item.drive||'';
-link=item.full_path?'file://'+item.full_path:'';
+meta=item.type||item.drive||'';
+// Use Drive URL if available (API mode), otherwise local file path (fallback mode)
+if(item.url){
+link=item.url;
+}else if(item.webViewLink){
+link=item.webViewLink;
+}else if(item.id&&item.id.length>10){
+// Construct Drive URL from file ID if available
+link='https://drive.google.com/file/d/'+item.id+'/view';
+}else if(item.full_path){
+link='file://'+item.full_path;
+}else{
+link='';
+}
 }else if(type==='gmail'){
 iconClass='gmail';
 icon='<img src="icons/gmail.png" alt="Gmail">';
@@ -352,6 +364,14 @@ errorServers.forEach(function(es){
 html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+': '+(es.error||'Connection error').substring(0,80)+'</div>';
 });
 }
+}
+// Show GDrive MCP status
+if(svc.gdriveMcp){
+var driveAvailable=svc.gdriveMcp.available;
+var driveColor=driveAvailable?'#4ade80':'#f59e0b';
+var driveIcon=driveAvailable?'✓':'⚠';
+var driveMode=driveAvailable?'API Mode (full-text search)':'Local Fallback (filename only)';
+html+='<div style="font-size:10px;color:'+driveColor+';margin-top:2px">'+driveIcon+' Google Drive: '+driveMode+'</div>';
 }
 if(svc.error){
 html+='<div style="font-size:10px;color:#f87171;margin-top:2px">'+svc.error+'</div>';

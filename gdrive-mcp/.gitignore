@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Credentials - NEVER commit these
+credentials/oauth-keys.json
+credentials/token.json
+
+# Keep credentials folder structure
+!credentials/.gitkeep
