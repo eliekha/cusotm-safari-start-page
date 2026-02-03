@@ -1145,69 +1145,58 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             self.send_json({"error": "Invalid action. Use 'force', 'aggressive', or 'normal'"})
     
     def handle_mcp_reauth(self, params):
-        """Spawn re-authentication process for an MCP server."""
+        """Spawn re-authentication process for an MCP server via Terminal."""
         import subprocess
         
         mcp = params.get("mcp", [None])[0]
         
+        # Use osascript to open Terminal with the auth command
+        # This allows the OAuth callback to work properly
+        def run_in_terminal(cmd, title="MCP Authentication"):
+            applescript = f'''
+            tell application "Terminal"
+                activate
+                do script "{cmd}"
+            end tell
+            '''
+            subprocess.Popen(["osascript", "-e", applescript])
+        
         if mcp == "atlassian":
-            # Spawn mcp-remote which will open browser for OAuth
-            cmd = ["npx", "-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
+            cmd = "npx -y mcp-remote https://mcp.atlassian.com/v1/sse"
             try:
-                # Run in background, don't wait - it will open browser
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True
-                )
+                run_in_terminal(cmd)
                 self.send_json({
                     "success": True, 
                     "mcp": mcp,
-                    "message": "Authentication started - check your browser to sign in with Atlassian",
-                    "pid": process.pid
+                    "message": "Terminal opened - sign in with Atlassian in your browser, then close Terminal when done"
                 })
             except Exception as e:
-                self.send_json({"error": f"Failed to start auth: {str(e)}"})
+                self.send_json({"error": f"Failed to open Terminal: {str(e)}"})
         
         elif mcp == "gmail":
-            cmd = ["npx", "-y", "@monsoft/mcp-gmail", "auth"]
+            cmd = "npx -y @monsoft/mcp-gmail auth"
             try:
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True
-                )
+                run_in_terminal(cmd)
                 self.send_json({
                     "success": True,
                     "mcp": mcp,
-                    "message": "Authentication started - check your browser to sign in with Google",
-                    "pid": process.pid
+                    "message": "Terminal opened - sign in with Google in your browser, then close Terminal when done"
                 })
             except Exception as e:
-                self.send_json({"error": f"Failed to start auth: {str(e)}"})
+                self.send_json({"error": f"Failed to open Terminal: {str(e)}"})
         
         elif mcp == "drive":
-            # Run gdrive-mcp auth
             gdrive_mcp_path = os.path.join(CONFIG_DIR, "gdrive-mcp")
-            cmd = ["npm", "run", "auth"]
+            cmd = f"cd {gdrive_mcp_path} && npm run auth"
             try:
-                process = subprocess.Popen(
-                    cmd,
-                    cwd=gdrive_mcp_path,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    start_new_session=True
-                )
+                run_in_terminal(cmd)
                 self.send_json({
                     "success": True,
                     "mcp": mcp,
-                    "message": "Authentication started - check your browser to sign in with Google Drive",
-                    "pid": process.pid
+                    "message": "Terminal opened - sign in with Google in your browser, then close Terminal when done"
                 })
             except Exception as e:
-                self.send_json({"error": f"Failed to start auth: {str(e)}"})
+                self.send_json({"error": f"Failed to open Terminal: {str(e)}"})
         
         else:
             self.send_json({"error": f"Unknown MCP: {mcp}. Supported: atlassian, gmail, drive"})
