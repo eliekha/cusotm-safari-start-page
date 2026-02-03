@@ -226,10 +226,18 @@ sleep 2
 echo ""
 echo "🤖 Setting up devsai CLI for Productivity Hub..."
 
-# Check if Node.js is installed
+# Check if Node.js is installed (check common Homebrew paths too)
+NODE_PATH=""
 if command -v node &> /dev/null; then
     NODE_PATH=$(which node)
-    NODE_VERSION=$(node --version)
+elif [ -f "/opt/homebrew/bin/node" ]; then
+    NODE_PATH="/opt/homebrew/bin/node"
+elif [ -f "/usr/local/bin/node" ]; then
+    NODE_PATH="/usr/local/bin/node"
+fi
+
+if [ -n "$NODE_PATH" ]; then
+    NODE_VERSION=$("$NODE_PATH" --version)
     echo "   Found Node.js $NODE_VERSION at $NODE_PATH"
     
     # Copy Node binary for FDA
