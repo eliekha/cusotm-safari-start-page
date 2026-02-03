@@ -133,6 +133,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_service_health()
         elif path == "/hub/prefetch/control":
             self.handle_prefetch_control(params)
+        elif path == "/hub/mcp-reauth":
+            self.handle_mcp_reauth(params)
         elif path == "/hub/prompts":
             self.handle_get_prompts()
         elif path == "/hub/batch":
@@ -1141,6 +1143,74 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             self.send_json({"success": True, "action": action, "result": result})
         else:
             self.send_json({"error": "Invalid action. Use 'force', 'aggressive', or 'normal'"})
+    
+    def handle_mcp_reauth(self, params):
+        """Spawn re-authentication process for an MCP server."""
+        import subprocess
+        
+        mcp = params.get("mcp", [None])[0]
+        
+        if mcp == "atlassian":
+            # Spawn mcp-remote which will open browser for OAuth
+            cmd = ["npx", "-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"]
+            try:
+                # Run in background, don't wait - it will open browser
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                self.send_json({
+                    "success": True, 
+                    "mcp": mcp,
+                    "message": "Authentication started - check your browser to sign in with Atlassian",
+                    "pid": process.pid
+                })
+            except Exception as e:
+                self.send_json({"error": f"Failed to start auth: {str(e)}"})
+        
+        elif mcp == "gmail":
+            cmd = ["npx", "-y", "@monsoft/mcp-gmail", "auth"]
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                self.send_json({
+                    "success": True,
+                    "mcp": mcp,
+                    "message": "Authentication started - check your browser to sign in with Google",
+                    "pid": process.pid
+                })
+            except Exception as e:
+                self.send_json({"error": f"Failed to start auth: {str(e)}"})
+        
+        elif mcp == "drive":
+            # Run gdrive-mcp auth
+            gdrive_mcp_path = os.path.join(CONFIG_DIR, "gdrive-mcp")
+            cmd = ["npm", "run", "auth"]
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    cwd=gdrive_mcp_path,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                self.send_json({
+                    "success": True,
+                    "mcp": mcp,
+                    "message": "Authentication started - check your browser to sign in with Google Drive",
+                    "pid": process.pid
+                })
+            except Exception as e:
+                self.send_json({"error": f"Failed to start auth: {str(e)}"})
+        
+        else:
+            self.send_json({"error": f"Unknown MCP: {mcp}. Supported: atlassian, gmail, drive"})
     
     def handle_get_prompts(self):
         """Get all prompts with current values and defaults."""

@@ -428,25 +428,40 @@ btn.textContent='Retry Failed';
 
 // Re-authentication helper functions for failed MCPs
 function showAtlassianReauth(){
-var cmd='npx -y mcp-remote https://mcp.atlassian.com/v1/sse';
-if(confirm('Atlassian needs re-authentication.\n\nRun this command in Terminal:\n\n'+cmd+'\n\nCopy to clipboard?')){
-navigator.clipboard.writeText(cmd).then(function(){
-alert('Command copied! Paste it in Terminal and sign in with your Atlassian account.');
-});
+if(confirm('Re-authenticate Atlassian?\n\nThis will open your browser to sign in.')){
+triggerMcpReauth('atlassian');
 }
 }
 
 function showGmailReauth(){
-var cmd='npx @monsoft/mcp-gmail auth';
-if(confirm('Gmail needs re-authentication.\n\nRun this command in Terminal:\n\n'+cmd+'\n\nCopy to clipboard?')){
-navigator.clipboard.writeText(cmd).then(function(){
-alert('Command copied! Paste it in Terminal and sign in with Google.');
-});
+if(confirm('Re-authenticate Gmail?\n\nThis will open your browser to sign in with Google.')){
+triggerMcpReauth('gmail');
+}
+}
+
+function showDriveReauth(){
+if(confirm('Re-authenticate Google Drive?\n\nThis will open your browser to sign in with Google.')){
+triggerMcpReauth('drive');
 }
 }
 
 function showSlackReauth(){
 alert('Slack tokens have expired.\n\nTo re-authenticate:\n1. Open app.slack.com in your browser\n2. Open DevTools (Cmd+Option+I)\n3. Go to Application → Cookies → copy the "d" cookie (XOXD)\n4. In Console, run the snippet to get XOXC token\n5. Update tokens in Settings or .devsai.json');
+}
+
+function triggerMcpReauth(mcp){
+fetch(S+'/hub/mcp-reauth?mcp='+mcp)
+.then(function(r){return r.json();})
+.then(function(data){
+if(data.success){
+alert(data.message+'\n\nAfter signing in, click "Retry Failed" or refresh the page.');
+}else{
+alert('Error: '+(data.error||'Unknown error'));
+}
+})
+.catch(function(e){
+alert('Failed to start re-authentication: '+e.message);
+});
 }
 
 function fetchPrefetchStatus(){
