@@ -108,6 +108,10 @@ cat > "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" << EOF
 EOF
 chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist"
 
+# Get Python version for user site-packages path
+PYTHON_VERSION=$("$SYSTEM_PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "3.11")
+USER_SITE_PACKAGES="$USER_HOME/.local/lib/python$PYTHON_VERSION/site-packages"
+
 # Create LaunchAgent for search server
 cat > "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -121,6 +125,13 @@ cat > "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" << EOF
         <string>$INSTALL_DIR/python3</string>
         <string>$INSTALL_DIR/search-server.py</string>
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>$USER_SITE_PACKAGES</string>
+        <key>HOME</key>
+        <string>$USER_HOME</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
