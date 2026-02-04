@@ -180,6 +180,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_installer_check(params)
         elif path == "/installer/check-fda":
             self.handle_installer_check_fda()
+        elif path == "/slack/auto-detect":
+            self.handle_slack_auto_detect()
         else:
             self.send_json({"error": "Not found"})
     
@@ -933,6 +935,163 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         except Exception as e:
             logger.error(f"[Setup] Slack setup error: {e}")
             self.send_json({"success": False, "error": str(e)})
+    
+    def handle_slack_auto_detect(self):
+        """Auto-detect Slack credentials from browser cookies and localStorage."""
+        import sqlite3
+        import struct
+        import subprocess
+        
+        result = {"xoxd": None, "xoxc": None, "browser": None, "error": None}
+        
+        home = os.path.expanduser("~")
+        
+        # Try Chrome first (most common)
+        try:
+            # Chrome cookies are encrypted, try using browser_cookie3 if available
+            try:
+                import browser_cookie3
+                cj = browser_cookie3.chrome(domain_name='.slack.com')
+                for cookie in cj:
+                    if cookie.name == 'd' and cookie.value.startswith('xoxd-'):
+                        result["xoxd"] = cookie.value
+                        result["browser"] = "Chrome"
+                        break
+            except ImportError:
+                logger.info("[Slack Auto-Detect] browser_cookie3 not installed, trying direct SQLite")
+            except Exception as e:
+                logger.warning(f"[Slack Auto-Detect] browser_cookie3 failed: {e}")
+        except Exception as e:
+            logger.warning(f"[Slack Auto-Detect] Chrome cookie extraction failed: {e}")
+        
+        # Try to get xoxc from Chrome localStorage (LevelDB)
+        if not result["xoxc"]:
+            try:
+                chrome_ls_path = os.path.join(home, "Library/Application Support/Google/Chrome/Default/Local Storage/leveldb")
+                if os.path.exists(chrome_ls_path):
+                    # Use grep to find the xoxc token in LevelDB files
+                    grep_result = subprocess.run(
+                        ["grep", "-r", "-a", "-o", "xoxc-[a-zA-Z0-9-]*"],
+                        cwd=chrome_ls_path,
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if grep_result.stdout:
+                        # Get the first xoxc token found
+                        tokens = grep_result.stdout.strip().split('\n')
+                        for token in tokens:
+                            if 'xoxc-' in token:
+                                # Extract just the token part
+                                match = token.split('xoxc-')[-1] if 'xoxc-' in token else None
+                                if match:
+                                    result["xoxc"] = 'xoxc-' + match.split()[0].rstrip('",}')
+                                    result["browser"] = result["browser"] or "Chrome"
+                                    break
+            except Exception as e:
+                logger.warning(f"[Slack Auto-Detect] Chrome localStorage extraction failed: {e}")
+        
+        # Try Helium (Chromium-based) - check for xoxc in localStorage
+        if not result["xoxc"]:
+            try:
+                helium_ls_path = os.path.join(home, "Library/Application Support/net.imput.helium/Default/Local Storage/leveldb")
+                if os.path.exists(helium_ls_path):
+                    logger.info("[Slack Auto-Detect] Checking Helium localStorage")
+                    grep_result = subprocess.run(
+                        f'strings "{helium_ls_path}"/*.ldb 2>/dev/null | grep -o "xoxc-[a-zA-Z0-9-]*" | head -1',
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    if grep_result.stdout.strip():
+                        result["xoxc"] = grep_result.stdout.strip().split('\n')[0]
+                        result["browser"] = "Helium"
+                        logger.info(f"[Slack Auto-Detect] Found xoxc in Helium: {result['xoxc'][:30]}...")
+            except Exception as e:
+                logger.warning(f"[Slack Auto-Detect] Helium localStorage extraction failed: {e}")
+        
+        # Try Helium cookies for xoxd (note: Helium uses different encryption than Chrome)
+        if not result["xoxd"]:
+            try:
+                helium_cookies_path = os.path.join(home, "Library/Application Support/net.imput.helium/Default/Cookies")
+                if os.path.exists(helium_cookies_path):
+                    # Helium cookies are encrypted differently than Chrome
+                    # For now, try browser_cookie3 with Chrome method (may work for some Chromium browsers)
+                    try:
+                        import browser_cookie3
+                        # browser_cookie3 doesn't support Helium directly, but we tried
+                        logger.info("[Slack Auto-Detect] Helium cookies exist but are encrypted differently than Chrome")
+                    except ImportError:
+                        pass
+            except Exception as e:
+                logger.warning(f"[Slack Auto-Detect] Helium cookie check failed: {e}")
+        
+        # Try Safari cookies if Chrome/Helium didn't work
+        if not result["xoxd"]:
+            try:
+                # Safari stores cookies in a binary format, try to parse
+                safari_cookies_path = os.path.join(home, "Library/Cookies/Cookies.binarycookies")
+                if os.path.exists(safari_cookies_path):
+                    # Use strings command to extract potential xoxd tokens
+                    strings_result = subprocess.run(
+                        ["strings", safari_cookies_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    for line in strings_result.stdout.split('\n'):
+                        if line.startswith('xoxd-'):
+                            result["xoxd"] = line.strip()
+                            result["browser"] = "Safari"
+                            break
+            except Exception as e:
+                logger.warning(f"[Slack Auto-Detect] Safari cookie extraction failed: {e}")
+        
+        # Try Safari localStorage for xoxc
+        if not result["xoxc"]:
+            try:
+                safari_ls_path = os.path.join(home, "Library/Safari/LocalStorage")
+                if os.path.exists(safari_ls_path):
+                    # Look for slack.com localStorage files
+                    for f in os.listdir(safari_ls_path):
+                        if 'slack' in f.lower():
+                            ls_file = os.path.join(safari_ls_path, f)
+                            strings_result = subprocess.run(
+                                ["strings", ls_file],
+                                capture_output=True,
+                                text=True,
+                                timeout=5
+                            )
+                            for line in strings_result.stdout.split('\n'):
+                                if 'xoxc-' in line:
+                                    # Extract the token
+                                    import re
+                                    match = re.search(r'xoxc-[a-zA-Z0-9-]+', line)
+                                    if match:
+                                        result["xoxc"] = match.group(0)
+                                        result["browser"] = result["browser"] or "Safari"
+                                        break
+            except Exception as e:
+                logger.warning(f"[Slack Auto-Detect] Safari localStorage extraction failed: {e}")
+        
+        # Determine success
+        if result["xoxd"] and result["xoxc"]:
+            result["success"] = True
+            result["message"] = f"Found credentials in {result['browser']}"
+        elif result["xoxd"] or result["xoxc"]:
+            result["success"] = True
+            result["partial"] = True
+            found = []
+            if result["xoxd"]: found.append("xoxd (cookie)")
+            if result["xoxc"]: found.append("xoxc (localStorage)")
+            result["message"] = f"Found {', '.join(found)} in {result['browser']}. Missing tokens may need manual entry."
+        else:
+            result["success"] = False
+            result["error"] = "Could not find Slack credentials. Make sure you're logged into Slack in Chrome, Helium, or Safari."
+        
+        logger.info(f"[Slack Auto-Detect] Result: xoxd={'found' if result['xoxd'] else 'not found'}, xoxc={'found' if result['xoxc'] else 'not found'}")
+        self.send_json(result)
     
     def handle_installer_page(self):
         """Serve the installer page."""

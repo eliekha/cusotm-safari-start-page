@@ -198,6 +198,29 @@ if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NODE_PATH" ]; then
     sudo -u "$INSTALL_USER" npm run build --silent 2>/dev/null || true
 fi
 
+# Patch Gmail MCP to use readonly scope (SECURITY: prevent sending emails)
+echo "Patching Gmail MCP for read-only access..."
+GMAIL_MCP_PATHS=(
+    "/opt/homebrew/lib/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
+    "/usr/local/lib/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
+    "$USER_HOME/.npm/_npx/**/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
+)
+for gmail_path in "${GMAIL_MCP_PATHS[@]}"; do
+    for f in $gmail_path 2>/dev/null; do
+        if [ -f "$f" ]; then
+            sed -i '' 's/gmail\.modify/gmail.readonly/g' "$f" 2>/dev/null && \
+                echo "  Patched: $f"
+        fi
+    done
+done
+# Also remove any existing credentials with modify scope
+if [ -f "$USER_HOME/.gmail-mcp/credentials.json" ]; then
+    if grep -q "gmail.modify" "$USER_HOME/.gmail-mcp/credentials.json" 2>/dev/null; then
+        rm -f "$USER_HOME/.gmail-mcp/credentials.json"
+        echo "  Removed Gmail credentials with modify scope - user will need to re-authenticate"
+    fi
+fi
+
 # Start services as the user
 USER_ID=$(id -u "$INSTALL_USER")
 

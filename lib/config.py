@@ -227,6 +227,8 @@ Title: {title}
 Attendees: {attendees}
 Description: {description}
 
+CRITICAL: This is a READ-ONLY operation. NEVER send, post, or create any Slack messages. Only search and read existing messages.
+
 IMPORTANT - To find 1:1 DMs with attendees:
 1. FIRST use channels_list with channel_types: "im" to find DM channels with attendees
 2. THEN use conversations_history with that channel_id to get recent messages
@@ -254,6 +256,8 @@ Title: {title}
 Attendees: {attendees}
 Attendee emails: {emails}
 Description: {description}
+
+CRITICAL: This is a READ-ONLY operation. NEVER send, draft, compose, or create any emails. Only search and read existing emails.
 
 Find up to {limit} relevant email threads. Return results as a JSON array with objects containing:
 - title: email subject
@@ -287,6 +291,11 @@ Attendees: {attendees}
 {description}
 
 Search Slack, Jira, Confluence, and Gmail for relevant context, then create a prep brief.
+
+CRITICAL RESTRICTIONS:
+- NEVER send, draft, compose, or create any emails, messages, or communications
+- NEVER modify, update, or change any data in any system
+- This is a READ-ONLY operation - only search and read existing data
 
 RULES:
 - Be specific: include ticket numbers, document names, dates. Prioritize slack/gmail exchanges.

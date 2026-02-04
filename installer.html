@@ -1052,24 +1052,36 @@ h2 {
       <button class="modal-close" onclick="closeSlackModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
     
-    <ol class="setup-steps">
-      <li>
-        Open <a href="https://app.slack.com" target="_blank" style="color:var(--accent-blue)">app.slack.com</a> in your browser and sign in
-      </li>
-      <li>
-        Open DevTools with <strong>Cmd+Option+I</strong>
-      </li>
-      <li>
-        Go to Application → Cookies → copy the <strong>d</strong> cookie value (XOXD token)
-      </li>
-      <li>
-        In Console tab, paste this to get the XOXC token:
-        <div class="copyable">
-          <code>JSON.parse(localStorage.getItem('localConfig_v2'))?.teams?.[Object.keys(JSON.parse(localStorage.getItem('localConfig_v2'))?.teams||{})[0]]?.token</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-        </div>
-      </li>
-    </ol>
+      <div class="help-box" style="margin-bottom:16px;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);">
+      <strong>Quick Setup</strong><br>
+      If you're logged into Slack in Chrome or Safari, we can try to auto-detect your credentials.<br><br>
+      <button class="btn btn-primary" onclick="autoDetectSlack()" id="slack-auto-detect-btn" style="width:100%;">
+        Auto-Detect from Browser
+      </button>
+      <div id="slack-auto-detect-result" style="margin-top:8px;font-size:12px;"></div>
+    </div>
+    
+    <details style="margin-bottom:16px;">
+      <summary style="cursor:pointer;color:var(--text-muted);font-size:13px;">Manual Setup Instructions</summary>
+      <ol class="setup-steps" style="margin-top:12px;">
+        <li>
+          Open <a href="https://app.slack.com" target="_blank" style="color:var(--accent-blue)">app.slack.com</a> in your browser and sign in
+        </li>
+        <li>
+          Open DevTools with <strong>Cmd+Option+I</strong>
+        </li>
+        <li>
+          Go to Application → Cookies → copy the <strong>d</strong> cookie value (XOXD token)
+        </li>
+        <li>
+          In Console tab, paste this to get the XOXC token:
+          <div class="copyable">
+            <code>JSON.parse(localStorage.getItem('localConfig_v2'))?.teams?.[Object.keys(JSON.parse(localStorage.getItem('localConfig_v2'))?.teams||{})[0]]?.token</code>
+            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+          </div>
+        </li>
+      </ol>
+    </details>
     
     <div class="input-group">
       <label>XOXC Token</label>
@@ -1642,6 +1654,56 @@ function openFDASettings() {
 
 function showSlackSetup() { document.getElementById('slack-modal').classList.add('show'); }
 function closeSlackModal() { document.getElementById('slack-modal').classList.remove('show'); }
+
+async function autoDetectSlack() {
+  const btn = document.getElementById('slack-auto-detect-btn');
+  const resultEl = document.getElementById('slack-auto-detect-result');
+  const xoxcInput = document.getElementById('modal-slack-xoxc');
+  const xoxdInput = document.getElementById('modal-slack-xoxd');
+  
+  btn.disabled = true;
+  btn.textContent = 'Detecting...';
+  resultEl.innerHTML = '<span style="color:var(--accent-blue)">Reading browser data (requires Full Disk Access)...</span>';
+  
+  try {
+    const res = await fetch(API + '/slack/auto-detect');
+    const data = await res.json();
+    
+    if (data.success) {
+      if (data.xoxc) xoxcInput.value = data.xoxc;
+      if (data.xoxd) xoxdInput.value = data.xoxd;
+      
+      if (data.partial) {
+        // Show instructions for getting the missing token
+        let instructions = '';
+        if (!data.xoxd && data.xoxc) {
+          instructions = '<br><br><strong>To get the missing xoxd token:</strong><br>' +
+            '1. Open DevTools in ' + (data.browser || 'your browser') + ' (Cmd+Option+I)<br>' +
+            '2. Go to <strong>Application</strong> → <strong>Cookies</strong> → slack.com<br>' +
+            '3. Find cookie named "<strong>d</strong>" (starts with xoxd-)<br>' +
+            '4. Copy the value and paste in the field below';
+        } else if (data.xoxd && !data.xoxc) {
+          instructions = '<br><br><strong>To get the missing xoxc token:</strong><br>' +
+            '1. Open DevTools in ' + (data.browser || 'your browser') + ' (Cmd+Option+I)<br>' +
+            '2. Go to <strong>Application</strong> → <strong>Local Storage</strong> → slack.com<br>' +
+            '3. Find the key containing "xoxc-"<br>' +
+            '4. Copy the value and paste in the field below';
+        }
+        resultEl.innerHTML = '<span style="color:var(--accent-yellow)">⚠️ ' + data.message + '</span>' + instructions;
+      } else {
+        resultEl.innerHTML = '<span style="color:var(--accent-green)">✓ ' + data.message + '</span>';
+      }
+    } else {
+      resultEl.innerHTML = '<span style="color:var(--accent-red)">✗ ' + data.error + '</span>';
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red)">✗ Failed to detect: ${e.message}</span>`;
+  }
+  
+  btn.disabled = false;
+  btn.textContent = 'Auto-Detect from Browser';
+}
+
 function showCalendarSetup() {
   document.getElementById('calendar-modal').classList.add('show');
   checkGoogleStatus();

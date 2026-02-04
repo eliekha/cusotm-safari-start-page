@@ -103,11 +103,72 @@ def handle_oauth_callback(code, redirect_uri='http://localhost:18765/oauth/callb
         with open(TOKEN_PATH, 'wb') as token:
             pickle.dump(creds, token)
 
+        # Also export credentials for Gmail MCP to share authentication
+        _export_credentials_for_gmail_mcp(creds)
+
         logger.info("OAuth credentials saved successfully")
         return True, "Success"
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
         return False, str(e)
+
+
+def _export_credentials_for_gmail_mcp(creds):
+    """Export credentials to Gmail MCP format for shared authentication.
+    
+    This allows the Gmail MCP (used by devsai) to use the same OAuth tokens
+    as BriefDesk, avoiding duplicate authentication prompts.
+    """
+    import json
+    
+    gmail_mcp_dir = os.path.expanduser("~/.gmail-mcp")
+    gmail_mcp_creds_path = os.path.join(gmail_mcp_dir, "credentials.json")
+    gmail_mcp_keys_path = os.path.join(gmail_mcp_dir, "gcp-oauth.keys.json")
+    
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(gmail_mcp_dir, exist_ok=True)
+        
+        # 1. Export OAuth tokens (credentials.json)
+        # Gmail MCP uses google-auth-library which expects this format
+        creds_json = {
+            "access_token": creds.token,
+            "refresh_token": creds.refresh_token,
+            "scope": " ".join(creds.scopes) if creds.scopes else "",
+            "token_type": "Bearer",
+        }
+        
+        # Add expiry if available (Gmail MCP expects expiry_date as Unix timestamp in ms)
+        if creds.expiry:
+            creds_json["expiry_date"] = int(creds.expiry.timestamp() * 1000)
+        
+        with open(gmail_mcp_creds_path, 'w') as f:
+            json.dump(creds_json, f, indent=2)
+        
+        logger.info(f"Exported credentials for Gmail MCP to {gmail_mcp_creds_path}")
+        
+        # 2. Export OAuth client keys (gcp-oauth.keys.json)
+        # Gmail MCP needs this to refresh tokens
+        oauth_config = get_oauth_credentials_config()
+        if oauth_config:
+            keys_json = {
+                "installed": {
+                    "client_id": oauth_config.get('client_id'),
+                    "client_secret": oauth_config.get('client_secret'),
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": ["http://localhost:3000/oauth2callback"]
+                }
+            }
+            
+            with open(gmail_mcp_keys_path, 'w') as f:
+                json.dump(keys_json, f, indent=2)
+            
+            logger.info(f"Exported OAuth keys for Gmail MCP to {gmail_mcp_keys_path}")
+            
+    except Exception as e:
+        # Don't fail the main OAuth flow if MCP export fails
+        logger.warning(f"Failed to export credentials for Gmail MCP: {e}")
 
 
 def get_google_credentials():
@@ -168,12 +229,23 @@ def get_granted_scopes():
 
 
 def disconnect_google():
-    """Remove Google authentication."""
+    """Remove Google authentication (both BriefDesk and Gmail MCP credentials)."""
+    success = False
     try:
+        # Remove BriefDesk token
         if os.path.exists(TOKEN_PATH):
             os.remove(TOKEN_PATH)
-            logger.info("Google credentials removed")
-            return True
+            logger.info("BriefDesk Google credentials removed")
+            success = True
+        
+        # Also remove Gmail MCP credentials (shared auth)
+        gmail_mcp_creds = os.path.expanduser("~/.gmail-mcp/credentials.json")
+        if os.path.exists(gmail_mcp_creds):
+            os.remove(gmail_mcp_creds)
+            logger.info("Gmail MCP credentials removed")
+            success = True
+            
+        return success
     except Exception as e:
         logger.error(f"Error removing credentials: {e}")
     return False

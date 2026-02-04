@@ -288,6 +288,44 @@ EOF
     fi
     
     # ============================================
+    # Patch Gmail MCP for Read-Only (Security)
+    # ============================================
+    echo ""
+    echo "🔒 Patching Gmail MCP for read-only access..."
+    
+    # Find and patch Gmail MCP installations to use readonly scope
+    GMAIL_MCP_PATHS=(
+        "/opt/homebrew/lib/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
+        "/usr/local/lib/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
+    )
+    PATCHED=false
+    for gmail_path in "${GMAIL_MCP_PATHS[@]}"; do
+        if [ -f "$gmail_path" ]; then
+            sed -i '' 's/gmail\.modify/gmail.readonly/g' "$gmail_path" 2>/dev/null && PATCHED=true
+        fi
+    done
+    
+    # Also patch via npx cache
+    for f in ~/.npm/_npx/**/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js 2>/dev/null; do
+        if [ -f "$f" ]; then
+            sed -i '' 's/gmail\.modify/gmail.readonly/g' "$f" 2>/dev/null && PATCHED=true
+        fi
+    done
+    
+    if [ "$PATCHED" = true ]; then
+        echo "   ✓ Gmail MCP patched for read-only access"
+        # Remove credentials with modify scope
+        if [ -f ~/.gmail-mcp/credentials.json ]; then
+            if grep -q "gmail.modify" ~/.gmail-mcp/credentials.json 2>/dev/null; then
+                rm -f ~/.gmail-mcp/credentials.json
+                echo "   ⚠️  Removed old Gmail credentials - re-authenticate with: npx @monsoft/mcp-gmail auth"
+            fi
+        fi
+    else
+        echo "   ℹ️  Gmail MCP not found (install later with: npm install -g @monsoft/mcp-gmail)"
+    fi
+    
+    # ============================================
     # Setup Node.js Search Service
     # ============================================
     echo ""
