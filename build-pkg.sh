@@ -30,6 +30,7 @@ cp -r "$SCRIPT_DIR/css" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || tr
 cp -r "$SCRIPT_DIR/js" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/lib" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/assets" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
+cp -r "$SCRIPT_DIR/icons" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/gdrive-mcp" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 
 # Make postinstall executable

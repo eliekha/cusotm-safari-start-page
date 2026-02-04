@@ -19,15 +19,20 @@
   --accent-red: #f87171;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  height: 100%;
+  margin: 0;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   background: #0f1219;
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   color: var(--text-primary);
+  box-sizing: border-box;
 }
 .installer {
   background: var(--bg-card-solid);
@@ -71,19 +76,19 @@ body {
 }
 .steps-nav {
   display: flex;
-  padding: 16px 24px;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 28px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0,0,0,.15);
 }
 .step-indicator {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 7px;
+  font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
-  flex-shrink: 0;
 }
 .step-indicator.active { color: var(--text-primary); }
 .step-indicator.completed { color: var(--accent-green); }
@@ -108,9 +113,11 @@ body {
 }
 .step-indicator.completed .step-num svg { width: 12px; height: 12px; fill: #fff; }
 .step-connector {
-  width: 16px;
+  width: 20px;
   height: 1px;
   background: var(--border-color);
+  margin: 0 4px;
+  align-self: center;
 }
 .content {
   padding: 24px 28px;
