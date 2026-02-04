@@ -334,6 +334,138 @@ h2 {
 .btn-primary:disabled { background: rgba(255,255,255,.1); color: var(--text-muted); cursor: not-allowed; }
 .btn-success { background: var(--accent-green); color: #0f172a; }
 .btn-success:hover { background: #2bc48a; }
+
+/* Google Sign-In Image Button */
+.google-signin-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-block;
+}
+.google-signin-btn img {
+  display: block;
+  border-radius: 4px;
+}
+.google-signin-btn:hover {
+  opacity: 0.9;
+}
+.google-signin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Google Sign-In Button (legacy) */
+.gsi-material-button {
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -webkit-appearance: none;
+  background-color: #fff;
+  background-image: none;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #3c4043;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  height: 44px;
+  letter-spacing: 0.25px;
+  outline: none;
+  overflow: hidden;
+  padding: 0 16px;
+  position: relative;
+  text-align: center;
+  transition: background-color .218s, border-color .218s, box-shadow .218s;
+  vertical-align: middle;
+  white-space: nowrap;
+  width: 100%;
+}
+.gsi-material-button .gsi-material-button-icon {
+  height: 20px;
+  margin-right: 10px;
+  min-width: 20px;
+  width: 20px;
+}
+.gsi-material-button .gsi-material-button-content-wrapper {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  height: 100%;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+.gsi-material-button .gsi-material-button-contents {
+  flex-grow: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+.gsi-material-button .gsi-material-button-state {
+  transition: opacity .218s;
+  bottom: 0;
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.gsi-material-button:not(:disabled):active .gsi-material-button-state,
+.gsi-material-button:not(:disabled):focus .gsi-material-button-state {
+  background-color: #303030;
+  opacity: 12%;
+}
+.gsi-material-button:not(:disabled):hover {
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+}
+.gsi-material-button:not(:disabled):hover .gsi-material-button-state {
+  background-color: #303030;
+  opacity: 8%;
+}
+
+/* Atlassian Button */
+.atlassian-button {
+  background-color: #0052CC;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  height: 44px;
+  padding: 0 16px;
+  width: 100%;
+  transition: background-color .218s, box-shadow .218s;
+}
+.atlassian-button .gsi-material-button-content-wrapper {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  height: 100%;
+}
+.atlassian-button .gsi-material-button-icon {
+  height: 20px;
+  margin-right: 10px;
+  min-width: 20px;
+  width: 20px;
+}
+.atlassian-button .gsi-material-button-icon img {
+  filter: brightness(0) invert(1);
+  width: 100%;
+  height: 100%;
+}
+.atlassian-button:hover {
+  background-color: #0065FF;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+}
+
 /* Modal */
 .modal {
   display: none;
@@ -839,7 +971,7 @@ h2 {
           2. Click "Add to Chrome" to install the extension<br>
           3. After install, paste this URL in the extension settings:
           <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://127.0.0.1:8765/start.html</code>
+            <code>http://localhost:8765/start.html</code>
             <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
           </div>
           4. Open a new tab to verify it works
@@ -857,7 +989,7 @@ h2 {
           2. Click "Add to Firefox" to install the extension<br>
           3. After install, paste this URL in the extension settings:
           <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://127.0.0.1:8765/start.html</code>
+            <code>http://localhost:8765/start.html</code>
             <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
           </div>
           4. Open a new tab to verify it works
@@ -876,7 +1008,7 @@ h2 {
           2. Go to the <strong>General</strong> tab<br>
           3. Set "Homepage" to:
           <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://127.0.0.1:8765/start.html</code>
+            <code>http://localhost:8765/start.html</code>
             <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
           </div>
           4. Set "New windows open with" and "New tabs open with" to <strong>Homepage</strong><br><br>
@@ -898,7 +1030,7 @@ h2 {
         </div>
         <h2>Setup Complete</h2>
         <p class="step-desc">BriefDesk is installed and running. Set this as your browser homepage for quick access.</p>
-        <div class="complete-url">http://127.0.0.1:8765/start.html</div>
+        <div class="complete-url">http://localhost:8765/start.html</div>
         <p class="step-desc" style="font-size:12px;">You can configure more integrations anytime from the Settings panel.</p>
       </div>
     </div>
@@ -987,10 +1119,9 @@ h2 {
       Connect your Google account to enable Calendar, Drive search, and Gmail integration. This grants read-only access.
     </p>
 
-    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
-      <button id="google-connect-btn" class="btn btn-primary" onclick="connectGoogle()" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 24px;font-size:14px;font-weight:500;">
-        <img src="icons/google.png" alt="Google" width="20" height="20">
-        Connect with Google
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
+      <button id="google-connect-btn" class="google-signin-btn" onclick="connectGoogle()">
+        <img src="icons/google-signin.png" alt="Sign in with Google" height="40">
       </button>
       <button id="google-disconnect-btn" class="btn btn-secondary" onclick="disconnectGoogle()" style="display:none;">
         Disconnect Google Account
@@ -1029,37 +1160,42 @@ h2 {
   <div class="modal-content">
     <div class="modal-header">
       <img src="icons/gmail.png" alt="Gmail" width="24" height="24">
-      <h3>Connect Gmail</h3>
+      <h3>Gmail</h3>
       <button class="modal-close" onclick="closeGmailModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
-    
-    <ol class="setup-steps">
-      <li>
-        Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-blue)">Google Cloud Console</a> and create OAuth credentials (same project as Calendar)
-      </li>
-      <li>
-        Enable the <strong>Gmail API</strong>:<br>
-        <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" style="color:var(--accent-blue)">Enable Gmail API →</a>
-      </li>
-      <li>
-        Download the credentials JSON, then run this to set it up:
-        <div class="copyable">
-          <code>mkdir -p ~/.gmail-mcp && mv ~/Downloads/client_secret_*.json ~/.gmail-mcp/gcp-oauth.keys.json</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+
+    <div id="gmail-status-section">
+      <div id="gmail-connected" style="display:none;padding:12px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#34d399;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <strong>Connected via Google</strong>
         </div>
-      </li>
-      <li>
-        Run authentication (opens browser for OAuth):
-        <div class="copyable">
-          <code>npx @monsoft/mcp-gmail auth</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Gmail is ready to use.</p>
+      </div>
+      <div id="gmail-not-connected" style="display:none;padding:12px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#fbbf24;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <strong>Not connected</strong>
         </div>
-      </li>
-    </ol>
-    
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Connect Google via Calendar setup to enable Gmail.</p>
+      </div>
+    </div>
+
+    <p style="color:var(--text-secondary);font-size:13px;margin:16px 0;">
+      Gmail uses the same Google OAuth as Calendar and Drive. Connect once to enable all three services.
+    </p>
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
+      <button id="gmail-connect-btn" class="google-signin-btn" onclick="connectGoogle()">
+        <img src="icons/google-signin.png" alt="Sign in with Google" height="40">
+      </button>
+      <button id="gmail-disconnect-btn" class="btn btn-secondary" onclick="disconnectGoogle(); closeGmailModal();" style="display:none;">
+        Disconnect Google Account
+      </button>
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeGmailModal()">Close</button>
-      <button class="btn btn-primary" onclick="checkGmailStatus()">Check Status</button>
     </div>
   </div>
 </div>
@@ -1070,37 +1206,57 @@ h2 {
   <div class="modal-content">
     <div class="modal-header">
       <img src="icons/jira.svg" alt="Atlassian" width="24" height="24">
-      <h3>Connect Atlassian</h3>
+      <h3>Atlassian (Jira & Confluence)</h3>
       <button class="modal-close" onclick="closeAtlassianModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
-    
+
+    <div id="atlassian-status-section" style="margin-bottom:16px;">
+      <div id="atlassian-connected" style="display:none;padding:12px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#34d399;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <strong>Connected to Atlassian</strong>
+        </div>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Jira and Confluence are ready to use.</p>
+      </div>
+      <div id="atlassian-not-connected" style="display:none;padding:12px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#fbbf24;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <strong>Not connected</strong>
+        </div>
+      </div>
+    </div>
+
     <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
-      Atlassian uses OAuth authentication. Running this command will open your browser to sign in.
+      Connect your Atlassian account to search Jira issues and Confluence pages.
     </p>
-    
-    <ol class="setup-steps">
-      <li>
-        Run authentication in Terminal (opens browser):
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+      <button id="atlassian-connect-btn" class="atlassian-button" onclick="connectAtlassian()">
+        <div class="gsi-material-button-content-wrapper">
+          <div class="gsi-material-button-icon">
+            <img src="icons/jira.svg" alt="">
+          </div>
+          <span class="gsi-material-button-contents">Connect with Atlassian</span>
+        </div>
+      </button>
+      <button id="atlassian-disconnect-btn" class="btn btn-secondary" onclick="disconnectAtlassian()" style="display:none;">
+        Disconnect Atlassian
+      </button>
+    </div>
+
+    <details style="margin-top:16px;">
+      <summary style="color:var(--text-secondary);font-size:12px;cursor:pointer;">Manual setup (Terminal)</summary>
+      <div style="margin-top:12px;">
+        <p style="color:var(--text-muted);font-size:12px;margin-bottom:8px;">Run this command in Terminal:</p>
         <div class="copyable">
           <code>npx -y mcp-remote https://mcp.atlassian.com/v1/sse</code>
           <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
         </div>
-      </li>
-      <li>
-        Sign in with your Atlassian account and authorize access
-      </li>
-      <li>
-        OAuth tokens are cached automatically for future use
-      </li>
-    </ol>
-    
-    <p style="color:var(--text-muted);font-size:11px;margin-top:16px;">
-      Note: You may need to re-authenticate after ~30 days when tokens expire.
-    </p>
-    
+      </div>
+    </details>
+
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeAtlassianModal()">Close</button>
-      <button class="btn btn-primary" onclick="checkAtlassianStatus()">Check Status</button>
     </div>
   </div>
 </div>
@@ -1110,44 +1266,43 @@ h2 {
   <div class="modal-backdrop" onclick="closeDriveModal()"></div>
   <div class="modal-content">
     <div class="modal-header">
-      <svg viewBox="0 0 24 24" fill="#4285f4" width="24" height="24"><path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5L7.71 3.5zm1.14 0l6.57 11.5h6.56l-6.57-11.5H8.85zM8 14.5l-3.43 6h13.71l3.43-6H8z"/></svg>
-      <h3>Connect Google Drive</h3>
+      <img src="icons/drive.png" alt="Drive" width="24" height="24">
+      <h3>Google Drive</h3>
       <button class="modal-close" onclick="closeDriveModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
-    
-    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
-      Uses the same Google Cloud project as Calendar. Just needs Drive API enabled and a quick auth.
-    </p>
-    
-    <ol class="setup-steps">
-      <li>
-        Enable the <strong>Google Drive API</strong>:<br>
-        <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="color:var(--accent-blue)">Enable Drive API →</a>
-      </li>
-      <li>
-        <em>(Optional)</em> Enable these for better content reading:<br>
-        <a href="https://console.cloud.google.com/apis/library/sheets.googleapis.com" target="_blank" style="color:var(--accent-blue);margin-right:12px">Sheets API</a>
-        <a href="https://console.cloud.google.com/apis/library/docs.googleapis.com" target="_blank" style="color:var(--accent-blue)">Docs API</a>
-      </li>
-      <li>
-        Run authentication in Terminal (opens browser):
-        <div class="copyable">
-          <code>cd ~/.local/share/briefdesk/gdrive-mcp && npm run auth</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+
+    <div id="drive-status-section">
+      <div id="drive-connected" style="display:none;padding:12px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#34d399;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <strong>Connected via Google</strong>
         </div>
-      </li>
-      <li>
-        Sign in and authorize <strong>drive.readonly</strong> access
-      </li>
-    </ol>
-    
-    <p style="color:var(--text-muted);font-size:11px;margin-top:16px;">
-      Note: Uses read-only access. BriefDesk can search and read your files but cannot modify them.
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Google Drive search is ready to use.</p>
+      </div>
+      <div id="drive-not-connected" style="display:none;padding:12px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#fbbf24;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <strong>Not connected</strong>
+        </div>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Connect Google via Calendar setup to enable Drive search.</p>
+      </div>
+    </div>
+
+    <p style="color:var(--text-secondary);font-size:13px;margin:16px 0;">
+      Google Drive uses the same OAuth as Calendar and Gmail. Connect once to enable all three services with read-only access.
     </p>
-    
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
+      <button id="drive-connect-btn" class="google-signin-btn" onclick="connectGoogle()">
+        <img src="icons/google-signin.png" alt="Sign in with Google" height="40">
+      </button>
+      <button id="drive-disconnect-btn" class="btn btn-secondary" onclick="disconnectGoogle(); closeDriveModal();" style="display:none;">
+        Disconnect Google Account
+      </button>
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeDriveModal()">Close</button>
-      <button class="btn btn-primary" onclick="checkDriveStatus()">Check Status</button>
     </div>
   </div>
 </div>
@@ -1173,7 +1328,7 @@ h2 {
 </div>
 
 <script>
-const API = 'http://127.0.0.1:18765';
+const API = 'http://localhost:18765';
 let currentStep = 1;
 let requirementsOk = false;
 let installComplete = false;
@@ -1276,7 +1431,7 @@ function goToStep(step) {
 
 function nextStep() {
   if (currentStep === 7) {
-    window.open('http://127.0.0.1:8765/start.html', '_blank');
+    window.open('http://localhost:8765/start.html', '_blank');
     return;
   }
   goToStep(currentStep + 1);
@@ -1517,11 +1672,11 @@ async function checkGoogleStatus() {
 
       if (!data.has_credentials) {
         connectBtn.disabled = true;
-        connectBtn.textContent = 'OAuth not configured';
+        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured</span>';
         connectBtn.title = 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables not set';
       } else {
         connectBtn.disabled = false;
-        connectBtn.innerHTML = '<img src="icons/google.png" alt="Google" width="20" height="20"> Connect with Google';
+        connectBtn.innerHTML = '<img src="icons/google-signin.png" alt="Sign in with Google" height="40">';
       }
     }
   } catch (e) {
@@ -1574,9 +1729,9 @@ function handleOAuthCallback() {
   if (oauthSuccess === 'google') {
     // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
-    // Show success and refresh
+    // Go to step 5 (Connect Services) and refresh integrations
     setTimeout(() => {
-      showCalendarSetup();
+      goToStep(5);
       checkIntegrations();
     }, 100);
   } else if (oauthError) {
@@ -1587,12 +1742,132 @@ function handleOAuthCallback() {
 
 // Call on page load
 document.addEventListener('DOMContentLoaded', handleOAuthCallback);
-function showGmailSetup() { document.getElementById('gmail-modal').classList.add('show'); }
+
+function showGmailSetup() {
+  document.getElementById('gmail-modal').classList.add('show');
+  checkGmailModalStatus();
+}
 function closeGmailModal() { document.getElementById('gmail-modal').classList.remove('show'); }
-function showAtlassianSetup() { document.getElementById('atlassian-modal').classList.add('show'); }
+
+function showAtlassianSetup() {
+  document.getElementById('atlassian-modal').classList.add('show');
+  checkAtlassianModalStatus();
+}
 function closeAtlassianModal() { document.getElementById('atlassian-modal').classList.remove('show'); }
-function showDriveSetup() { document.getElementById('drive-modal').classList.add('show'); }
+
+function showDriveSetup() {
+  document.getElementById('drive-modal').classList.add('show');
+  checkDriveModalStatus();
+}
 function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); }
+
+// Gmail/Drive use same Google OAuth status
+async function checkGmailModalStatus() {
+  try {
+    const res = await fetch(API + '/oauth/google/status');
+    const data = await res.json();
+    const connected = document.getElementById('gmail-connected');
+    const notConnected = document.getElementById('gmail-not-connected');
+    const connectBtn = document.getElementById('gmail-connect-btn');
+    const disconnectBtn = document.getElementById('gmail-disconnect-btn');
+
+    if (data.is_authenticated) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = data.has_credentials ? 'block' : 'none';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+      if (!data.has_credentials) {
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured</span>';
+      }
+    }
+  } catch (e) { console.error('Error checking Gmail status:', e); }
+}
+
+async function checkDriveModalStatus() {
+  try {
+    const res = await fetch(API + '/oauth/google/status');
+    const data = await res.json();
+    const connected = document.getElementById('drive-connected');
+    const notConnected = document.getElementById('drive-not-connected');
+    const connectBtn = document.getElementById('drive-connect-btn');
+    const disconnectBtn = document.getElementById('drive-disconnect-btn');
+
+    if (data.is_authenticated) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = data.has_credentials ? 'block' : 'none';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+      if (!data.has_credentials) {
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured</span>';
+      }
+    }
+  } catch (e) { console.error('Error checking Drive status:', e); }
+}
+
+async function checkAtlassianModalStatus() {
+  try {
+    const res = await fetch(API + '/oauth/atlassian/status');
+    const data = await res.json();
+    const connected = document.getElementById('atlassian-connected');
+    const notConnected = document.getElementById('atlassian-not-connected');
+    const connectBtn = document.getElementById('atlassian-connect-btn');
+    const disconnectBtn = document.getElementById('atlassian-disconnect-btn');
+
+    if (data.authenticated) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = 'block';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+    }
+  } catch (e) { console.error('Error checking Atlassian status:', e); }
+}
+
+async function connectAtlassian() {
+  try {
+    const res = await fetch(API + '/oauth/atlassian/start');
+    const data = await res.json();
+    if (data.success) {
+      alert('Atlassian OAuth started. A browser window should open to sign in. After signing in, click "Check Status" to verify.');
+    } else {
+      alert(data.error || 'Failed to start Atlassian OAuth. Try the manual method below.');
+    }
+  } catch (e) {
+    alert('Failed to connect: ' + e.message);
+  }
+}
+
+async function disconnectAtlassian() {
+  if (!confirm('Disconnect Atlassian? You will need to reconnect to use Jira and Confluence.')) return;
+  try {
+    const res = await fetch(API + '/oauth/atlassian/disconnect');
+    const data = await res.json();
+    if (data.success) {
+      checkAtlassianModalStatus();
+      checkIntegrations();
+    } else {
+      alert(data.message || 'Failed to disconnect');
+    }
+  } catch (e) {
+    alert('Failed to disconnect: ' + e.message);
+  }
+}
 
 function selectBrowser(browser) {
   // Update tabs

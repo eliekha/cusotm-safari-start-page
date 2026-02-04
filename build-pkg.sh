@@ -157,7 +157,7 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
     <p><strong>One more step:</strong> Open the setup wizard to configure permissions and connect your accounts.</p>
     
     <p style="margin: 16px 0;">
-        <a href="http://127.0.0.1:8765/installer.html" target="_blank" style="font-weight: 600; font-size: 14px;">Open Setup Wizard</a>
+        <a href="http://localhost:8765/installer.html" target="_blank" style="font-weight: 600; font-size: 14px;">Open Setup Wizard</a>
     </p>
     
     <div class="features">
@@ -170,7 +170,7 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
     </div>
     
     <div class="tip">
-        <strong>Tip:</strong> After setup, set your browser homepage to <code>http://127.0.0.1:8765/start.html</code>
+        <strong>Tip:</strong> After setup, set your browser homepage to <code>http://localhost:8765/start.html</code>
     </div>
 </body>
 </html>

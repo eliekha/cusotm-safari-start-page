@@ -56,6 +56,7 @@ from lib.google_services import (
     authenticate_google, get_meeting_by_id, search_google_drive,
     get_oauth_url, handle_oauth_callback,
     has_oauth_credentials, is_google_authenticated, disconnect_google,
+    get_granted_scopes,
 )
 
 from lib.cli import (
@@ -166,6 +167,12 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_oauth_google_status()
         elif path == "/oauth/google/disconnect":
             self.handle_oauth_google_disconnect()
+        elif path == "/oauth/atlassian/start":
+            self.handle_oauth_atlassian_start()
+        elif path == "/oauth/atlassian/status":
+            self.handle_oauth_atlassian_status()
+        elif path == "/oauth/atlassian/disconnect":
+            self.handle_oauth_atlassian_disconnect()
         # Installer endpoints
         elif path == "/installer":
             self.handle_installer_page()
@@ -837,12 +844,15 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                     calendar_error = error or "auth_failed"
             except Exception as e:
                 calendar_error = str(e)
-        
-        # Check Drive MCP token
-        drive_token_path = os.path.join(CONFIG_DIR, "google_drive_token.json")
-        drive_configured = os.path.exists(CREDENTIALS_PATH)  # Uses same OAuth client as calendar
-        drive_authenticated = os.path.exists(drive_token_path)
-        
+
+        # Check which Google scopes were actually granted by the user
+        granted_scopes = get_granted_scopes()
+        gmail_authenticated = granted_scopes.get('gmail', False)
+        drive_authenticated = granted_scopes.get('drive', False)
+        # Override calendar_authenticated with scope check too
+        if calendar_authenticated:
+            calendar_authenticated = granted_scopes.get('calendar', False)
+
         # Format auth status for frontend (expects objects with .configured/.authenticated properties)
         self.send_json({
             **status,
@@ -850,11 +860,11 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             # Frontend expects these at top level with {configured: bool, authenticated: bool} format
             "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
             "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
-            "gmail": {"configured": auth_status.get("gmail", False), "authenticated": auth_status.get("gmail", False)},
-            "calendar": {"configured": calendar_configured, 
+            "gmail": {"configured": calendar_configured, "authenticated": gmail_authenticated},
+            "calendar": {"configured": calendar_configured,
                         "authenticated": calendar_authenticated,
                         "error": calendar_error},
-            "drive": {"configured": drive_configured, "authenticated": drive_authenticated},
+            "drive": {"configured": calendar_configured, "authenticated": drive_authenticated},
         })
     
     def handle_setup_page(self):
@@ -1067,16 +1077,19 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         code = params.get('code', [None])[0]
         error = params.get('error', [None])[0]
 
+        # Static files are served on port 8765, so redirect there
+        STATIC_BASE = 'http://localhost:8765'
+
         if error:
             # Redirect to installer with error
             self.send_response(302)
-            self.send_header('Location', f'/installer.html?oauth_error={error}')
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error={error}')
             self.end_headers()
             return
 
         if not code:
             self.send_response(302)
-            self.send_header('Location', '/installer.html?oauth_error=no_code')
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=no_code')
             self.end_headers()
             return
 
@@ -1085,19 +1098,21 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         if success:
             # Redirect to installer with success
             self.send_response(302)
-            self.send_header('Location', '/installer.html?oauth_success=google')
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_success=google')
             self.end_headers()
         else:
             self.send_response(302)
-            self.send_header('Location', f'/installer.html?oauth_error={message}')
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error={message}')
             self.end_headers()
 
     def handle_oauth_google_status(self):
         """Check Google OAuth status."""
+        granted = get_granted_scopes()
         self.send_json({
             "has_credentials": has_oauth_credentials(),
             "is_authenticated": is_google_authenticated(),
-            "token_exists": os.path.exists(TOKEN_PATH)
+            "token_exists": os.path.exists(TOKEN_PATH),
+            "scopes": granted  # {'calendar': bool, 'drive': bool, 'gmail': bool}
         })
 
     def handle_oauth_google_disconnect(self):
@@ -1107,6 +1122,101 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             "success": success,
             "message": "Disconnected from Google" if success else "Failed to disconnect"
         })
+
+    # ==========================================================================
+    # Atlassian OAuth Endpoints
+    # ==========================================================================
+
+    def handle_oauth_atlassian_start(self):
+        """Start Atlassian OAuth flow via mcp-remote."""
+        import subprocess
+        import shutil
+
+        # Check common locations for npx (launchd doesn't have full PATH)
+        npx_path = shutil.which('npx')
+        if not npx_path:
+            for path in ['/opt/homebrew/bin/npx', '/usr/local/bin/npx', '/usr/bin/npx']:
+                if os.path.exists(path):
+                    npx_path = path
+                    break
+
+        if not npx_path:
+            self.send_json({
+                "success": False,
+                "error": "npx not found. Please install Node.js first."
+            })
+            return
+
+        try:
+            # Spawn mcp-remote in background - it will open browser for OAuth
+            # The process handles OAuth and caches tokens in ~/.mcp-auth/
+            # Set PATH to include common node locations
+            env = os.environ.copy()
+            env['PATH'] = '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:' + env.get('PATH', '')
+
+            subprocess.Popen(
+                [npx_path, '-y', 'mcp-remote', 'https://mcp.atlassian.com/v1/sse'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                env=env
+            )
+
+            self.send_json({
+                "success": True,
+                "message": "Atlassian OAuth started. Complete the authentication in your browser."
+            })
+        except Exception as e:
+            logger.error(f"Atlassian OAuth start error: {e}")
+            self.send_json({
+                "success": False,
+                "error": str(e)
+            })
+
+    def handle_oauth_atlassian_status(self):
+        """Check Atlassian OAuth status."""
+        import glob
+
+        mcp_auth_dir = os.path.expanduser("~/.mcp-auth")
+        atlassian_tokens = glob.glob(os.path.join(mcp_auth_dir, "*atlassian*"))
+
+        # Also check for any tokens in the mcp-auth directory
+        has_tokens = len(atlassian_tokens) > 0
+
+        # If no specific atlassian tokens, check for any mcp-remote tokens
+        if not has_tokens and os.path.exists(mcp_auth_dir):
+            all_tokens = os.listdir(mcp_auth_dir)
+            has_tokens = len(all_tokens) > 0
+
+        self.send_json({
+            "is_authenticated": has_tokens,
+            "token_path": mcp_auth_dir
+        })
+
+    def handle_oauth_atlassian_disconnect(self):
+        """Disconnect Atlassian account."""
+        import glob
+        import shutil
+
+        mcp_auth_dir = os.path.expanduser("~/.mcp-auth")
+
+        try:
+            # Remove Atlassian-specific tokens
+            atlassian_tokens = glob.glob(os.path.join(mcp_auth_dir, "*atlassian*"))
+            for token_file in atlassian_tokens:
+                os.remove(token_file)
+                logger.info(f"Removed Atlassian token: {token_file}")
+
+            self.send_json({
+                "success": True,
+                "message": "Disconnected from Atlassian"
+            })
+        except Exception as e:
+            logger.error(f"Atlassian disconnect error: {e}")
+            self.send_json({
+                "success": False,
+                "error": str(e)
+            })
 
     def handle_service_health(self):
         """Check health of all BriefDesk services."""

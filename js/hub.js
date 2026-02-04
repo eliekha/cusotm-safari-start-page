@@ -782,7 +782,7 @@ html+='<div class="hub-prep-section">'+sectionTitle('Jira','jira',prepState.load
 if(!atlassianAuth.configured){
 html+='<div class="hub-section-empty">Not configured</div>';
 }else if(atlassianAuth.error==='oauth_required'){
-html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Authentication required</span><button class="hub-auth-btn" onclick="window.open(\'http://127.0.0.1:18765/hub/atlassian/oauth\',\'_blank\')">Connect Atlassian</button></div>';
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Authentication required</span><button class="hub-auth-btn" onclick="window.open(\'http://localhost:18765/hub/atlassian/oauth\',\'_blank\')">Connect Atlassian</button></div>';
 }else if(!atlassianAuth.authenticated&&atlassianAuth.error){
 html+='<div class="hub-auth-error"><span class="hub-auth-icon">⚠️</span><span>Auth error: '+escapeHtml(atlassianAuth.error)+'</span></div>';
 }else if(prepState.loading.jira){
@@ -804,7 +804,7 @@ html+='<div class="hub-prep-section">'+sectionTitle('Confluence','confluence',pr
 if(!atlassianAuth.configured){
 html+='<div class="hub-section-empty">Not configured</div>';
 }else if(atlassianAuth.error==='oauth_required'){
-html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Authentication required</span><button class="hub-auth-btn" onclick="window.open(\'http://127.0.0.1:18765/hub/atlassian/oauth\',\'_blank\')">Connect Atlassian</button></div>';
+html+='<div class="hub-auth-error"><span class="hub-auth-icon">🔐</span><span>Authentication required</span><button class="hub-auth-btn" onclick="window.open(\'http://localhost:18765/hub/atlassian/oauth\',\'_blank\')">Connect Atlassian</button></div>';
 }else if(!atlassianAuth.authenticated&&atlassianAuth.error){
 html+='<div class="hub-auth-error"><span class="hub-auth-icon">⚠️</span><span>Auth error: '+escapeHtml(atlassianAuth.error)+'</span></div>';
 }else if(prepState.loading.confluence){

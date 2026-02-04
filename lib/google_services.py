@@ -49,7 +49,7 @@ def authenticate_google():
     return True
 
 
-def get_oauth_url(redirect_uri='http://127.0.0.1:8765/oauth/callback'):
+def get_oauth_url(redirect_uri='http://localhost:18765/oauth/callback'):
     """Generate OAuth authorization URL for web-based flow."""
     if not GOOGLE_API_AVAILABLE:
         return None, "Google API libraries not installed"
@@ -80,7 +80,7 @@ def get_oauth_url(redirect_uri='http://127.0.0.1:8765/oauth/callback'):
         return None, str(e)
 
 
-def handle_oauth_callback(code, redirect_uri='http://127.0.0.1:8765/oauth/callback'):
+def handle_oauth_callback(code, redirect_uri='http://localhost:18765/oauth/callback'):
     """Handle OAuth callback and save credentials."""
     if not GOOGLE_API_AVAILABLE:
         return False, "Google API libraries not installed"
@@ -146,6 +146,26 @@ def has_oauth_credentials():
 def is_google_authenticated():
     """Check if user has valid Google authentication."""
     return get_google_credentials() is not None
+
+
+def get_granted_scopes():
+    """Get the list of scopes granted by the user.
+
+    Returns:
+        dict: {'calendar': bool, 'drive': bool, 'gmail': bool} indicating which scopes are granted
+    """
+    creds = get_google_credentials()
+    if not creds:
+        return {'calendar': False, 'drive': False, 'gmail': False}
+
+    # Get the scopes from the credentials
+    granted = set(creds.scopes) if creds.scopes else set()
+
+    return {
+        'calendar': 'https://www.googleapis.com/auth/calendar.readonly' in granted,
+        'drive': 'https://www.googleapis.com/auth/drive.readonly' in granted,
+        'gmail': 'https://www.googleapis.com/auth/gmail.readonly' in granted,
+    }
 
 
 def disconnect_google():
