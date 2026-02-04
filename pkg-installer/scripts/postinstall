@@ -47,6 +47,13 @@ PYEOF
 chmod +x "$INSTALL_DIR/python3"
 chown "$INSTALL_USER" "$INSTALL_DIR/python3"
 
+# Ensure pip is available (bootstrap if needed)
+echo "Checking pip availability..."
+if ! sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip --version >/dev/null 2>&1; then
+    echo "pip not found, bootstrapping..."
+    sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m ensurepip --user 2>/dev/null || true
+fi
+
 # Install Google API libraries for OAuth
 echo "Installing Google API libraries..."
 # Try multiple pip install methods (some systems need --break-system-packages, some don't)
