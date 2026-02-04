@@ -70,7 +70,6 @@ def get_oauth_url(redirect_uri='http://localhost:18765/oauth/callback'):
 
         auth_url, state = flow.authorization_url(
             access_type='offline',
-            include_granted_scopes='true',
             prompt='consent'
         )
 
