@@ -74,10 +74,12 @@ The setup wizard guides you through:
 
 For a clean installation without cloning the repo, use the macOS package installer:
 
-1. Download `BriefDesk-1.0.0.pkg` from the releases page
+1. Download the latest `.pkg` from the [Releases page](https://github.com/eliekha/BriefDesk/releases)
 2. Double-click to run the installer
 3. Follow the prompts
 4. After installation, click "Open Setup Wizard" to complete configuration
+
+The installer is **signed and notarized** by Apple, so it installs without Gatekeeper warnings (no "Open Anyway" required).
 
 The installer automatically sets up LaunchAgents and copies all necessary files.
 
@@ -822,6 +824,45 @@ briefdesk/
 ## License
 
 MIT License - feel free to customize and share!
+
+## Building & Releases
+
+### Building the Package Locally
+
+**Contributors (unsigned build for testing):**
+```bash
+./build-pkg.sh --unsigned
+```
+
+**Maintainers (signed + notarized):**
+```bash
+APPLE_ID="your@email.com" APP_PASSWORD="app-specific-password" ./build-pkg.sh
+```
+
+Requires a Developer ID Installer certificate in Keychain.
+
+### Creating a Release
+
+Releases are automated via GitHub Actions. To create a new release:
+
+```bash
+git tag v1.0.3
+git push origin v1.0.3
+```
+
+This triggers a workflow that:
+1. Builds the `.pkg` installer
+2. Signs it with the Developer ID certificate
+3. Notarizes with Apple (Gatekeeper approval)
+4. Attaches the signed package to a GitHub Release
+
+### CI/CD
+
+| Trigger | Build Type |
+|---------|------------|
+| Pull request | Unsigned (for testing) |
+| Push tag `v*` | Signed + notarized → GitHub Release |
+| Manual dispatch | Signed + notarized |
 
 ## Contributing
 
