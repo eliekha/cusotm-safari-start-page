@@ -27,17 +27,81 @@ sudo -u "$INSTALL_USER" mkdir -p "$LAUNCHAGENTS_DIR"
 cp -R "$PKG_SOURCE/"* "$INSTALL_DIR/"
 chown -R "$INSTALL_USER" "$INSTALL_DIR"
 
-# Find Python
+# Find Python (with extensive fallbacks for different installation methods)
 SYSTEM_PYTHON=""
-if [ -f "/opt/homebrew/bin/python3" ]; then
-    SYSTEM_PYTHON="/opt/homebrew/bin/python3"
-elif [ -f "/usr/local/bin/python3" ]; then
-    SYSTEM_PYTHON="/usr/local/bin/python3"
-elif [ -f "/usr/bin/python3" ]; then
-    SYSTEM_PYTHON="/usr/bin/python3"
-else
-    SYSTEM_PYTHON=$(which python3 2>/dev/null || echo "/usr/bin/python3")
+
+# Helper function to check if Python works and is recent enough (3.9+)
+check_python() {
+    local py="$1"
+    if [ -x "$py" ] && "$py" -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# 1. Check Homebrew on Apple Silicon
+if [ -z "$SYSTEM_PYTHON" ] && [ -f "/opt/homebrew/bin/python3" ]; then
+    check_python "/opt/homebrew/bin/python3" && SYSTEM_PYTHON="/opt/homebrew/bin/python3"
 fi
+
+# 2. Check versioned Homebrew Python on Apple Silicon (prefer newer versions)
+if [ -z "$SYSTEM_PYTHON" ]; then
+    for ver in 3.14 3.13 3.12 3.11 3.10 3.9; do
+        if [ -f "/opt/homebrew/bin/python$ver" ]; then
+            check_python "/opt/homebrew/bin/python$ver" && SYSTEM_PYTHON="/opt/homebrew/bin/python$ver" && break
+        fi
+    done
+fi
+
+# 3. Check Python.org installer (Framework install)
+if [ -z "$SYSTEM_PYTHON" ]; then
+    for ver in 3.14 3.13 3.12 3.11 3.10 3.9; do
+        if [ -f "/Library/Frameworks/Python.framework/Versions/$ver/bin/python3" ]; then
+            check_python "/Library/Frameworks/Python.framework/Versions/$ver/bin/python3" && \
+                SYSTEM_PYTHON="/Library/Frameworks/Python.framework/Versions/$ver/bin/python3" && break
+        fi
+    done
+fi
+
+# 4. Check Homebrew on Intel Macs
+if [ -z "$SYSTEM_PYTHON" ] && [ -f "/usr/local/bin/python3" ]; then
+    check_python "/usr/local/bin/python3" && SYSTEM_PYTHON="/usr/local/bin/python3"
+fi
+
+# 5. Check versioned Homebrew Python on Intel Macs
+if [ -z "$SYSTEM_PYTHON" ]; then
+    for ver in 3.14 3.13 3.12 3.11 3.10 3.9; do
+        if [ -f "/usr/local/bin/python$ver" ]; then
+            check_python "/usr/local/bin/python$ver" && SYSTEM_PYTHON="/usr/local/bin/python$ver" && break
+        fi
+    done
+fi
+
+# 6. Check pyenv (common for developers)
+if [ -z "$SYSTEM_PYTHON" ] && [ -f "$HOME/.pyenv/shims/python3" ]; then
+    check_python "$HOME/.pyenv/shims/python3" && SYSTEM_PYTHON="$HOME/.pyenv/shims/python3"
+fi
+
+# 7. Check system Python (macOS Sonoma+ has Python 3.9+)
+if [ -z "$SYSTEM_PYTHON" ] && [ -f "/usr/bin/python3" ]; then
+    check_python "/usr/bin/python3" && SYSTEM_PYTHON="/usr/bin/python3"
+fi
+
+# 8. Last resort: use which
+if [ -z "$SYSTEM_PYTHON" ]; then
+    FOUND_PYTHON=$(which python3 2>/dev/null)
+    if [ -n "$FOUND_PYTHON" ] && check_python "$FOUND_PYTHON"; then
+        SYSTEM_PYTHON="$FOUND_PYTHON"
+    fi
+fi
+
+# Final fallback (may not work but we try)
+if [ -z "$SYSTEM_PYTHON" ]; then
+    echo "WARNING: Could not find a suitable Python 3.9+ installation"
+    SYSTEM_PYTHON="/usr/bin/python3"
+fi
+
+echo "Using Python: $SYSTEM_PYTHON ($($SYSTEM_PYTHON --version 2>&1))"
 
 # Create Python wrapper
 cat > "$INSTALL_DIR/python3" << PYEOF
@@ -233,35 +297,64 @@ fi
 
 # Build gdrive-mcp if present
 if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NODE_PATH" ]; then
+    echo "Building gdrive-mcp..."
     cd "$INSTALL_DIR/gdrive-mcp"
     sudo -u "$INSTALL_USER" npm install --silent 2>/dev/null || true
     sudo -u "$INSTALL_USER" npm run build --silent 2>/dev/null || true
 fi
 
-# Patch Gmail MCP to use readonly scope (SECURITY: prevent sending emails)
-echo "Patching Gmail MCP for read-only access..."
-GMAIL_MCP_PATHS=(
-    "/opt/homebrew/lib/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
-    "/usr/local/lib/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
-    "$USER_HOME/.npm/_npx/**/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
-)
-for gmail_path in "${GMAIL_MCP_PATHS[@]}"; do
-    if [ -f "$gmail_path" ]; then
-        sed -i '' 's/gmail\.modify/gmail.readonly/g' "$gmail_path" 2>/dev/null && \
-            echo "  Patched: $gmail_path"
-    elif echo "$gmail_path" | grep -q '\*\*'; then
-        find "$USER_HOME/.npm/_npx" -type f -path "*/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js" 2>/dev/null | while read -r f; do
-            sed -i '' 's/gmail\.modify/gmail.readonly/g' "$f" 2>/dev/null && \
-                echo "  Patched: $f"
-        done
+# Build gmail-mcp (custom read-only Gmail MCP)
+if [ -d "$INSTALL_DIR/gmail-mcp" ] && [ -n "$NODE_PATH" ]; then
+    echo "Building gmail-mcp (read-only)..."
+    cd "$INSTALL_DIR/gmail-mcp"
+    sudo -u "$INSTALL_USER" npm install --silent 2>/dev/null || true
+    sudo -u "$INSTALL_USER" npm run build --silent 2>/dev/null || true
+    
+    # Verify build succeeded
+    if [ -f "$INSTALL_DIR/gmail-mcp/dist/index.js" ]; then
+        echo "  gmail-mcp built successfully"
+    else
+        echo "  WARNING: gmail-mcp build may have failed"
     fi
-done
-# Also remove any existing credentials with modify scope
+fi
+
+# Remove any existing Gmail credentials with modify scope (security: re-auth with readonly)
 if [ -f "$USER_HOME/.gmail-mcp/credentials.json" ]; then
     if grep -q "gmail.modify" "$USER_HOME/.gmail-mcp/credentials.json" 2>/dev/null; then
         rm -f "$USER_HOME/.gmail-mcp/credentials.json"
-        echo "  Removed Gmail credentials with modify scope - user will need to re-authenticate"
+        echo "Removed Gmail credentials with modify scope - user will need to re-authenticate with read-only access"
     fi
+fi
+
+# Update .devsai.json to use the custom gmail-mcp (if config exists)
+DEVSAI_CONFIG="$INSTALL_DIR/.devsai.json"
+if [ -f "$DEVSAI_CONFIG" ] && [ -f "$INSTALL_DIR/gmail-mcp/dist/index.js" ]; then
+    echo "Updating .devsai.json to use custom gmail-mcp..."
+    # Use Python to safely update JSON (jq may not be available)
+    sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" - "$DEVSAI_CONFIG" "$INSTALL_DIR" << 'PYEOF'
+import json
+import sys
+
+config_path = sys.argv[1]
+install_dir = sys.argv[2]
+
+try:
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    # Update gmail MCP to use the custom one
+    if 'mcpServers' in config and 'gmail' in config['mcpServers']:
+        config['mcpServers']['gmail'] = {
+            "command": "node",
+            "args": [f"{install_dir}/gmail-mcp/dist/index.js"]
+        }
+        
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        print("  Updated gmail MCP config")
+except Exception as e:
+    print(f"  WARNING: Could not update .devsai.json: {e}")
+PYEOF
 fi
 
 # Start services as the user

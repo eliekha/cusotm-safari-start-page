@@ -49,7 +49,19 @@ cp -r "$SCRIPT_DIR/js" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || tru
 cp -r "$SCRIPT_DIR/lib" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/assets" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/icons" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
-cp -r "$SCRIPT_DIR/gdrive-mcp" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
+# Copy gdrive-mcp excluding node_modules and dist (built during postinstall)
+if [ -d "$SCRIPT_DIR/gdrive-mcp" ]; then
+    mkdir -p "$PKG_ROOT/usr/local/share/briefdesk/gdrive-mcp"
+    rsync -a --exclude='node_modules' --exclude='dist' "$SCRIPT_DIR/gdrive-mcp/" "$PKG_ROOT/usr/local/share/briefdesk/gdrive-mcp/" 2>/dev/null || \
+        cp -r "$SCRIPT_DIR/gdrive-mcp" "$PKG_ROOT/usr/local/share/briefdesk/"
+fi
+
+# Copy gmail-mcp excluding node_modules and dist (built during postinstall)
+if [ -d "$SCRIPT_DIR/gmail-mcp" ]; then
+    mkdir -p "$PKG_ROOT/usr/local/share/briefdesk/gmail-mcp"
+    rsync -a --exclude='node_modules' --exclude='dist' "$SCRIPT_DIR/gmail-mcp/" "$PKG_ROOT/usr/local/share/briefdesk/gmail-mcp/" 2>/dev/null || \
+        cp -r "$SCRIPT_DIR/gmail-mcp" "$PKG_ROOT/usr/local/share/briefdesk/"
+fi
 
 # Bundle devsai tarball (from repo-local folder for CI)
 DEVSAI_TARBALL_SOURCE=$(ls -t "$SCRIPT_DIR/devsai"/devsai-*.tgz 2>/dev/null | head -1)

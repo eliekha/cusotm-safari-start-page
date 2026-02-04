@@ -13,6 +13,8 @@
  *   GET /status - MCP server connection status
  *   GET /devsai/status - DevsAI auth + config status
  *   POST /devsai/login - Start DevsAI browser login
+ *   GET /gmail/status - Gmail MCP auth status
+ *   POST /gmail/auth - Start Gmail OAuth flow (read-only)
  *   GET /reconnect?mcp=name - Force reconnect a specific MCP (after re-auth)
  *   POST /search - AI-powered search across sources
  *   POST /query - Raw AI query with MCP tools
@@ -58,6 +60,9 @@ export let initialized = false;
 export let initError = null;
 export let gdriveMcpAvailable = false;
 let apiKeyCache = null;
+
+// BriefDesk install directory
+const BRIEFDESK_DIR = `${HOME}/.local/share/briefdesk`;
 
 // GDrive MCP paths
 const GDRIVE_MCP_PATH = path.join(HOME, '.local/share/briefdesk/gdrive-mcp');
@@ -987,6 +992,63 @@ export async function handleRequest(req, res) {
       } catch (err) {
         sendJson(res, { success: false, error: err.message }, 500);
       }
+      return;
+    }
+
+    // Gmail MCP auth (open browser for Google OAuth)
+    if (path === '/gmail/auth' && req.method === 'POST') {
+      const gmailMcpPath = `${BRIEFDESK_DIR}/gmail-mcp/dist/index.js`;
+      const nodePath = process.execPath;
+      
+      // Check if gmail-mcp exists
+      if (!fs.existsSync(gmailMcpPath)) {
+        sendJson(res, { success: false, error: 'Gmail MCP not found. Please reinstall BriefDesk.' }, 404);
+        return;
+      }
+      
+      // Check if already authenticated
+      const credentialsPath = `${HOME}/.gmail-mcp/credentials.json`;
+      if (fs.existsSync(credentialsPath)) {
+        sendJson(res, { success: true, alreadyAuthenticated: true });
+        return;
+      }
+      
+      try {
+        console.log('[SearchService] Starting Gmail MCP auth flow...');
+        const child = spawn(nodePath, [gmailMcpPath, 'auth'], {
+          detached: true,
+          stdio: 'ignore',
+          env: { ...process.env, HOME },
+        });
+        child.unref();
+        sendJson(res, { success: true, launched: true, message: 'OAuth flow started in browser' });
+      } catch (err) {
+        sendJson(res, { success: false, error: err.message }, 500);
+      }
+      return;
+    }
+
+    // Gmail auth status check
+    if (path === '/gmail/status') {
+      const credentialsPath = `${HOME}/.gmail-mcp/credentials.json`;
+      const keysPath = `${HOME}/.gmail-mcp/gcp-oauth.keys.json`;
+      const gmailMcpPath = `${BRIEFDESK_DIR}/gmail-mcp/dist/index.js`;
+      
+      let scope = null;
+      if (fs.existsSync(credentialsPath)) {
+        try {
+          const creds = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
+          scope = creds.scope || null;
+        } catch {}
+      }
+      
+      sendJson(res, {
+        authenticated: fs.existsSync(credentialsPath),
+        hasOAuthKeys: fs.existsSync(keysPath),
+        mcpAvailable: fs.existsSync(gmailMcpPath),
+        scope,
+        isReadOnly: scope ? scope.includes('gmail.readonly') && !scope.includes('gmail.modify') : null,
+      });
       return;
     }
     

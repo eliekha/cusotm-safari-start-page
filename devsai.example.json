@@ -17,9 +17,9 @@
       "_comment": "Install globally: npm install -g mcp-remote"
     },
     "gmail": {
-      "command": "/opt/homebrew/bin/mcp-gmail",
-      "args": [],
-      "_comment": "Install globally: npm install -g @anthropic/gmail-mcp-server"
+      "command": "node",
+      "args": ["$HOME/.local/share/briefdesk/gmail-mcp/dist/index.js"],
+      "_comment": "Custom read-only Gmail MCP bundled with BriefDesk"
     },
     "apple-docs": {
       "disabled": true
