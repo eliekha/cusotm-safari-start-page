@@ -305,12 +305,14 @@ EOF
         fi
     done
     
-    # Also patch via npx cache
-    for f in ~/.npm/_npx/**/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js 2>/dev/null; do
-        if [ -f "$f" ]; then
-            sed -i '' 's/gmail\.modify/gmail.readonly/g' "$f" 2>/dev/null && PATCHED=true
-        fi
-    done
+    # Also patch via npx cache (bash 3.2 compatible)
+    if [ -d ~/.npm/_npx ]; then
+        while IFS= read -r f; do
+            if [ -f "$f" ]; then
+                sed -i '' 's/gmail\.modify/gmail.readonly/g' "$f" 2>/dev/null && PATCHED=true
+            fi
+        done < <(find ~/.npm/_npx -type f -path "*/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js" 2>/dev/null)
+    fi
     
     if [ "$PATCHED" = true ]; then
         echo "   ✓ Gmail MCP patched for read-only access"

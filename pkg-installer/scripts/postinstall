@@ -206,12 +206,15 @@ GMAIL_MCP_PATHS=(
     "$USER_HOME/.npm/_npx/**/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js"
 )
 for gmail_path in "${GMAIL_MCP_PATHS[@]}"; do
-    for f in $gmail_path 2>/dev/null; do
-        if [ -f "$f" ]; then
+    if [ -f "$gmail_path" ]; then
+        sed -i '' 's/gmail\.modify/gmail.readonly/g' "$gmail_path" 2>/dev/null && \
+            echo "  Patched: $gmail_path"
+    elif echo "$gmail_path" | grep -q '\*\*'; then
+        find "$USER_HOME/.npm/_npx" -type f -path "*/node_modules/@monsoft/mcp-gmail/dist/utils/gmail.js" 2>/dev/null | while read -r f; do
             sed -i '' 's/gmail\.modify/gmail.readonly/g' "$f" 2>/dev/null && \
                 echo "  Patched: $f"
-        fi
-    done
+        done
+    fi
 done
 # Also remove any existing credentials with modify scope
 if [ -f "$USER_HOME/.gmail-mcp/credentials.json" ]; then
