@@ -47,6 +47,10 @@ PYEOF
 chmod +x "$INSTALL_DIR/python3"
 chown "$INSTALL_USER" "$INSTALL_DIR/python3"
 
+# Install Google API libraries for OAuth
+echo "Installing Google API libraries..."
+sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --quiet --user google-auth-oauthlib google-api-python-client 2>/dev/null || true
+
 # Find Node.js
 NODE_PATH=""
 if [ -f "/usr/local/bin/node" ]; then
