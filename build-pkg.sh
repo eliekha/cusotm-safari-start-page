@@ -6,7 +6,14 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/pkg-build"
 PKG_ROOT="$BUILD_DIR/root"
 PKG_SCRIPTS="$SCRIPT_DIR/pkg-installer/scripts"
-VERSION="1.0.0"
+# Get version from git tag (if available) or default
+if [[ -n "${GITHUB_REF_NAME:-}" && "${GITHUB_REF_NAME}" == v* ]]; then
+    VERSION="${GITHUB_REF_NAME#v}"
+elif git describe --tags --exact-match 2>/dev/null | grep -q '^v'; then
+    VERSION="$(git describe --tags --exact-match | sed 's/^v//')"
+else
+    VERSION="1.0.0"
+fi
 IDENTIFIER="com.briefdesk.app"
 OUTPUT_PKG="$SCRIPT_DIR/BriefDesk-$VERSION.pkg"
 
