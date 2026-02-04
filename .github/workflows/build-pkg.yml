@@ -37,7 +37,7 @@ jobs:
         run: ./build-pkg.sh
 
       - name: Build unsigned package (PRs/forks)
-        if: github.event_name == 'pull_request' || github.repository != 'ekhalifeh/BriefDesk'
+        if: github.event_name == 'pull_request' || github.repository != 'eliekha/BriefDesk'
         run: ./build-pkg.sh --unsigned
 
       - name: Upload package
