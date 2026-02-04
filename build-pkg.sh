@@ -170,7 +170,7 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
     </div>
     
     <div class="tip">
-        <strong>Tip:</strong> After setup, set your browser homepage to <code>http://localhost:8765/start.html</code>
+        <strong>Tip:</strong> After setup, set your browser homepage to <code>http://127.0.0.1:8765/start.html</code>
     </div>
 </body>
 </html>

@@ -971,7 +971,7 @@ h2 {
           2. Click "Add to Chrome" to install the extension<br>
           3. After install, paste this URL in the extension settings:
           <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://localhost:8765/start.html</code>
+            <code>http://127.0.0.1:8765/start.html</code>
             <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
           </div>
           4. Open a new tab to verify it works
@@ -989,7 +989,7 @@ h2 {
           2. Click "Add to Firefox" to install the extension<br>
           3. After install, paste this URL in the extension settings:
           <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://localhost:8765/start.html</code>
+            <code>http://127.0.0.1:8765/start.html</code>
             <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
           </div>
           4. Open a new tab to verify it works
@@ -1008,7 +1008,7 @@ h2 {
           2. Go to the <strong>General</strong> tab<br>
           3. Set "Homepage" to:
           <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://localhost:8765/start.html</code>
+            <code>http://127.0.0.1:8765/start.html</code>
             <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
           </div>
           4. Set "New windows open with" and "New tabs open with" to <strong>Homepage</strong><br><br>
@@ -1030,7 +1030,7 @@ h2 {
         </div>
         <h2>Setup Complete</h2>
         <p class="step-desc">BriefDesk is installed and running. Set this as your browser homepage for quick access.</p>
-        <div class="complete-url">http://localhost:8765/start.html</div>
+        <div class="complete-url">http://127.0.0.1:8765/start.html</div>
         <p class="step-desc" style="font-size:12px;">You can configure more integrations anytime from the Settings panel.</p>
       </div>
     </div>
@@ -1431,7 +1431,7 @@ function goToStep(step) {
 
 function nextStep() {
   if (currentStep === 7) {
-    window.open('http://localhost:8765/start.html', '_blank');
+    window.open('http://127.0.0.1:8765/start.html', '_blank');
     return;
   }
   goToStep(currentStep + 1);
