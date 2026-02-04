@@ -49,7 +49,15 @@ chown "$INSTALL_USER" "$INSTALL_DIR/python3"
 
 # Install Google API libraries for OAuth
 echo "Installing Google API libraries..."
-sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --quiet --break-system-packages --user google-auth-oauthlib google-api-python-client 2>/dev/null || true
+# Try multiple pip install methods (some systems need --break-system-packages, some don't)
+if sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --user google-auth-oauthlib google-api-python-client 2>&1; then
+    echo "Google API libraries installed successfully"
+elif sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --break-system-packages --user google-auth-oauthlib google-api-python-client 2>&1; then
+    echo "Google API libraries installed successfully (with --break-system-packages)"
+else
+    echo "WARNING: Could not install Google API libraries. You may need to run manually:"
+    echo "  pip3 install --user google-auth-oauthlib google-api-python-client"
+fi
 
 # Find Node.js
 NODE_PATH=""
