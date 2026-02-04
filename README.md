@@ -70,6 +70,17 @@ The setup wizard guides you through:
 - Configuring integrations (Calendar, Slack, etc.)
 - Verifying the installation
 
+### Package Installer (.pkg)
+
+For a clean installation without cloning the repo, use the macOS package installer:
+
+1. Download `BriefDesk-1.0.0.pkg` from the releases page
+2. Double-click to run the installer
+3. Follow the prompts
+4. After installation, click "Open Setup Wizard" to complete configuration
+
+The installer automatically sets up LaunchAgents and copies all necessary files.
+
 ### After Installation
 
 1. **Grant Full Disk Access** (required for Safari history and Google Drive):
@@ -78,12 +89,15 @@ The setup wizard guides you through:
    
    | Binary | Path | Purpose |
    |--------|------|---------|
-   | Python | `~/.local/share/briefdesk/python3` | Safari history search |
+   | Python | The path shown in the Setup Wizard (e.g., `/opt/homebrew/bin/python3`) | Safari history search |
    | Node | `~/.local/share/devsai/node` | Google Drive search (Hub) |
+   
+   **Note:** BriefDesk uses a Python wrapper script that calls your system Python. The Setup Wizard automatically detects and displays the correct Python path to add to Full Disk Access.
 
 2. **Set your browser homepage:**
    - Safari → Settings → General → Homepage: `http://127.0.0.1:8765/start.html`
    - Or use the [New Tab Redirect](https://chrome.google.com/webstore/detail/new-tab-redirect/) extension for Chrome
+   - The Setup Wizard (Step 6) can guide you through this for Chrome, Firefox, or Safari
 
 ### Reconfigure Later
 
@@ -611,20 +625,23 @@ Safari buffers history writes. The search server reads the WAL file for real-tim
 ### Permission denied / History search stopped working
 Full Disk Access is tied to specific Python binary paths, which can change after macOS or Xcode updates.
 
-**Quick fix:** Re-grant FDA to the current Python:
-```bash
-/usr/bin/python3 -c "import sys; print(sys.executable)"
-```
-Add that path to Full Disk Access in System Settings.
+**How it works:** BriefDesk uses a Python wrapper script (`~/.local/share/briefdesk/python3`) that calls your system Python. This approach avoids issues with copying Python binaries (which breaks due to macOS dynamic library linking).
 
-**Most stable fix:** Build a standalone binary (path never changes):
+**Quick fix:** Check which Python is being used and grant FDA:
+```bash
+# Find the actual Python being used
+python3 -c "import os, sys; print(os.path.realpath(sys.executable))"
+```
+Add that resolved path to Full Disk Access in System Settings.
+
+**Alternative - Standalone binary** (path never changes):
 ```bash
 pip3 install pyinstaller
 cd ~/.local/share/briefdesk
 pyinstaller --onefile --name search-server --distpath . search-server.py
 rm -rf build *.spec
 ```
-Then update your LaunchAgent plist to use the binary directly (no Python path needed):
+Then update your LaunchAgent plist to use the binary directly:
 ```xml
 <string>/Users/YOURNAME/.local/share/briefdesk/search-server</string>
 ```
