@@ -957,43 +957,68 @@ h2 {
   </div>
 </div>
 
-<!-- Calendar Setup Modal -->
+<!-- Google Services Setup Modal (Calendar, Drive, Gmail) -->
 <div class="modal" id="calendar-modal">
   <div class="modal-backdrop" onclick="closeCalendarModal()"></div>
   <div class="modal-content">
     <div class="modal-header">
-      <img src="icons/calendar.png" alt="Google Calendar" width="24" height="24">
-      <h3>Connect Google Calendar</h3>
+      <img src="icons/calendar.png" alt="Google" width="24" height="24">
+      <h3>Connect Google Services</h3>
       <button class="modal-close" onclick="closeCalendarModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
-    
-    <ol class="setup-steps">
-      <li>
-        Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-blue)">Google Cloud Console</a> and create an OAuth 2.0 Client ID (Desktop app)
-      </li>
-      <li>
-        Enable the <strong>Google Calendar API</strong>:<br>
-        <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" style="color:var(--accent-blue)">Enable Calendar API →</a>
-      </li>
-      <li>
-        Download credentials JSON and save to:
-        <div class="copyable">
-          <code>~/.local/share/briefdesk/google_credentials.json</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+
+    <div id="google-status-section" style="margin-bottom:16px;">
+      <div id="google-connected" style="display:none;padding:12px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#34d399;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <strong>Connected to Google</strong>
         </div>
-      </li>
-      <li>
-        Run authentication in Terminal:
-        <div class="copyable">
-          <code>python3 ~/.local/share/briefdesk/search-server.py --auth</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Calendar, Drive, and Gmail are ready to use.</p>
+      </div>
+      <div id="google-not-connected" style="display:none;padding:12px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#fbbf24;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <strong>Not connected</strong>
         </div>
-      </li>
-    </ol>
-    
+      </div>
+    </div>
+
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+      Connect your Google account to enable Calendar, Drive search, and Gmail integration. This grants read-only access.
+    </p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+      <button id="google-connect-btn" class="btn btn-primary" onclick="connectGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Connect with Google
+      </button>
+      <button id="google-disconnect-btn" class="btn btn-secondary" onclick="disconnectGoogle()" style="display:none;">
+        Disconnect Google Account
+      </button>
+    </div>
+
+    <details style="margin-top:16px;">
+      <summary style="color:var(--text-secondary);font-size:12px;cursor:pointer;">Advanced: Use your own credentials</summary>
+      <ol class="setup-steps" style="margin-top:12px;font-size:12px;">
+        <li>
+          Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-blue)">Google Cloud Console</a> and create an OAuth 2.0 Client ID (Desktop app)
+        </li>
+        <li>
+          Enable APIs: <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" style="color:var(--accent-blue)">Calendar</a>,
+          <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="color:var(--accent-blue)">Drive</a>,
+          <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" style="color:var(--accent-blue)">Gmail</a>
+        </li>
+        <li>
+          Download credentials JSON to: <code>~/.local/share/briefdesk/google_credentials.json</code>
+        </li>
+        <li>
+          Run: <code>python3 ~/.local/share/briefdesk/search-server.py --auth</code>
+        </li>
+      </ol>
+    </details>
+
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeCalendarModal()">Close</button>
-      <button class="btn btn-primary" onclick="checkCalendarStatus()">Check Status</button>
     </div>
   </div>
 </div>
@@ -1462,8 +1487,106 @@ function openFDASettings() {
 
 function showSlackSetup() { document.getElementById('slack-modal').classList.add('show'); }
 function closeSlackModal() { document.getElementById('slack-modal').classList.remove('show'); }
-function showCalendarSetup() { document.getElementById('calendar-modal').classList.add('show'); }
+function showCalendarSetup() {
+  document.getElementById('calendar-modal').classList.add('show');
+  checkGoogleStatus();
+}
 function closeCalendarModal() { document.getElementById('calendar-modal').classList.remove('show'); }
+
+// Google OAuth functions
+async function checkGoogleStatus() {
+  try {
+    const res = await fetch(API + '/oauth/google/status');
+    const data = await res.json();
+
+    const connectedEl = document.getElementById('google-connected');
+    const notConnectedEl = document.getElementById('google-not-connected');
+    const connectBtn = document.getElementById('google-connect-btn');
+    const disconnectBtn = document.getElementById('google-disconnect-btn');
+
+    if (data.is_authenticated) {
+      connectedEl.style.display = 'block';
+      notConnectedEl.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else {
+      connectedEl.style.display = 'none';
+      notConnectedEl.style.display = data.has_credentials ? 'block' : 'none';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+
+      if (!data.has_credentials) {
+        connectBtn.disabled = true;
+        connectBtn.textContent = 'OAuth not configured';
+        connectBtn.title = 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables not set';
+      } else {
+        connectBtn.disabled = false;
+        connectBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Connect with Google';
+      }
+    }
+  } catch (e) {
+    console.error('Error checking Google status:', e);
+  }
+}
+
+async function connectGoogle() {
+  try {
+    const res = await fetch(API + '/oauth/google/start');
+    const data = await res.json();
+
+    if (data.success && data.auth_url) {
+      // Redirect to Google OAuth
+      window.location.href = data.auth_url;
+    } else {
+      alert(data.error || 'Failed to start OAuth flow');
+    }
+  } catch (e) {
+    alert('Failed to connect: ' + e.message);
+  }
+}
+
+async function disconnectGoogle() {
+  if (!confirm('Disconnect Google account? You will need to reconnect to use Calendar, Drive, and Gmail features.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/oauth/google/disconnect');
+    const data = await res.json();
+
+    if (data.success) {
+      checkGoogleStatus();
+      checkIntegrations();
+    } else {
+      alert(data.message || 'Failed to disconnect');
+    }
+  } catch (e) {
+    alert('Failed to disconnect: ' + e.message);
+  }
+}
+
+// Handle OAuth callback results from URL params
+function handleOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const oauthSuccess = params.get('oauth_success');
+  const oauthError = params.get('oauth_error');
+
+  if (oauthSuccess === 'google') {
+    // Clean URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // Show success and refresh
+    setTimeout(() => {
+      showCalendarSetup();
+      checkIntegrations();
+    }, 100);
+  } else if (oauthError) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    alert('Google OAuth failed: ' + oauthError);
+  }
+}
+
+// Call on page load
+document.addEventListener('DOMContentLoaded', handleOAuthCallback);
 function showGmailSetup() { document.getElementById('gmail-modal').classList.add('show'); }
 function closeGmailModal() { document.getElementById('gmail-modal').classList.remove('show'); }
 function showAtlassianSetup() { document.getElementById('atlassian-modal').classList.add('show'); }

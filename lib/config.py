@@ -103,7 +103,45 @@ DIA_BOOKMARKS = os.path.expanduser("~/Library/Application Support/Dia/User Data/
 # Google API
 # =============================================================================
 
+# OAuth scopes for Google services
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+ALL_SCOPES = SCOPES + DRIVE_SCOPES + GMAIL_SCOPES
+
+# Embedded OAuth credentials (loaded from environment or defaults)
+# These are safe to embed for installed/desktop apps - security comes from user consent
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+
+def get_oauth_credentials_config():
+    """Get OAuth credentials config, preferring user's file over embedded."""
+    # If user has their own credentials file, use that (advanced users)
+    if os.path.exists(CREDENTIALS_PATH):
+        try:
+            import json
+            with open(CREDENTIALS_PATH, 'r') as f:
+                data = json.load(f)
+                # Handle both formats: {"installed": {...}} and {"web": {...}}
+                if 'installed' in data:
+                    return data['installed']
+                elif 'web' in data:
+                    return data['web']
+                return data
+        except Exception as e:
+            logger.error(f"Error reading credentials file: {e}")
+
+    # Otherwise use embedded credentials (if available)
+    if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+        return {
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'auth_uri': 'https://accounts.google.com/o/oauth2/auth',
+            'token_uri': 'https://oauth2.googleapis.com/token',
+            'redirect_uris': ['http://127.0.0.1:8765/oauth/callback']
+        }
+
+    return None
 
 # Try to import Google API libraries
 try:

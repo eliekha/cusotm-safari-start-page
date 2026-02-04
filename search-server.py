@@ -54,6 +54,8 @@ from lib.atlassian import (
 
 from lib.google_services import (
     authenticate_google, get_meeting_by_id, search_google_drive,
+    get_oauth_url, handle_oauth_callback,
+    has_oauth_credentials, is_google_authenticated, disconnect_google,
 )
 
 from lib.cli import (
@@ -155,6 +157,15 @@ class SearchHandler(BaseHTTPRequestHandler):
         # Setup page
         elif path == "/setup":
             self.handle_setup_page()
+        # OAuth endpoints
+        elif path == "/oauth/google/start":
+            self.handle_oauth_google_start()
+        elif path == "/oauth/callback":
+            self.handle_oauth_callback(params)
+        elif path == "/oauth/google/status":
+            self.handle_oauth_google_status()
+        elif path == "/oauth/google/disconnect":
+            self.handle_oauth_google_disconnect()
         # Installer endpoints
         elif path == "/installer":
             self.handle_installer_page()
@@ -1024,7 +1035,79 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             "node_fda": node_fda,
             "python_path": python_path
         })
-    
+
+    # ==========================================================================
+    # OAuth Endpoints
+    # ==========================================================================
+
+    def handle_oauth_google_start(self):
+        """Start Google OAuth flow - returns URL to redirect user to."""
+        if not has_oauth_credentials():
+            self.send_json({
+                "success": False,
+                "error": "No OAuth credentials configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
+            })
+            return
+
+        auth_url, state = get_oauth_url()
+        if auth_url:
+            self.send_json({
+                "success": True,
+                "auth_url": auth_url,
+                "state": state
+            })
+        else:
+            self.send_json({
+                "success": False,
+                "error": state  # state contains error message on failure
+            })
+
+    def handle_oauth_callback(self, params):
+        """Handle OAuth callback from Google."""
+        code = params.get('code', [None])[0]
+        error = params.get('error', [None])[0]
+
+        if error:
+            # Redirect to installer with error
+            self.send_response(302)
+            self.send_header('Location', f'/installer.html?oauth_error={error}')
+            self.end_headers()
+            return
+
+        if not code:
+            self.send_response(302)
+            self.send_header('Location', '/installer.html?oauth_error=no_code')
+            self.end_headers()
+            return
+
+        success, message = handle_oauth_callback(code)
+
+        if success:
+            # Redirect to installer with success
+            self.send_response(302)
+            self.send_header('Location', '/installer.html?oauth_success=google')
+            self.end_headers()
+        else:
+            self.send_response(302)
+            self.send_header('Location', f'/installer.html?oauth_error={message}')
+            self.end_headers()
+
+    def handle_oauth_google_status(self):
+        """Check Google OAuth status."""
+        self.send_json({
+            "has_credentials": has_oauth_credentials(),
+            "is_authenticated": is_google_authenticated(),
+            "token_exists": os.path.exists(TOKEN_PATH)
+        })
+
+    def handle_oauth_google_disconnect(self):
+        """Disconnect Google account."""
+        success = disconnect_google()
+        self.send_json({
+            "success": success,
+            "message": "Disconnected from Google" if success else "Failed to disconnect"
+        })
+
     def handle_service_health(self):
         """Check health of all BriefDesk services."""
         import socket

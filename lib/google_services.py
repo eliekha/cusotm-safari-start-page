@@ -6,9 +6,10 @@ import glob
 from datetime import datetime, timedelta
 
 from .config import (
-    logger, TOKEN_PATH, CREDENTIALS_PATH, SCOPES,
+    logger, TOKEN_PATH, CREDENTIALS_PATH, SCOPES, ALL_SCOPES,
     GOOGLE_API_AVAILABLE, GOOGLE_DRIVE_PATHS,
-    Request, Credentials, InstalledAppFlow, build
+    Request, Credentials, InstalledAppFlow, build,
+    get_oauth_credentials_config, GOOGLE_CLIENT_ID
 )
 
 # =============================================================================
@@ -16,48 +17,147 @@ from .config import (
 # =============================================================================
 
 def authenticate_google():
-    """Run OAuth flow for Google Calendar."""
+    """Run OAuth flow for Google Calendar (CLI mode)."""
     if not GOOGLE_API_AVAILABLE:
         print("Google API libraries not installed. Run: pip3 install google-auth-oauthlib google-api-python-client")
         return False
-    
-    if not os.path.exists(CREDENTIALS_PATH):
-        print(f"Credentials file not found at {CREDENTIALS_PATH}")
-        print("Please download credentials.json from Google Cloud Console")
+
+    oauth_config = get_oauth_credentials_config()
+    if not oauth_config:
+        print(f"No OAuth credentials available.")
+        print(f"Either place google_credentials.json in {CREDENTIALS_PATH}")
+        print("Or set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables")
         return False
-    
+
     print("Starting OAuth flow...")
-    flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
+
+    # Create flow from config dict
+    if os.path.exists(CREDENTIALS_PATH):
+        flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, ALL_SCOPES)
+    else:
+        flow = InstalledAppFlow.from_client_config(
+            {'installed': oauth_config},
+            ALL_SCOPES
+        )
+
     creds = flow.run_local_server(port=0)
-    
+
     with open(TOKEN_PATH, 'wb') as token:
         pickle.dump(creds, token)
-    
+
     print("Success! Token saved.")
     return True
+
+
+def get_oauth_url(redirect_uri='http://127.0.0.1:8765/oauth/callback'):
+    """Generate OAuth authorization URL for web-based flow."""
+    if not GOOGLE_API_AVAILABLE:
+        return None, "Google API libraries not installed"
+
+    oauth_config = get_oauth_credentials_config()
+    if not oauth_config:
+        return None, "No OAuth credentials configured"
+
+    try:
+        from google_auth_oauthlib.flow import Flow
+
+        # Create flow from config
+        flow = Flow.from_client_config(
+            {'installed': oauth_config},
+            scopes=ALL_SCOPES,
+            redirect_uri=redirect_uri
+        )
+
+        auth_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent'
+        )
+
+        return auth_url, state
+    except Exception as e:
+        logger.error(f"Error generating OAuth URL: {e}")
+        return None, str(e)
+
+
+def handle_oauth_callback(code, redirect_uri='http://127.0.0.1:8765/oauth/callback'):
+    """Handle OAuth callback and save credentials."""
+    if not GOOGLE_API_AVAILABLE:
+        return False, "Google API libraries not installed"
+
+    oauth_config = get_oauth_credentials_config()
+    if not oauth_config:
+        return False, "No OAuth credentials configured"
+
+    try:
+        from google_auth_oauthlib.flow import Flow
+
+        flow = Flow.from_client_config(
+            {'installed': oauth_config},
+            scopes=ALL_SCOPES,
+            redirect_uri=redirect_uri
+        )
+
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+
+        with open(TOKEN_PATH, 'wb') as token:
+            pickle.dump(creds, token)
+
+        logger.info("OAuth credentials saved successfully")
+        return True, "Success"
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        return False, str(e)
 
 
 def get_google_credentials():
     """Get valid Google credentials, refreshing if needed."""
     if not GOOGLE_API_AVAILABLE:
         return None
-    
+
     if not os.path.exists(TOKEN_PATH):
         return None
-    
+
     try:
         with open(TOKEN_PATH, 'rb') as token:
             creds = pickle.load(token)
-        
+
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            with open(TOKEN_PATH, 'wb') as token:
-                pickle.dump(creds, token)
-        
+            try:
+                creds.refresh(Request())
+                with open(TOKEN_PATH, 'wb') as token:
+                    pickle.dump(creds, token)
+            except Exception as e:
+                logger.error(f"Error refreshing credentials: {e}")
+                return None
+
         return creds if creds and creds.valid else None
     except Exception as e:
         logger.error(f"Error loading Google credentials: {e}")
         return None
+
+
+def has_oauth_credentials():
+    """Check if OAuth credentials (embedded or file) are available."""
+    return get_oauth_credentials_config() is not None
+
+
+def is_google_authenticated():
+    """Check if user has valid Google authentication."""
+    return get_google_credentials() is not None
+
+
+def disconnect_google():
+    """Remove Google authentication."""
+    try:
+        if os.path.exists(TOKEN_PATH):
+            os.remove(TOKEN_PATH)
+            logger.info("Google credentials removed")
+            return True
+    except Exception as e:
+        logger.error(f"Error removing credentials: {e}")
+    return False
 
 # =============================================================================
 # Calendar

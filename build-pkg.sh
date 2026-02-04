@@ -51,6 +51,17 @@ cp -r "$SCRIPT_DIR/assets" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null ||
 cp -r "$SCRIPT_DIR/icons" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/gdrive-mcp" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 
+# Embed Google OAuth credentials if provided
+if [[ -n "${GOOGLE_CLIENT_ID:-}" && -n "${GOOGLE_CLIENT_SECRET:-}" ]]; then
+    echo "🔑 Embedding Google OAuth credentials..."
+    CONFIG_FILE="$PKG_ROOT/usr/local/share/briefdesk/lib/config.py"
+    # Replace the empty defaults with actual values
+    sed -i '' "s|GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')|GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '${GOOGLE_CLIENT_ID}')|" "$CONFIG_FILE"
+    sed -i '' "s|GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')|GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '${GOOGLE_CLIENT_SECRET}')|" "$CONFIG_FILE"
+else
+    echo "⚠️  No GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET set - OAuth connect button will be disabled"
+fi
+
 # Make postinstall executable
 chmod +x "$PKG_SCRIPTS/postinstall"
 
