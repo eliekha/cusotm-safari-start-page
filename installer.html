@@ -939,6 +939,15 @@ h2 {
         </div>
         <button class="integration-action" onclick="showDriveSetup()">Setup</button>
       </div>
+
+      <div class="integration-item" id="int-devsai">
+        <div class="integration-icon" style="font-weight:600;color:#e0e0e0;">AI</div>
+        <div class="integration-info">
+          <div class="integration-name">Devs.ai (Search Service)</div>
+          <div class="integration-status" id="devsai-status">Checking...</div>
+        </div>
+        <button class="integration-action" onclick="showDevsaiSetup()">Setup</button>
+      </div>
       
       <span class="skip-link" onclick="goToStep(6)">Skip for now, configure later</span>
     </div>
@@ -1319,6 +1328,43 @@ h2 {
   </div>
 </div>
 
+<!-- DevsAI Setup Modal -->
+<div class="modal" id="devsai-modal">
+  <div class="modal-backdrop" onclick="closeDevsaiModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div style="font-weight:600;color:#e0e0e0;">AI</div>
+      <h3>Connect Devs.ai</h3>
+      <button class="modal-close" onclick="closeDevsaiModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    </div>
+    <div class="help-box" style="margin-bottom:16px;">
+      <strong>Status:</strong>
+      <div id="devsai-modal-status" style="margin-top:6px;color:var(--text-muted);">Checking...</div>
+      <div id="devsai-config-path" style="margin-top:6px;font-size:12px;color:var(--text-muted);"></div>
+      <div id="devsai-login-result" style="margin-top:8px;font-size:12px;color:var(--text-muted);"></div>
+    </div>
+    <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">
+      Click <strong>Start Login</strong> to open a browser window and authenticate. BriefDesk will handle the rest in the background.
+    </p>
+    <details style="margin-bottom:16px;">
+      <summary style="cursor:pointer;color:var(--text-muted);font-size:13px;">Manual login (Terminal)</summary>
+      <ol class="setup-steps" style="margin-top:12px;">
+        <li>Open Terminal</li>
+        <li>Run the command below to log in</li>
+      </ol>
+      <div class="copyable">
+        <code>~/.local/bin/devsai login --no-repl</code>
+        <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+      </div>
+    </details>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeDevsaiModal()">Close</button>
+      <button class="btn btn-secondary" onclick="checkDevsaiStatus()">Refresh Status</button>
+      <button class="btn btn-primary" id="devsai-login-btn" onclick="startDevsaiLogin()">Start Login</button>
+    </div>
+  </div>
+</div>
+
 <!-- Server Error Overlay -->
 <div id="server-error" class="server-error" style="display:none;">
   <div class="server-error-content">
@@ -1341,6 +1387,7 @@ h2 {
 
 <script>
 const API = 'http://localhost:18765';
+const SEARCH_SERVICE = 'http://127.0.0.1:19765';
 let currentStep = 1;
 let requirementsOk = false;
 let installComplete = false;
@@ -1571,6 +1618,9 @@ async function checkIntegrations() {
   } catch (e) {
     console.error('Failed to check integrations:', e);
   }
+
+  // DevsAI status (handled via search-service)
+  checkDevsaiStatus();
 }
 
 async function checkFDA() {
@@ -1822,6 +1872,105 @@ function showDriveSetup() {
   checkDriveModalStatus();
 }
 function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); }
+
+function showDevsaiSetup() {
+  document.getElementById('devsai-modal').classList.add('show');
+  checkDevsaiStatus();
+}
+function closeDevsaiModal() { document.getElementById('devsai-modal').classList.remove('show'); }
+
+async function startDevsaiLogin() {
+  const loginResult = document.getElementById('devsai-login-result');
+  const loginBtn = document.getElementById('devsai-login-btn');
+
+  if (loginResult) loginResult.textContent = 'Starting login...';
+  if (loginBtn) loginBtn.disabled = true;
+
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/devsai/login', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.alreadyAuthenticated) {
+      if (loginResult) loginResult.textContent = 'Already logged in.';
+    } else if (data.success) {
+      if (loginResult) loginResult.textContent = 'Browser opened. Complete login, then refresh status.';
+    } else {
+      if (loginResult) loginResult.textContent = data.error || 'Failed to start login.';
+    }
+  } catch (e) {
+    if (loginResult) loginResult.textContent = 'Failed to start login: ' + e.message;
+  } finally {
+    if (loginBtn) loginBtn.disabled = false;
+    setTimeout(checkDevsaiStatus, 1500);
+  }
+}
+
+async function checkDevsaiStatus() {
+  const statusEl = document.getElementById('devsai-status');
+  const itemEl = document.getElementById('int-devsai');
+  const modalStatus = document.getElementById('devsai-modal-status');
+  const configPathEl = document.getElementById('devsai-config-path');
+  const loginBtn = document.getElementById('devsai-login-btn');
+  const loginResult = document.getElementById('devsai-login-result');
+
+  if (!statusEl || !itemEl) return;
+
+  statusEl.textContent = 'Checking...';
+  if (modalStatus) modalStatus.textContent = 'Checking...';
+  if (configPathEl) configPathEl.textContent = '';
+  if (loginResult) loginResult.textContent = '';
+
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/devsai/status');
+    const data = await res.json();
+
+    if (!data.installed) {
+      statusEl.textContent = 'Not installed';
+      if (modalStatus) modalStatus.textContent = 'DevsAI not installed';
+      itemEl.classList.remove('configured');
+      if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Not Installed';
+      }
+      return;
+    }
+
+    if (data.authenticated) {
+      statusEl.textContent = 'Connected';
+      if (modalStatus) {
+        const userLabel = data.userEmail ? `Logged in as ${data.userEmail}` : 'Logged in';
+        modalStatus.textContent = userLabel;
+      }
+      itemEl.classList.add('configured');
+      if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Logged In';
+      }
+    } else {
+      statusEl.textContent = 'Not logged in';
+      if (modalStatus) {
+        modalStatus.textContent = data.initError || 'Not logged in';
+      }
+      itemEl.classList.remove('configured');
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Start Login';
+      }
+    }
+
+    if (configPathEl && data.configPath) {
+      configPathEl.textContent = `Config: ${data.configPath}`;
+    }
+  } catch (e) {
+    statusEl.textContent = 'Unavailable';
+    if (modalStatus) modalStatus.textContent = 'Unable to reach search service';
+    itemEl.classList.remove('configured');
+    if (loginBtn) {
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Start Login';
+    }
+  }
+}
 
 // Gmail/Drive use same Google OAuth status
 async function checkGmailModalStatus() {

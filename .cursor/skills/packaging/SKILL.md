@@ -39,6 +39,7 @@ The script performs these steps:
    - `assets/` - Logo images
    - `icons/` - Browser icons (Chrome, Firefox, Safari)
    - `gdrive-mcp/` - Google Drive MCP server
+   - `devsai-*.tgz` - Bundled DevsAI CLI tarball (from `./devsai/`)
 
 4. **Build Component Package**
    ```bash
@@ -74,8 +75,9 @@ Runs after file installation to set up user environment:
    - `com.briefdesk.static` (port 8765) - Static file server
    - `com.briefdesk.server` (port 18765) - Main API server
    - `com.briefdesk.search-service` (port 18766) - Node.js MCP service
-6. **Build gdrive-mcp** - Runs `npm install && npm run build` if present
-7. **Start Services** - Bootstraps all LaunchAgents
+6. **Install DevsAI CLI (if bundled)** - Installs from `devsai.tgz` into `~/.local/share/devsai`
+7. **Build gdrive-mcp** - Runs `npm install && npm run build` if present
+8. **Start Services** - Bootstraps all LaunchAgents
 
 ## Key Design Decisions
 
@@ -131,6 +133,17 @@ To include new files in the package:
    ```
 
 3. **Rebuild** - Run `./build-pkg.sh`
+
+## Bundling DevsAI
+
+To bundle DevsAI in the package:
+
+1. Place a tarball in `./devsai/` (e.g., `devsai-latest.tgz`)
+2. Build the package — the newest `devsai-*.tgz` is copied to:
+   `/usr/local/share/briefdesk/devsai/devsai.tgz`
+3. Postinstall installs it to `~/.local/share/devsai/` and creates:
+   - `~/.local/share/devsai/devsai.sh`
+   - `~/.local/bin/devsai` (symlink)
 
 ## Testing
 

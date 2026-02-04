@@ -11,6 +11,8 @@
  * Endpoints:
  *   GET /health - Health check
  *   GET /status - MCP server connection status
+ *   GET /devsai/status - DevsAI auth + config status
+ *   POST /devsai/login - Start DevsAI browser login
  *   GET /reconnect?mcp=name - Force reconnect a specific MCP (after re-auth)
  *   POST /search - AI-powered search across sources
  *   POST /query - Raw AI query with MCP tools
@@ -29,10 +31,21 @@ import os from 'os';
 import path from 'path';
 
 const HOME = os.homedir();
-const LOCAL_DEVSAI_PATH = path.join(HOME, '.local/share/devsai/dist/lib');
+const DEVSAI_BASE_PATH = process.env.DEVSAI_LIB_PATH
+  ? path.join(process.env.DEVSAI_LIB_PATH, 'dist', 'lib')
+  : path.join(HOME, '.local/share/devsai/dist/lib');
+
+function resolveDevsaiCliPath() {
+  const candidates = [
+    path.join(HOME, '.local/share/devsai/devsai.sh'),
+    path.join(HOME, '.local/bin/devsai'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
 
 let MCPManager, createApiClient, getMCPToolDefinitions, executeMCPTool, isMCPTool;
-let isAuthenticated, getConfig;
+let isAuthenticated, getConfig, getConfigPath, getApiKey;
+let devsaiLoaded = false;
 let CLI_TOOLS, executeSearchFiles, executeFindFiles, executeReadFile, executeListDirectory;
 
 const PORT = parseInt(process.env.SEARCH_SERVICE_PORT || '19765', 10);
@@ -44,6 +57,7 @@ export let apiClient = null;
 export let initialized = false;
 export let initError = null;
 export let gdriveMcpAvailable = false;
+let apiKeyCache = null;
 
 // GDrive MCP paths
 const GDRIVE_MCP_PATH = path.join(HOME, '.local/share/briefdesk/gdrive-mcp');
@@ -219,6 +233,21 @@ export function _resetState() {
   initialized = false;
   initError = null;
   gdriveMcpAvailable = false;
+  apiKeyCache = null;
+}
+
+function refreshApiClient() {
+  const apiKey = getApiKey ? getApiKey() : null;
+  if (!apiKey) {
+    apiClient = null;
+    apiKeyCache = null;
+    return false;
+  }
+  if (!apiClient || apiKeyCache !== apiKey) {
+    apiClient = createApiClient();
+    apiKeyCache = apiKey;
+  }
+  return true;
 }
 
 /**
@@ -227,28 +256,31 @@ export function _resetState() {
 export async function loadDevsaiModules() {
   try {
     // Use the local devsai installation (has Full Disk Access)
-    const mcpModule = await import(`file://${LOCAL_DEVSAI_PATH}/mcp/index.js`);
+    const mcpModule = await import(`file://${DEVSAI_BASE_PATH}/mcp/index.js`);
     MCPManager = mcpModule.MCPManager;
     getMCPToolDefinitions = mcpModule.getMCPToolDefinitions;
     executeMCPTool = mcpModule.executeMCPTool;
     isMCPTool = mcpModule.isMCPTool;
     
-    const apiModule = await import(`file://${LOCAL_DEVSAI_PATH}/api-client.js`);
+    const apiModule = await import(`file://${DEVSAI_BASE_PATH}/api-client.js`);
     createApiClient = apiModule.createApiClient;
     
-    const configModule = await import(`file://${LOCAL_DEVSAI_PATH}/config.js`);
+    const configModule = await import(`file://${DEVSAI_BASE_PATH}/config.js`);
     isAuthenticated = configModule.isAuthenticated;
     getConfig = configModule.getConfig;
+    getConfigPath = configModule.getConfigPath;
+    getApiKey = configModule.getApiKey;
     
     // Load CLI tools for file operations
-    const cliToolsModule = await import(`file://${LOCAL_DEVSAI_PATH}/cli-tools.js`);
+    const cliToolsModule = await import(`file://${DEVSAI_BASE_PATH}/cli-tools.js`);
     CLI_TOOLS = cliToolsModule.CLI_TOOLS;
     executeSearchFiles = cliToolsModule.executeSearchFiles;
     executeFindFiles = cliToolsModule.executeFindFiles;
     executeReadFile = cliToolsModule.executeReadFile;
     executeListDirectory = cliToolsModule.executeListDirectory;
     
-    console.log('[SearchService] Loaded devsai modules from:', LOCAL_DEVSAI_PATH);
+    console.log('[SearchService] Loaded devsai modules from:', DEVSAI_BASE_PATH);
+    devsaiLoaded = true;
     return true;
   } catch (err) {
     console.error('[SearchService] Failed to load devsai modules:', err.message);
@@ -396,9 +428,14 @@ export async function initialize() {
     return false;
   }
   
-  // Create API client
-  apiClient = createApiClient();
-  console.log('[SearchService] API client created');
+  // Create API client (refreshable for token changes)
+  if (refreshApiClient()) {
+    console.log('[SearchService] API client created');
+  } else {
+    initError = 'Not authenticated. Run: devsai login';
+    console.error('[SearchService]', initError);
+    return false;
+  }
   
   // Initialize MCP manager
   mcpManager = MCPManager.getInstance();
@@ -617,20 +654,45 @@ IMPORTANT FOR GOOGLE DRIVE:
     onProgress({ type: 'thinking', iteration: iterations });
     
     try {
-      const result = await apiClient.streamChatWithTools(
-        {
-          model,
-          messages,
-          tools,
-          source: 'CLI',
-        },
-        // Streaming callback for partial content
-        (chunk) => {
-          if (chunk && chunk.trim()) {
-            onProgress({ type: 'content', content: chunk });
+      if (!refreshApiClient()) {
+        throw new Error('Not authenticated. Run: devsai login');
+      }
+
+      let result;
+      try {
+        result = await apiClient.streamChatWithTools(
+          {
+            model,
+            messages,
+            tools,
+            source: 'CLI',
+          },
+          // Streaming callback for partial content
+          (chunk) => {
+            if (chunk && chunk.trim()) {
+              onProgress({ type: 'content', content: chunk });
+            }
           }
+        );
+      } catch (err) {
+        if (err?.message?.includes('Unauthorized') && refreshApiClient()) {
+          result = await apiClient.streamChatWithTools(
+            {
+              model,
+              messages,
+              tools,
+              source: 'CLI',
+            },
+            (chunk) => {
+              if (chunk && chunk.trim()) {
+                onProgress({ type: 'content', content: chunk });
+              }
+            }
+          );
+        } else {
+          throw err;
         }
-      );
+      }
       
       const responseText = result.content;
       const toolCalls = result.toolCalls || [];
@@ -869,6 +931,64 @@ export async function handleRequest(req, res) {
       });
       return;
     }
+
+    // DevsAI status (auth + config)
+    if (path === '/devsai/status') {
+      if (!devsaiLoaded) {
+        const loaded = await loadDevsaiModules();
+        if (!loaded) {
+          sendJson(res, {
+            installed: false,
+            authenticated: false,
+            error: 'DevsAI not installed',
+          });
+          return;
+        }
+      }
+
+      const config = getConfig ? getConfig() : {};
+      sendJson(res, {
+        installed: true,
+        authenticated: isAuthenticated ? isAuthenticated() : false,
+        configPath: getConfigPath ? getConfigPath() : null,
+        userEmail: config.userEmail || null,
+        orgName: config.orgName || null,
+        apiUrl: config.apiUrl || null,
+        initError,
+      });
+      return;
+    }
+
+    // DevsAI login (open browser + exit without REPL)
+    if (path === '/devsai/login' && req.method === 'POST') {
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+
+      if (isAuthenticated && isAuthenticated()) {
+        sendJson(res, { success: true, alreadyAuthenticated: true });
+        return;
+      }
+
+      const devsaiCli = resolveDevsaiCliPath();
+      if (!devsaiCli) {
+        sendJson(res, { success: false, error: 'DevsAI CLI not found' }, 404);
+        return;
+      }
+
+      try {
+        const child = spawn(devsaiCli, ['login', '--no-repl'], {
+          detached: true,
+          stdio: 'ignore',
+          env: { ...process.env, HOME },
+        });
+        child.unref();
+        sendJson(res, { success: true, launched: true });
+      } catch (err) {
+        sendJson(res, { success: false, error: err.message }, 500);
+      }
+      return;
+    }
     
     // MCP status
     if (path === '/status') {
@@ -1105,7 +1225,7 @@ export async function main() {
 }
 
 // Export constants for testing
-export { PORT, HOST, HOME, LOCAL_DEVSAI_PATH };
+export { PORT, HOST, HOME, DEVSAI_BASE_PATH };
 
 // Only run if executed directly (not imported)
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;

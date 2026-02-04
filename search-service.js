@@ -11,20 +11,29 @@
  * Endpoints:
  *   GET /health - Health check
  *   GET /status - MCP server connection status
+ *   GET /devsai/status - DevsAI auth + config status
+ *   POST /devsai/login - Start DevsAI browser login
  *   POST /search - AI-powered search across sources
  *   POST /query - Raw AI query with MCP tools
  */
 
 import http from 'http';
 import { URL } from 'url';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { spawn } from 'child_process';
 
-// Import devsai library components
-// When installed via npm: 'devsai/dist/lib/...'
-// For local dev, we'll use the local path
-const DEVSAI_PATH = process.env.DEVSAI_LIB_PATH || 'devsai';
+// Import devsai library components from local installation
+// Uses ~/.local/share/devsai/dist/ which has Full Disk Access
+const HOME = os.homedir();
+const DEVSAI_BASE_PATH = process.env.DEVSAI_LIB_PATH
+  ? path.join(process.env.DEVSAI_LIB_PATH, 'dist', 'lib')
+  : path.join(HOME, '.local/share/devsai/dist/lib');
 
 let MCPManager, createApiClient, getMCPToolDefinitions, executeMCPTool, isMCPTool;
-let isAuthenticated, getConfig;
+let isAuthenticated, getConfig, getConfigPath;
+let devsaiLoaded = false;
 
 const PORT = parseInt(process.env.SEARCH_SERVICE_PORT || '19765', 10);
 const HOST = '127.0.0.1';
@@ -40,48 +49,59 @@ let initError = null;
  */
 async function loadDevsaiModules() {
   try {
-    // Try npm-installed devsai first
-    const mcpModule = await import(`${DEVSAI_PATH}/dist/lib/mcp/index.js`);
+    // Use the local devsai installation (has Full Disk Access)
+    const mcpModule = await import(`file://${DEVSAI_BASE_PATH}/mcp/index.js`);
     MCPManager = mcpModule.MCPManager;
     getMCPToolDefinitions = mcpModule.getMCPToolDefinitions;
     executeMCPTool = mcpModule.executeMCPTool;
     isMCPTool = mcpModule.isMCPTool;
     
-    const apiModule = await import(`${DEVSAI_PATH}/dist/lib/api-client.js`);
+    const apiModule = await import(`file://${DEVSAI_BASE_PATH}/api-client.js`);
     createApiClient = apiModule.createApiClient;
     
-    const configModule = await import(`${DEVSAI_PATH}/dist/lib/config.js`);
+    const configModule = await import(`file://${DEVSAI_BASE_PATH}/config.js`);
     isAuthenticated = configModule.isAuthenticated;
     getConfig = configModule.getConfig;
+    getConfigPath = configModule.getConfigPath;
     
-    console.log('[SearchService] Loaded devsai modules from:', DEVSAI_PATH);
+    console.log('[SearchService] Loaded devsai modules from:', DEVSAI_BASE_PATH);
+    devsaiLoaded = true;
     return true;
   } catch (err) {
     console.error('[SearchService] Failed to load devsai modules:', err.message);
     
-    // Try local development path
+    // Fall back to npm package resolution
     try {
-      const localPath = '/Users/elias.khalifeh/Documents/GitHub/devs-ai-cli';
-      const mcpModule = await import(`${localPath}/dist/lib/mcp/index.js`);
+      const mcpModule = await import('devsai/dist/lib/mcp/index.js');
       MCPManager = mcpModule.MCPManager;
       getMCPToolDefinitions = mcpModule.getMCPToolDefinitions;
       executeMCPTool = mcpModule.executeMCPTool;
       isMCPTool = mcpModule.isMCPTool;
       
-      const apiModule = await import(`${localPath}/dist/lib/api-client.js`);
+      const apiModule = await import('devsai/dist/lib/api-client.js');
       createApiClient = apiModule.createApiClient;
       
-      const configModule = await import(`${localPath}/dist/lib/config.js`);
+      const configModule = await import('devsai/dist/lib/config.js');
       isAuthenticated = configModule.isAuthenticated;
       getConfig = configModule.getConfig;
+      getConfigPath = configModule.getConfigPath;
       
-      console.log('[SearchService] Loaded devsai modules from local dev path');
+      console.log('[SearchService] Loaded devsai modules from npm package');
+      devsaiLoaded = true;
       return true;
-    } catch (localErr) {
-      console.error('[SearchService] Failed to load from local path:', localErr.message);
+    } catch (packageErr) {
+      console.error('[SearchService] Failed to load from npm package:', packageErr.message);
       return false;
     }
   }
+}
+
+function resolveDevsaiCliPath() {
+  const candidates = [
+    path.join(HOME, '.local/share/devsai/devsai.sh'),
+    path.join(HOME, '.local/bin/devsai'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
 }
 
 /**
@@ -323,6 +343,64 @@ async function handleRequest(req, res) {
         status: initialized ? 'ok' : 'initializing',
         error: initError,
       });
+      return;
+    }
+
+    // DevsAI status (auth + config)
+    if (path === '/devsai/status') {
+      if (!devsaiLoaded) {
+        const loaded = await loadDevsaiModules();
+        if (!loaded) {
+          sendJson(res, {
+            installed: false,
+            authenticated: false,
+            error: 'DevsAI not installed',
+          });
+          return;
+        }
+      }
+
+      const config = getConfig ? getConfig() : {};
+      sendJson(res, {
+        installed: true,
+        authenticated: isAuthenticated ? isAuthenticated() : false,
+        configPath: getConfigPath ? getConfigPath() : null,
+        userEmail: config.userEmail || null,
+        orgName: config.orgName || null,
+        apiUrl: config.apiUrl || null,
+        initError,
+      });
+      return;
+    }
+
+    // DevsAI login (open browser + exit without REPL)
+    if (path === '/devsai/login' && req.method === 'POST') {
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+
+      if (isAuthenticated && isAuthenticated()) {
+        sendJson(res, { success: true, alreadyAuthenticated: true });
+        return;
+      }
+
+      const devsaiCli = resolveDevsaiCliPath();
+      if (!devsaiCli) {
+        sendJson(res, { success: false, error: 'DevsAI CLI not found' }, 404);
+        return;
+      }
+
+      try {
+        const child = spawn(devsaiCli, ['login', '--no-repl'], {
+          detached: true,
+          stdio: 'ignore',
+          env: { ...process.env, HOME },
+        });
+        child.unref();
+        sendJson(res, { success: true, launched: true });
+      } catch (err) {
+        sendJson(res, { success: false, error: err.message }, 500);
+      }
       return;
     }
     

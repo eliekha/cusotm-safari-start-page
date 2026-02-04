@@ -76,11 +76,49 @@ elif [ -f "/opt/homebrew/opt/node/bin/node" ]; then
     NODE_PATH="/opt/homebrew/opt/node/bin/node"
 fi
 
+# Find npm (for devsai install)
+NPM_PATH=""
+if [ -f "/usr/local/bin/npm" ]; then
+    NPM_PATH="/usr/local/bin/npm"
+elif [ -f "/opt/homebrew/bin/npm" ]; then
+    NPM_PATH="/opt/homebrew/bin/npm"
+elif [ -n "$NODE_PATH" ] && [ -f "$(dirname "$NODE_PATH")/npm" ]; then
+    NPM_PATH="$(dirname "$NODE_PATH")/npm"
+else
+    NPM_PATH="$(command -v npm 2>/dev/null || true)"
+fi
+
 # Set up Node for devsai if found
 if [ -n "$NODE_PATH" ]; then
     cp "$NODE_PATH" "$DEVSAI_DIR/node"
     chmod +x "$DEVSAI_DIR/node"
     chown "$INSTALL_USER" "$DEVSAI_DIR/node"
+fi
+
+# Install devsai CLI from bundled tarball (if available)
+DEVSAI_TARBALL="$INSTALL_DIR/devsai/devsai.tgz"
+if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
+    echo "Installing devsai CLI from bundled tarball..."
+    sudo -u "$INSTALL_USER" "$NPM_PATH" install --prefix "$DEVSAI_DIR" "$DEVSAI_TARBALL" --silent 2>/dev/null || \
+        echo "WARNING: devsai install failed. You may need to reinstall devsai manually."
+
+    if [ ! -f "$DEVSAI_DIR/node_modules/devsai/dist/index.js" ]; then
+        echo "WARNING: devsai install incomplete (missing dist/index.js). Verify npm install and rerun."
+    fi
+
+    # Create devsai wrapper (user-local)
+    cat > "$DEVSAI_DIR/devsai.sh" << 'EOF'
+#!/bin/bash
+exec "$HOME/.local/share/devsai/node" "$HOME/.local/share/devsai/node_modules/devsai/dist/index.js" "$@"
+EOF
+    chmod +x "$DEVSAI_DIR/devsai.sh"
+    chown "$INSTALL_USER" "$DEVSAI_DIR/devsai.sh"
+
+    # Add a convenient executable in ~/.local/bin
+    sudo -u "$INSTALL_USER" mkdir -p "$USER_HOME/.local/bin"
+    sudo -u "$INSTALL_USER" ln -sf "$DEVSAI_DIR/devsai.sh" "$USER_HOME/.local/bin/devsai"
+else
+    echo "WARNING: devsai tarball or npm not found. devsai CLI will not be installed."
 fi
 
 # Create LaunchAgent for static server
@@ -170,6 +208,8 @@ if [ -n "$NODE_PATH" ]; then
     <string>$INSTALL_DIR</string>
     <key>EnvironmentVariables</key>
     <dict>
+        <key>DEVSAI_LIB_PATH</key>
+        <string>$DEVSAI_DIR/node_modules/devsai</string>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>

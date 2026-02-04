@@ -51,6 +51,16 @@ cp -r "$SCRIPT_DIR/assets" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null ||
 cp -r "$SCRIPT_DIR/icons" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/gdrive-mcp" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 
+# Bundle devsai tarball (from repo-local folder for CI)
+DEVSAI_TARBALL_SOURCE=$(ls -t "$SCRIPT_DIR/devsai"/devsai-*.tgz 2>/dev/null | head -1)
+if [ -n "$DEVSAI_TARBALL_SOURCE" ]; then
+    mkdir -p "$PKG_ROOT/usr/local/share/briefdesk/devsai"
+    cp "$DEVSAI_TARBALL_SOURCE" "$PKG_ROOT/usr/local/share/briefdesk/devsai/devsai.tgz"
+    echo "📦 Bundled devsai tarball: $(basename "$DEVSAI_TARBALL_SOURCE")"
+else
+    echo "⚠️  No devsai tarball found in ./devsai (devsai-*.tgz)"
+fi
+
 # Embed Google OAuth credentials if provided
 if [[ -n "${GOOGLE_CLIENT_ID:-}" && -n "${GOOGLE_CLIENT_SECRET:-}" ]]; then
     echo "🔑 Embedding Google OAuth credentials..."

@@ -83,6 +83,11 @@ The installer is **signed and notarized** by Apple, so it installs without Gatek
 
 The installer automatically sets up LaunchAgents and copies all necessary files.
 
+**DevsAI bundling (optional, for Meeting Prep / Productivity Hub):**
+- Drop a devsai tarball into `./devsai/` (e.g., `devsai-latest.tgz`)
+- The package build will pick the newest `devsai-*.tgz` and bundle it
+- Postinstall installs it into `~/.local/share/devsai/` and exposes `~/.local/bin/devsai`
+
 ### After Installation
 
 1. **Grant Full Disk Access** (required for Safari history and Google Drive):
@@ -95,6 +100,12 @@ The installer automatically sets up LaunchAgents and copies all necessary files.
    | Node | `~/.local/share/devsai/node` | Google Drive search (Hub) |
    
    **Note:** BriefDesk uses a Python wrapper script that calls your system Python. The Setup Wizard automatically detects and displays the correct Python path to add to Full Disk Access.
+
+2. **Log in to DevsAI (for AI search / Meeting Prep)**:
+   ```bash
+   ~/.local/bin/devsai login
+   ```
+   This stores credentials in the DevsAI config file and enables the search service.
 
 2. **Set your browser homepage:**
    - Safari → Settings → General → Homepage: `http://127.0.0.1:8765/start.html`
