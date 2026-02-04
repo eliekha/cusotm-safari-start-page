@@ -10,6 +10,17 @@ VERSION="1.0.0"
 IDENTIFIER="com.briefdesk.app"
 OUTPUT_PKG="$SCRIPT_DIR/BriefDesk-$VERSION.pkg"
 
+# Check for unsigned flag
+UNSIGNED=false
+if [[ "$1" == "--unsigned" ]]; then
+    UNSIGNED=true
+    echo "⚠️  Building UNSIGNED package (for testing only)"
+fi
+
+# Code signing & notarization config
+DEVELOPER_ID="Developer ID Installer: Elias Khalifeh (9XR2RP3P8V)"
+TEAM_ID="9XR2RP3P8V"
+
 echo "🏗️  Building BriefDesk.pkg..."
 
 # Clean previous build
@@ -147,18 +158,41 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
 </html>
 EOF
 
-echo "📦 Building final installer..."
-productbuild \
-    --distribution "$BUILD_DIR/distribution.xml" \
-    --resources "$BUILD_DIR" \
-    --package-path "$BUILD_DIR" \
-    "$OUTPUT_PKG"
+if [[ "$UNSIGNED" == "true" ]]; then
+    echo "📦 Building unsigned installer..."
+    productbuild \
+        --distribution "$BUILD_DIR/distribution.xml" \
+        --resources "$BUILD_DIR" \
+        --package-path "$BUILD_DIR" \
+        "$OUTPUT_PKG"
+    rm -rf "$BUILD_DIR"
+    echo ""
+    echo "✅ Unsigned package built: $OUTPUT_PKG"
+else
+    # Require credentials for signed builds
+    : "${APPLE_ID:?Set APPLE_ID environment variable}"
+    : "${APP_PASSWORD:?Set APP_PASSWORD environment variable}"
 
-# Clean up
-rm -rf "$BUILD_DIR"
+    echo "📦 Building and signing installer..."
+    productbuild \
+        --distribution "$BUILD_DIR/distribution.xml" \
+        --resources "$BUILD_DIR" \
+        --package-path "$BUILD_DIR" \
+        --sign "$DEVELOPER_ID" \
+        "$OUTPUT_PKG"
 
-echo ""
-echo "✅ Package built successfully: $OUTPUT_PKG"
-echo ""
-echo "To install: double-click the .pkg file or run:"
-echo "  sudo installer -pkg $OUTPUT_PKG -target /"
+    rm -rf "$BUILD_DIR"
+
+    echo "🔐 Notarizing package with Apple..."
+    xcrun notarytool submit "$OUTPUT_PKG" \
+        --apple-id "$APPLE_ID" \
+        --password "$APP_PASSWORD" \
+        --team-id "$TEAM_ID" \
+        --wait
+
+    echo "📎 Stapling notarization ticket..."
+    xcrun stapler staple "$OUTPUT_PKG"
+
+    echo ""
+    echo "✅ Package signed and notarized: $OUTPUT_PKG"
+fi
