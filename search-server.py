@@ -542,11 +542,15 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                 minutes_until = int((start_utc - now).total_seconds() / 60)
                 
                 is_current = False
+                in_grace_period = False  # Meeting started < 10 min ago
                 if end_utc:
                     minutes_until_end = int((end_utc - now).total_seconds() / 60)
                     if minutes_until <= 0 and minutes_until_end > 0:
                         is_current = True
                         in_meeting = True
+                        # Grace period: meeting started less than 10 minutes ago
+                        if minutes_until >= -10:
+                            in_grace_period = True
                 
                 if end_utc and (end_utc - now).total_seconds() < 0:
                     continue
@@ -600,7 +604,8 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                     'attendees': attendees,
                     'meet_link': meet_link,
                     'minutes_until': minutes_until,
-                    'is_current': is_current
+                    'is_current': is_current,
+                    'in_grace_period': in_grace_period
                 }
                 
                 if is_current:
@@ -608,10 +613,17 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                 else:
                     processed.append(evt_data)
             
-            future_events = [e for e in processed if e['minutes_until'] >= -5][:limit]
+            # Include meetings that haven't started yet OR started within 10 min grace period
+            future_events = [e for e in processed if e['minutes_until'] >= -10][:limit]
+            
+            # Prepend current/grace-period meetings so they show first in the hub
+            # Sort current meetings by start time, with grace-period ones first
+            grace_period_meetings = [m for m in current_meetings if m.get('in_grace_period')]
+            other_current = [m for m in current_meetings if not m.get('in_grace_period')]
+            all_events = grace_period_meetings + other_current + future_events
             
             return {
-                "events": future_events,
+                "events": all_events,  # Now includes grace-period meetings at the front
                 "in_meeting": in_meeting,
                 "current_meetings": current_meetings,
                 # Keep current_meeting for backward compatibility (first one)
