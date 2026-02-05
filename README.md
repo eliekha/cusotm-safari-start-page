@@ -211,6 +211,7 @@ The start page integrates with external services via **Model Context Protocol (M
 | **Atlassian** | `mcp-remote` → Atlassian | Jira issues, Confluence pages, search |
 | **Gmail** | `@monsoft/mcp-gmail` | List/search/read emails |
 | **Google Drive** | `briefdesk-gdrive-mcp` | Full-text search, read Google Docs/Sheets/Slides |
+| **GitHub** | `github-mcp-server` | Search code, issues, PRs, repos, read files |
 
 ---
 
@@ -383,6 +384,55 @@ Google Drive search uses the built-in `briefdesk-gdrive-mcp` server to search fi
 
 **Fallback:** If the Drive MCP is not configured, BriefDesk falls back to searching locally synced files via filesystem (requires Google Drive for Desktop).
 
+### Setting Up GitHub MCP (Code, Issues, PRs)
+
+GitHub integration uses the official [GitHub MCP Server](https://github.com/github/github-mcp-server) with OAuth Device Flow for authentication. No PAT creation or manual token management needed.
+
+**How it works:**
+- BriefDesk includes a registered GitHub OAuth App
+- Users authenticate via a simple device code flow (same as `gh` CLI)
+- The OAuth token is stored locally and works with personal repos and organization repos (including SSO-protected orgs)
+
+**Setup (via installer UI):**
+
+1. Open the setup wizard: `http://127.0.0.1:8765/installer.html`
+2. Go to **Step 5 (Integrations)** → click **GitHub** → **Setup**
+3. Click **"Connect with GitHub"**
+4. A browser tab opens — enter the device code shown in the modal
+5. Authorize BriefDesk for your account (and request org access if needed)
+6. The installer auto-detects authorization and connects the MCP server
+
+**What it searches:**
+- **Code** — search across all your repos with language/path qualifiers
+- **Issues** — find open/closed issues with label and status filters
+- **Pull Requests** — find PRs by keyword, status, author
+- **Repositories** — discover repos by topic/description
+- **File Contents** — read README.md and source files
+
+**Search strategy:**
+- AI search uses **parallel tool calls** for speed — code, issues, and PRs are searched simultaneously
+- Meeting prep prioritizes recent open PRs and active issues
+- GitHub search qualifiers (`language:`, `path:`, `is:open`, `repo:owner/name`) are used for precision
+
+**PAT fallback:**
+If OAuth doesn't work for your setup, you can use a Personal Access Token instead:
+1. In the GitHub setup modal, expand **"Or use a Personal Access Token"**
+2. Create a fine-grained PAT at [GitHub Token Settings](https://github.com/settings/tokens?type=beta)
+3. Grant: Contents (read), Issues (read), Pull Requests (read), Metadata (read)
+4. Paste the token and click Save & Connect
+
+**Binary management:**
+The `github-mcp-server` binary is automatically downloaded during package installation (`.pkg`). It detects your architecture (arm64/x86_64) and fetches the latest release from GitHub.
+
+**OAuth App (for maintainers):**
+BriefDesk uses a registered GitHub OAuth App with Device Flow enabled. The client ID is stored in `search-server.py`. If you fork this project and want your own OAuth App:
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers) → **New OAuth App**
+2. Set Homepage URL to `http://127.0.0.1:8765` and Callback URL to `http://127.0.0.1:8765/callback`
+3. Enable **Device Flow** in the app settings
+4. Replace the `GITHUB_OAUTH_CLIENT_ID` value in `search-server.py`
+
+---
+
 ### Complete MCP Config Example
 
 Create `~/.local/share/briefdesk/.devsai.json` with all your services:
@@ -405,6 +455,13 @@ Create `~/.local/share/briefdesk/.devsai.json` with all your services:
     "gmail": {
       "command": "npx",
       "args": ["-y", "@monsoft/mcp-gmail"]
+    },
+    "github": {
+      "command": "~/.local/share/briefdesk/github-mcp-server",
+      "args": ["stdio"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "gho_... (set automatically via OAuth)"
+      }
     }
   }
 }
@@ -510,7 +567,7 @@ Model selection is persisted in `~/.local/share/briefdesk/config.json` and used 
 | 7-day prefetching | ✅ Working | Continuous background |
 | Persistent cache | ✅ Working | JSON file storage |
 | Status dashboard | ✅ Working | Settings → Status tab |
-| GitHub PR notifications | ⬜ Planned | - |
+| GitHub code/issues/PRs | ✅ Working | GitHub MCP (OAuth) |
 
 ### Reliability & Error Handling
 
@@ -878,7 +935,6 @@ This triggers a workflow that:
 ## Contributing
 
 Pull requests welcome! Ideas for improvements:
-- [ ] GitHub PR notifications (MCP server exists)
 - [ ] Bookmark folder organization
 - [ ] Keyboard shortcuts for quick links
 - [ ] Weather widget

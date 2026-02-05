@@ -295,6 +295,35 @@ EOF
     chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist"
 fi
 
+# Download GitHub MCP server binary (if not already present)
+GITHUB_MCP_BIN="$INSTALL_DIR/github-mcp-server"
+if [ ! -f "$GITHUB_MCP_BIN" ]; then
+    echo "Downloading GitHub MCP server..."
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "arm64" ]; then
+        GH_MCP_ASSET="github-mcp-server_Darwin_arm64.tar.gz"
+    else
+        GH_MCP_ASSET="github-mcp-server_Darwin_x86_64.tar.gz"
+    fi
+    GH_MCP_URL="https://github.com/github/github-mcp-server/releases/latest/download/$GH_MCP_ASSET"
+    if curl -fsSL "$GH_MCP_URL" -o "/tmp/$GH_MCP_ASSET" 2>/dev/null; then
+        tar -xzf "/tmp/$GH_MCP_ASSET" -C /tmp github-mcp-server 2>/dev/null
+        if [ -f "/tmp/github-mcp-server" ]; then
+            mv "/tmp/github-mcp-server" "$GITHUB_MCP_BIN"
+            chmod +x "$GITHUB_MCP_BIN"
+            chown "$INSTALL_USER" "$GITHUB_MCP_BIN"
+            echo "  GitHub MCP server installed"
+        else
+            echo "  WARNING: Failed to extract GitHub MCP server"
+        fi
+        rm -f "/tmp/$GH_MCP_ASSET"
+    else
+        echo "  WARNING: Failed to download GitHub MCP server (no internet?)"
+    fi
+else
+    echo "GitHub MCP server already installed"
+fi
+
 # Build gdrive-mcp if present
 if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NODE_PATH" ]; then
     echo "Building gdrive-mcp..."

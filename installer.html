@@ -940,6 +940,17 @@ h2 {
         <button class="integration-action" onclick="showDriveSetup()">Setup</button>
       </div>
 
+      <div class="integration-item" id="int-github">
+        <div class="integration-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+        </div>
+        <div class="integration-info">
+          <div class="integration-name">GitHub</div>
+          <div class="integration-status" id="github-status">Not configured</div>
+        </div>
+        <button class="integration-action" onclick="showGithubSetup()">Setup</button>
+      </div>
+
       <div class="integration-item" id="int-devsai">
         <div class="integration-icon" style="font-weight:600;color:#e0e0e0;">AI</div>
         <div class="integration-info">
@@ -1369,6 +1380,93 @@ h2 {
   </div>
 </div>
 
+<!-- GitHub Setup Modal -->
+<div class="modal" id="github-modal">
+  <div class="modal-backdrop" onclick="closeGithubModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+      <h3>Connect GitHub</h3>
+      <button class="modal-close" onclick="closeGithubModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+    </div>
+
+    <div id="github-status-section" style="margin-bottom:16px;">
+      <div id="github-connected" style="display:none;padding:12px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#34d399;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <strong>Connected to GitHub</strong>
+        </div>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">GitHub code search, issues, and PRs are ready.</p>
+      </div>
+      <div id="github-not-connected" style="display:none;padding:12px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#fbbf24;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <strong>Not connected</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- OAuth Flow (Primary) -->
+    <div id="github-oauth-section">
+      <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+        Connect your GitHub account to search code, issues, and pull requests across your repositories and organizations.
+      </p>
+
+      <div id="github-oauth-start" style="text-align:center;padding:12px 0;">
+        <button class="btn btn-primary" onclick="startGithubOAuth()" id="github-oauth-btn" style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;font-size:14px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+          Connect with GitHub
+        </button>
+      </div>
+
+      <div id="github-oauth-code" style="display:none;text-align:center;padding:16px 0;">
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">
+          Enter this code on GitHub to authorize BriefDesk:
+        </p>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
+          <code id="github-device-code" style="font-size:28px;font-weight:700;letter-spacing:4px;padding:12px 20px;background:var(--bg-tertiary);border-radius:8px;border:1px solid var(--border-color);color:var(--text-primary);user-select:all;"></code>
+          <button class="copy-btn" onclick="copyDeviceCode()" id="github-copy-code" style="padding:8px;border-radius:6px;background:var(--bg-secondary);border:1px solid var(--border-color);cursor:pointer;color:var(--text-muted);" title="Copy code">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+        </div>
+        <a id="github-verify-link" href="https://github.com/login/device" target="_blank" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+          Open GitHub to authorize
+        </a>
+        <p id="github-oauth-status" style="color:var(--text-muted);font-size:12px;margin-top:12px;">Waiting for authorization...</p>
+      </div>
+    </div>
+
+    <div id="github-modal-result"></div>
+
+    <!-- PAT Fallback (Secondary) -->
+    <div style="margin-top:12px;border-top:1px solid var(--border-color);padding-top:12px;">
+      <button onclick="toggleGithubPat()" style="background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;" id="github-pat-toggle">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" id="github-pat-arrow" style="transition:transform .2s;"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        Or use a Personal Access Token
+      </button>
+      <div id="github-pat-section" style="display:none;margin-top:12px;">
+        <ol class="setup-steps" style="font-size:12px;">
+          <li>Go to <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:var(--accent-blue)">GitHub Token Settings</a> and click <strong>Generate new token</strong></li>
+          <li>Grant: <strong>Contents</strong> (read), <strong>Issues</strong> (read), <strong>Pull requests</strong> (read), <strong>Metadata</strong> (read)</li>
+          <li>Copy the token and paste it below</li>
+        </ol>
+        <div class="input-group">
+          <label>Personal Access Token</label>
+          <input type="password" id="modal-github-pat" placeholder="github_pat_...">
+        </div>
+        <div style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="saveGithubPat()" style="font-size:13px;">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeGithubModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Server Error Overlay -->
 <div id="server-error" class="server-error" style="display:none;">
   <div class="server-error-content">
@@ -1619,9 +1717,17 @@ async function checkIntegrations() {
       document.getElementById('int-drive').classList.add('configured');
       document.getElementById('drive-status').textContent = 'Connected';
     }
+    
+    if (data.github?.authenticated) {
+      document.getElementById('int-github').classList.add('configured');
+      document.getElementById('github-status').textContent = 'Connected';
+    }
   } catch (e) {
     console.error('Failed to check integrations:', e);
   }
+
+  // Also check GitHub via search service directly (more accurate)
+  checkGithubStatus();
 
   // DevsAI status (handled via search-service)
   checkDevsaiStatus();
@@ -2273,6 +2379,276 @@ async function checkDriveStatus() {
     }
   } catch (e) {
     alert('Could not check status');
+  }
+}
+
+// GitHub status check (via search service)
+async function checkGithubStatus() {
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/status');
+    const data = await res.json();
+    for (const srv of (data.servers || [])) {
+      if (srv.name === 'github' && srv.status === 'connected') {
+        document.getElementById('int-github').classList.add('configured');
+        document.getElementById('github-status').textContent = 'Connected';
+        return;
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// GitHub setup
+let githubOAuthPollTimer = null;
+
+function showGithubSetup() {
+  document.getElementById('github-modal').classList.add('show');
+  checkGithubModalStatus();
+}
+
+function closeGithubModal() {
+  document.getElementById('github-modal').classList.remove('show');
+  if (githubOAuthPollTimer) { clearTimeout(githubOAuthPollTimer); githubOAuthPollTimer = null; }
+}
+
+async function checkGithubModalStatus() {
+  const connected = document.getElementById('github-connected');
+  const notConnected = document.getElementById('github-not-connected');
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/status');
+    const data = await res.json();
+    let ghServer = null;
+    for (const srv of (data.servers || [])) {
+      if (srv.name === 'github') { ghServer = srv; break; }
+    }
+    if (ghServer && ghServer.status === 'connected') {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      // Hide the OAuth start button, show connected state
+      document.getElementById('github-oauth-start').style.display = 'none';
+      document.getElementById('github-oauth-code').style.display = 'none';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = 'block';
+      document.getElementById('github-oauth-start').style.display = 'block';
+    }
+  } catch (e) {
+    connected.style.display = 'none';
+    notConnected.style.display = 'block';
+    document.getElementById('github-oauth-start').style.display = 'block';
+  }
+}
+
+function toggleGithubPat() {
+  const section = document.getElementById('github-pat-section');
+  const arrow = document.getElementById('github-pat-arrow');
+  const visible = section.style.display !== 'none';
+  section.style.display = visible ? 'none' : 'block';
+  arrow.style.transform = visible ? '' : 'rotate(90deg)';
+}
+
+function copyDeviceCode() {
+  const code = document.getElementById('github-device-code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('github-copy-code');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    setTimeout(() => {
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+    }, 2000);
+  });
+}
+
+async function startGithubOAuth() {
+  const btn = document.getElementById('github-oauth-btn');
+  const result = document.getElementById('github-modal-result');
+  const startSection = document.getElementById('github-oauth-start');
+  const codeSection = document.getElementById('github-oauth-code');
+  
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+  result.innerHTML = '';
+  
+  try {
+    const res = await fetch(API + '/setup/github/oauth/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const data = await res.json();
+    
+    if (!data.success) {
+      result.innerHTML = '<div class="modal-result error">' + (data.error || 'Failed to start OAuth') + '</div>';
+      btn.disabled = false;
+      btn.textContent = 'Connect with GitHub';
+      return;
+    }
+    
+    // Show the device code
+    document.getElementById('github-device-code').textContent = data.user_code;
+    document.getElementById('github-verify-link').href = data.verification_uri;
+    startSection.style.display = 'none';
+    codeSection.style.display = 'block';
+    
+    // Auto-open GitHub in browser
+    window.open(data.verification_uri, '_blank');
+    
+    // Start polling for authorization using recursive setTimeout (adaptive interval)
+    let pollInterval = Math.max((data.interval || 5) + 1, 6) * 1000; // Add 1s buffer to avoid slow_down
+    const expiresAt = Date.now() + (data.expires_in || 900) * 1000;
+    
+    if (githubOAuthPollTimer) { clearTimeout(githubOAuthPollTimer); githubOAuthPollTimer = null; }
+    
+    async function pollOAuth() {
+      if (Date.now() > expiresAt) {
+        codeSection.style.display = 'none';
+        startSection.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Connect with GitHub';
+        result.innerHTML = '<div class="modal-result error">Code expired. Please try again.</div>';
+        return;
+      }
+      
+      try {
+        const pollRes = await fetch(API + '/setup/github/oauth/poll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        const pollData = await pollRes.json();
+        
+        if (pollData.success && pollData.status === 'complete') {
+          githubOAuthPollTimer = null;
+          
+          // Token saved! Now trigger search service restart and poll for connection
+          codeSection.style.display = 'none';
+          result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Authorized! Connecting to GitHub MCP server...</div>';
+          
+          try { await fetch(SEARCH_SERVICE + '/reconnect?mcp=github'); } catch(e) {}
+          
+          // Poll for MCP connection
+          let connAttempts = 0;
+          const connPoll = setInterval(async () => {
+            connAttempts++;
+            try {
+              const statusRes = await fetch(SEARCH_SERVICE + '/status', { signal: AbortSignal.timeout(3000) });
+              const statusData = await statusRes.json();
+              const ghServer = (statusData.servers || []).find(s => s.name === 'github');
+              
+              if (ghServer && ghServer.status === 'connected') {
+                clearInterval(connPoll);
+                result.innerHTML = '<div class="modal-result success">Connected to GitHub (' + ghServer.toolCount + ' tools available)</div>';
+                checkGithubModalStatus();
+                checkIntegrations();
+              } else if (connAttempts >= 20) {
+                clearInterval(connPoll);
+                result.innerHTML = '<div class="modal-result error">Token saved but MCP connection timed out. Try restarting the search service.</div>';
+              } else {
+                const msg = ghServer ? 'Connecting...' : 'Restarting search service...';
+                result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">' + msg + '</div>';
+              }
+            } catch (e) {
+              if (connAttempts < 20) {
+                result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Service restarting...</div>';
+              }
+            }
+          }, 2000);
+          return; // Stop polling
+          
+        } else if (pollData.success && pollData.status === 'pending') {
+          document.getElementById('github-oauth-status').textContent = 'Waiting for authorization...';
+        } else if (pollData.success && pollData.status === 'slow_down') {
+          // Increase interval as GitHub requested
+          pollInterval = Math.max((pollData.interval || 10) + 1, pollInterval + 5000);
+          document.getElementById('github-oauth-status').textContent = 'Waiting for authorization...';
+        } else if (!pollData.success) {
+          codeSection.style.display = 'none';
+          startSection.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Connect with GitHub';
+          result.innerHTML = '<div class="modal-result error">' + (pollData.error || 'Authorization failed') + '</div>';
+          return; // Stop polling
+        }
+      } catch (e) {
+        // Network error, keep trying
+      }
+      
+      // Schedule next poll with current interval
+      githubOAuthPollTimer = setTimeout(pollOAuth, pollInterval);
+    }
+    
+    // Start first poll after the interval
+    githubOAuthPollTimer = setTimeout(pollOAuth, pollInterval);
+    
+  } catch (e) {
+    result.innerHTML = '<div class="modal-result error">Failed to start: ' + e.message + '</div>';
+    btn.disabled = false;
+    btn.textContent = 'Connect with GitHub';
+    startSection.style.display = 'block';
+    codeSection.style.display = 'none';
+  }
+}
+
+async function saveGithubPat() {
+  const pat = document.getElementById('modal-github-pat').value.trim();
+  const result = document.getElementById('github-modal-result');
+  const saveBtn = document.querySelector('#github-pat-section .btn-primary');
+  
+  if (!pat) {
+    result.innerHTML = '<div class="modal-result error">Please enter your Personal Access Token</div>';
+    return;
+  }
+  
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Saving token...</div>';
+  
+  try {
+    const res = await fetch(API + '/setup/github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pat: pat })
+    });
+    const data = await res.json();
+    if (data.success) {
+      saveBtn.textContent = 'Connecting...';
+      result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Token saved. Connecting...</div>';
+      
+      try { await fetch(SEARCH_SERVICE + '/reconnect?mcp=github'); } catch(e) {}
+      
+      let attempts = 0;
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(SEARCH_SERVICE + '/status', { signal: AbortSignal.timeout(3000) });
+          const statusData = await statusRes.json();
+          const ghServer = (statusData.servers || []).find(s => s.name === 'github');
+          
+          if (ghServer && ghServer.status === 'connected') {
+            clearInterval(pollInterval);
+            result.innerHTML = '<div class="modal-result success">Connected to GitHub (' + ghServer.toolCount + ' tools available)</div>';
+            saveBtn.textContent = 'Connected';
+            checkGithubModalStatus();
+            checkIntegrations();
+          } else if (attempts >= 20) {
+            clearInterval(pollInterval);
+            result.innerHTML = '<div class="modal-result error">Connection timed out</div>';
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save & Connect';
+          } else {
+            result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">' + (ghServer ? 'Connecting...' : 'Restarting service...') + '</div>';
+          }
+        } catch (e) {
+          if (attempts < 20) result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Service restarting...</div>';
+        }
+      }, 2000);
+    } else {
+      result.innerHTML = '<div class="modal-result error">' + (data.error || 'Failed to save') + '</div>';
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save & Connect';
+    }
+  } catch (e) {
+    result.innerHTML = '<div class="modal-result error">Failed: ' + e.message + '</div>';
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save & Connect';
   }
 }
 

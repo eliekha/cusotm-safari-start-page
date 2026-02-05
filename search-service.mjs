@@ -324,15 +324,29 @@ export async function reconnectServer(serverName) {
   const statuses = mcpManager.getServerStatuses();
   const existingServer = statuses.find(s => s.name === serverName);
   
+  // If server was never loaded (not in original config), we need to
+  // restart the entire process to pick up the new config.
+  // Signal the caller that a restart is needed.
+  if (!existingServer) {
+    console.log(`[SearchService] ${serverName} not in current config, process restart required`);
+    console.log(`[SearchService] Scheduling self-restart to pick up new MCP config...`);
+    
+    // Schedule a graceful restart after responding
+    setTimeout(() => {
+      console.log(`[SearchService] Restarting process to load new MCP server: ${serverName}`);
+      process.exit(0); // LaunchAgent KeepAlive will restart us
+    }, 1000);
+    
+    return { success: false, restarting: true, error: 'New server detected, restarting service to load config' };
+  }
+  
   try {
     // If server exists, try to disconnect first (ignore errors)
-    if (existingServer) {
-      try {
-        await mcpManager.disconnectServer(serverName);
-        console.log(`[SearchService] Disconnected ${serverName}`);
-      } catch (e) {
-        console.log(`[SearchService] Disconnect: ${e.message}`);
-      }
+    try {
+      await mcpManager.disconnectServer(serverName);
+      console.log(`[SearchService] Disconnected ${serverName}`);
+    } catch (e) {
+      console.log(`[SearchService] Disconnect: ${e.message}`);
     }
     
     // Wait a moment for cleanup
@@ -584,6 +598,38 @@ IMPORTANT FOR JIRA/CONFLUENCE:
 3. NEVER ask the user for cloudId - always discover it with step 1`;
   }
   
+  // Add GitHub-specific instructions
+  if (sources && sources.some(s => s.toLowerCase() === 'github')) {
+    defaultSystem += `
+
+IMPORTANT FOR GITHUB SEARCH - USE PARALLEL TOOL CALLS FOR SPEED:
+You have access to the GitHub MCP server tools. Follow this optimized strategy:
+
+STEP 1 - BROAD SEARCH (use ALL of these in PARALLEL in a single turn):
+  - search_code: with keywords from the query (e.g., "auth middleware language:typescript")
+  - search_issues: with keywords (finds open issues/discussions)
+  - search_pull_requests: with keywords (finds PRs)
+  - search_repositories: ONLY if the query is about finding repos or you need to narrow scope
+Call ALL relevant search tools simultaneously in one turn for maximum speed.
+
+STEP 2 - DEEP DIVE (if Step 1 results point to specific repos):
+  - search_code with repo: qualifier for targeted search (e.g., "query repo:owner/name")
+  - get_file_contents to read README.md or key source files from the most relevant matches
+
+SEARCH QUALIFIERS (use these to improve results):
+  - Code: language:typescript, path:src/, filename:auth, extension:ts
+  - Issues/PRs: is:open, is:closed, label:bug, author:username
+  - Repos: language:typescript, stars:>10, pushed:>2024-01-01
+  - Scope: user:USERNAME, org:ORGNAME to limit to specific owners
+
+IMPORTANT RULES:
+  - ALWAYS make multiple tool calls in the SAME turn when possible (parallel execution)
+  - Use specific search qualifiers to reduce noise
+  - Prefer search_code over get_file_contents for discovery
+  - For source links use full GitHub URLs: https://github.com/owner/repo/...
+  - Prioritize: recent PRs > open issues > code matches > old closed items`;
+  }
+
   // Add Drive-specific instructions
   if (sources && sources.some(s => s.toLowerCase() === 'drive')) {
     if (gdriveMcpAvailable) {
@@ -722,8 +768,8 @@ IMPORTANT FOR GOOGLE DRIVE:
         })),
       });
       
-      // Execute tool calls
-      for (const toolCall of toolCalls) {
+      // Execute tool calls IN PARALLEL for speed
+      const toolPromises = toolCalls.map(async (toolCall) => {
         const toolName = toolCall.function.name;
         let toolResult = '';
         
@@ -748,7 +794,6 @@ IMPORTANT FOR GOOGLE DRIVE:
             const result = await executeMCPTool(toolName, args);
             toolResult = result.message || JSON.stringify(result);
           } else if (toolName.startsWith('gdrive_') && gdriveMcpAvailable) {
-            // Execute GDrive MCP tool
             const result = await executeGdriveMcpTool(toolName, args);
             toolResult = result.message || JSON.stringify(result);
           } else if (toolName === 'search_files' && executeSearchFiles) {
@@ -767,7 +812,6 @@ IMPORTANT FOR GOOGLE DRIVE:
             toolResult = `Unknown tool: ${toolName}`;
           }
           
-          // Notify tool call complete
           onProgress({ 
             type: 'tool_complete', 
             tool: toolName,
@@ -784,12 +828,15 @@ IMPORTANT FOR GOOGLE DRIVE:
           });
         }
         
-        messages.push({
+        return {
           role: 'tool',
           tool_call_id: toolCall.id,
           content: toolResult,
-        });
-      }
+        };
+      });
+      
+      const toolResults = await Promise.all(toolPromises);
+      messages.push(...toolResults);
     } catch (err) {
       throw new Error(`API error: ${err.message}`);
     }
@@ -852,6 +899,29 @@ function getToolDescription(toolName, args) {
       return 'Reading email';
     }
     return 'Querying Gmail';
+  }
+  
+  // GitHub MCP tools
+  if (name.includes('github')) {
+    if (name.includes('search_repositories')) {
+      return `Searching GitHub repos${args.query ? `: "${args.query}"` : ''}`;
+    }
+    if (name.includes('search_code')) {
+      return `Searching GitHub code${args.query ? `: "${args.query}"` : ''}`;
+    }
+    if (name.includes('search_issues')) {
+      return `Searching GitHub issues${args.query ? `: "${args.query}"` : ''}`;
+    }
+    if (name.includes('search_pull_requests') || name.includes('pull_request')) {
+      return `Searching GitHub PRs${args.query ? `: "${args.query}"` : ''}`;
+    }
+    if (name.includes('get_file_contents')) {
+      return `Reading file${args.path ? `: ${args.path}` : ''}`;
+    }
+    if (name.includes('list_commits')) {
+      return 'Listing commits';
+    }
+    return `Querying GitHub`;
   }
   
   // GDrive MCP tools

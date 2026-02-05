@@ -274,6 +274,45 @@ EOF
     echo "   ✓ Created devsai wrapper at $DEVSAI_DIR/devsai.sh"
     
     # ============================================
+    # Setup GitHub MCP Server
+    # ============================================
+    echo ""
+    echo "🐙 Setting up GitHub MCP Server..."
+    
+    GITHUB_MCP_BIN="$INSTALL_DIR/github-mcp-server"
+    if [ -f "$GITHUB_MCP_BIN" ]; then
+        echo "   ✓ GitHub MCP server already installed"
+    else
+        # Detect architecture
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "arm64" ]; then
+            GH_MCP_ASSET="github-mcp-server_Darwin_arm64.tar.gz"
+        else
+            GH_MCP_ASSET="github-mcp-server_Darwin_x86_64.tar.gz"
+        fi
+        
+        echo "   Downloading GitHub MCP server ($ARCH)..."
+        # Get latest release download URL
+        GH_MCP_URL="https://github.com/github/github-mcp-server/releases/latest/download/$GH_MCP_ASSET"
+        
+        if curl -fsSL "$GH_MCP_URL" -o "/tmp/$GH_MCP_ASSET" 2>/dev/null; then
+            # Extract binary from tarball
+            tar -xzf "/tmp/$GH_MCP_ASSET" -C /tmp github-mcp-server 2>/dev/null
+            if [ -f "/tmp/github-mcp-server" ]; then
+                mv "/tmp/github-mcp-server" "$GITHUB_MCP_BIN"
+                chmod +x "$GITHUB_MCP_BIN"
+                echo "   ✓ GitHub MCP server installed at $GITHUB_MCP_BIN"
+            else
+                echo "   ⚠️  Failed to extract GitHub MCP server"
+            fi
+            rm -f "/tmp/$GH_MCP_ASSET"
+        else
+            echo "   ⚠️  Failed to download GitHub MCP server (no internet or GitHub unreachable)"
+            echo "      Download manually from: https://github.com/github/github-mcp-server/releases"
+        fi
+    fi
+    
+    # ============================================
     # Setup Google Drive MCP
     # ============================================
     if [ -d "$INSTALL_DIR/gdrive-mcp" ]; then

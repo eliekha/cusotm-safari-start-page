@@ -212,6 +212,12 @@ class SearchHandler(BaseHTTPRequestHandler):
         # Setup endpoints
         elif path == "/setup/slack":
             self.handle_setup_slack(data)
+        elif path == "/setup/github":
+            self.handle_setup_github(data)
+        elif path == "/setup/github/oauth/start":
+            self.handle_github_oauth_start(data)
+        elif path == "/setup/github/oauth/poll":
+            self.handle_github_oauth_poll(data)
         # Installer endpoints
         elif path == "/installer/install":
             self.handle_installer_install(data)
@@ -297,24 +303,36 @@ GOOGLE DRIVE SEARCH INSTRUCTIONS:
 Provide a comprehensive but concise answer based on the information found.
 
 RULES:
-- Be specific: include ticket numbers, document names, channel names, dates
+- Be specific: include ticket numbers, document names, channel names, dates, PR numbers, file paths
 - ALWAYS include clickable markdown links to sources:
   - Slack: [#channel-name](slack_permalink) or [DM with Name](slack_permalink)
   - Jira: [PROJ-123](jira_url)
   - Confluence: [Page Title](confluence_url)
   - Gmail: [Email Subject](gmail_url) (if available)
   - Drive: [Document Name](drive_url)
+  - GitHub PRs: [PR #42: Title](https://github.com/owner/repo/pull/42)
+  - GitHub Issues: [Issue #15: Title](https://github.com/owner/repo/issues/15)
+  - GitHub Code: [repo/path/file.ts](https://github.com/owner/repo/blob/main/path/file.ts)
+  - GitHub Repos: [owner/repo](https://github.com/owner/repo)
+- For GitHub results, include extra detail:
+  - PRs: status (open/merged/closed), author, date, brief description of changes
+  - Issues: status (open/closed), labels, assignee if any
+  - Code: which repo, file path, brief description of what the code does
+  - Show relevant code snippets in fenced code blocks when useful
 - At the end, add a "Sources" section with all referenced links
 - If you find conflicting information, mention it
 - If no relevant information is found, say so clearly
-- Keep the response under 300 words unless more detail is needed
+- Keep the response under 500 words unless more detail is needed
 
 FORMAT EXAMPLE:
 Based on discussions in [DM with John](https://slack.com/...) and [#project-alpha](https://slack.com/...), ...
 
+The auth middleware is implemented in [ai-companion/src/middleware/AuthMiddleware.ts](https://github.com/...) and was recently updated in [PR #142: Add SSO support](https://github.com/.../pull/142) (merged, by @dev).
+
 **Sources:**
 - [DM with John](url) - Direct message
-- [#project-alpha](url) - Slack channel"""
+- [PR #142: Add SSO support](url) - GitHub PR (merged)
+- [ai-companion/src/middleware/AuthMiddleware.ts](url) - Source code"""
         
         try:
             model = get_hub_model()
@@ -362,8 +380,25 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             from lib.config import GOOGLE_DRIVE_BASE
             drive_path = GOOGLE_DRIVE_BASE or "~/Library/CloudStorage/GoogleDrive-*"
             source_instructions += f"\nDRIVE: Search files in {drive_path}/My Drive/"
+        if 'github' in sources:
+            source_instructions += """
+GITHUB SEARCH INSTRUCTIONS:
+1. Search code, issues, and PRs in PARALLEL (call all three simultaneously)
+2. Use search qualifiers: language:, path:, is:open, repo:owner/name
+3. For results, include rich detail:
+   - PRs: link as [PR #N: Title](url), include status (open/merged), author, description
+   - Issues: link as [Issue #N: Title](url), include status, labels
+   - Code: link as [repo/path/file.ts](url), describe what the code does, show key snippets
+   - Repos: link as [owner/repo](url)
+4. Show relevant code snippets in fenced code blocks when they help answer the question
+5. Always use full GitHub URLs: https://github.com/owner/repo/...
+"""
         
-        prompt = f"Search {source_names} for: {query}\n{source_instructions}\nInclude links to sources. Keep response concise."
+        prompt = f"""Search {source_names} for: {query}
+{source_instructions}
+Provide a detailed answer with clickable markdown links to all sources.
+For GitHub results: include PR status, code snippets, file paths, and descriptions.
+Add a **Sources** section at the end listing all referenced links."""
         
         # Set up SSE response
         self.send_response(200)
@@ -723,7 +758,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
             self.send_json({"error": "meeting_id required"})
             return
         
-        sources = ['jira', 'confluence', 'drive', 'slack', 'gmail', 'summary']
+        sources = ['jira', 'confluence', 'drive', 'slack', 'gmail', 'github', 'summary']
         result = {'all_cached': True}
         
         for source in sources:
@@ -744,7 +779,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         """Handle prep data requests for specific sources."""
         # Extract source from path: /hub/prep/jira -> jira
         source = path.split('/')[-1]
-        valid_sources = ['jira', 'confluence', 'slack', 'gmail', 'drive', 'summary']
+        valid_sources = ['jira', 'confluence', 'slack', 'gmail', 'drive', 'github', 'summary']
         
         if source not in valid_sources:
             self.send_json({"error": f"Unknown source: {source}"})
@@ -870,6 +905,22 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         if calendar_authenticated:
             calendar_authenticated = granted_scopes.get('calendar', False)
 
+        # Check GitHub MCP status via search service
+        github_configured = False
+        github_authenticated = False
+        try:
+            import urllib.request
+            req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                ss_data = json.loads(resp.read().decode())
+                for srv in ss_data.get('servers', []):
+                    if srv.get('name') == 'github':
+                        github_configured = True
+                        github_authenticated = srv.get('status') == 'connected'
+                        break
+        except Exception:
+            pass
+
         # Format auth status for frontend (expects objects with .configured/.authenticated properties)
         self.send_json({
             **status,
@@ -882,6 +933,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                         "authenticated": calendar_authenticated,
                         "error": calendar_error},
             "drive": {"configured": calendar_configured, "authenticated": drive_authenticated},
+            "github": {"configured": github_configured, "authenticated": github_authenticated},
         })
     
     def handle_setup_page(self):
@@ -949,6 +1001,147 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                 
         except Exception as e:
             logger.error(f"[Setup] Slack setup error: {e}")
+            self.send_json({"success": False, "error": str(e)})
+    
+    # --- GitHub OAuth Device Flow ---
+    # Client ID from the registered BriefDesk OAuth App (public, safe to distribute)
+    GITHUB_OAUTH_CLIENT_ID = "Ov23liUPcSjgioWxcxB4"
+    GITHUB_OAUTH_SCOPE = "repo read:org read:user"
+
+    def handle_github_oauth_start(self, data):
+        """Start GitHub OAuth Device Flow."""
+        import urllib.request
+        import urllib.parse
+        
+        client_id = self.GITHUB_OAUTH_CLIENT_ID
+        
+        req_data = urllib.parse.urlencode({
+            'client_id': client_id,
+            'scope': self.GITHUB_OAUTH_SCOPE
+        }).encode()
+        
+        req = urllib.request.Request(
+            'https://github.com/login/device/code',
+            data=req_data,
+            headers={'Accept': 'application/json'}
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read().decode())
+            
+            # Store device_code on the server instance for polling
+            self.server._github_device_code = result.get('device_code')
+            self.server._github_client_id = client_id
+            
+            logger.info(f"[GitHub OAuth] Device flow started, user_code={result.get('user_code')}")
+            self.send_json({
+                "success": True,
+                "user_code": result.get('user_code'),
+                "verification_uri": result.get('verification_uri'),
+                "expires_in": result.get('expires_in'),
+                "interval": result.get('interval', 5)
+            })
+        except Exception as e:
+            logger.error(f"[GitHub OAuth] Start error: {e}")
+            self.send_json({"success": False, "error": str(e)})
+
+    def handle_github_oauth_poll(self, data):
+        """Poll for GitHub OAuth token after user authorizes."""
+        import urllib.request
+        import urllib.parse
+        
+        device_code = getattr(self.server, '_github_device_code', None)
+        client_id = getattr(self.server, '_github_client_id', None)
+        
+        if not device_code or not client_id:
+            self.send_json({"success": False, "error": "No OAuth flow in progress"})
+            return
+        
+        req_data = urllib.parse.urlencode({
+            'client_id': client_id,
+            'device_code': device_code,
+            'grant_type': 'urn:ietf:params:oauth:grant-type:device_code'
+        }).encode()
+        
+        req = urllib.request.Request(
+            'https://github.com/login/oauth/access_token',
+            data=req_data,
+            headers={'Accept': 'application/json'}
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read().decode())
+            
+            if 'access_token' in result:
+                token = result['access_token']
+                self._save_github_token(token)
+                # Clean up
+                self.server._github_device_code = None
+                self.server._github_client_id = None
+                logger.info("[GitHub OAuth] Token obtained and saved")
+                self.send_json({"success": True, "status": "complete"})
+            elif result.get('error') == 'authorization_pending':
+                self.send_json({"success": True, "status": "pending"})
+            elif result.get('error') == 'slow_down':
+                self.send_json({"success": True, "status": "slow_down", "interval": result.get('interval', 10)})
+            elif result.get('error') == 'expired_token':
+                self.server._github_device_code = None
+                self.send_json({"success": False, "error": "Code expired. Please start over."})
+            elif result.get('error') == 'access_denied':
+                self.server._github_device_code = None
+                self.send_json({"success": False, "error": "Access denied by user."})
+            else:
+                self.send_json({"success": False, "error": result.get('error_description', result.get('error', 'Unknown error'))})
+        except Exception as e:
+            logger.error(f"[GitHub OAuth] Poll error: {e}")
+            self.send_json({"success": False, "error": str(e)})
+
+    def _save_github_token(self, token):
+        """Save a GitHub access token (OAuth or PAT) to MCP config."""
+        mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+        config = {}
+        if os.path.exists(mcp_config_path):
+            with open(mcp_config_path, 'r') as f:
+                config = json.load(f)
+        
+        if 'mcpServers' not in config:
+            config['mcpServers'] = {}
+        
+        github_bin = os.path.join(CONFIG_DIR, 'github-mcp-server')
+        if not os.path.exists(github_bin):
+            for candidate in ['/usr/local/bin/github-mcp-server', os.path.expanduser('~/.local/bin/github-mcp-server')]:
+                if os.path.exists(candidate):
+                    github_bin = candidate
+                    break
+        
+        config['mcpServers']['github'] = {
+            "command": github_bin,
+            "args": ["stdio"],
+            "env": {
+                "GITHUB_PERSONAL_ACCESS_TOKEN": token
+            }
+        }
+        
+        with open(mcp_config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        logger.info("[Setup] GitHub token saved to MCP config")
+
+    def handle_setup_github(self, data):
+        """Save GitHub PAT to MCP config (fallback for manual PAT entry)."""
+        pat = data.get('pat', '').strip()
+        
+        if not pat:
+            self.send_json({"success": False, "error": "Personal Access Token required"})
+            return
+        
+        try:
+            self._save_github_token(pat)
+            self.send_json({"success": True})
+        except Exception as e:
+            logger.error(f"[Setup] GitHub PAT setup error: {e}")
             self.send_json({"success": False, "error": str(e)})
     
     def handle_slack_auto_detect(self):

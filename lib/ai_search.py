@@ -5,6 +5,7 @@ Provides fast AI-powered search across Slack, Jira, Gmail, Confluence, etc.
 Uses the Node.js search service which keeps MCP connections warm.
 """
 
+import codecs
 import json
 import logging
 import urllib.request
@@ -138,7 +139,16 @@ def ai_search_stream(
         
         with urllib.request.urlopen(req, timeout=timeout) as response:
             buffer = ""
-            for chunk in iter(lambda: response.read(1024).decode('utf-8'), ''):
+            decoder = codecs.getincrementaldecoder('utf-8')('replace')
+            while True:
+                raw = response.read(1024)
+                if not raw:
+                    # Flush any remaining bytes
+                    chunk = decoder.decode(b'', True)
+                    if chunk:
+                        buffer += chunk
+                    break
+                chunk = decoder.decode(raw)
                 buffer += chunk
                 while '\n\n' in buffer:
                     event_block, buffer = buffer.split('\n\n', 1)

@@ -313,6 +313,7 @@ def call_cli_for_source(source, meeting_title, attendees_str, description='', ti
             'slack': ['slack'],
             'gmail': ['gmail'],
             'drive': ['drive'],  # Drive uses gdrive MCP (API) or CLI file tools (fallback)
+            'github': ['github'],  # GitHub MCP server (search_code, search_repositories, etc.)
         }
         sources_filter = source_mapping.get(source, [source])
         

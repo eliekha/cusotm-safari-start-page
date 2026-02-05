@@ -286,6 +286,37 @@ Return results as a JSON array with objects containing:
 
 Focus on files that match meeting topics, attendee names, or project keywords.""",
 
+    'github': """Search GitHub for code, issues, and pull requests related to this meeting. Meeting context:
+Title: {title}
+Attendees: {attendees}
+Description: {description}
+
+SEARCH STRATEGY - USE PARALLEL TOOL CALLS FOR SPEED:
+
+STEP 1 - BROAD PARALLEL SEARCH (call ALL of these simultaneously in one turn):
+  - search_code: keywords from meeting title/description (use language: and path: qualifiers)
+  - search_issues: keywords + is:open for active discussions
+  - search_pull_requests: keywords + is:open for in-flight work
+
+STEP 2 - TARGETED FOLLOW-UP (if Step 1 finds relevant repos):
+  - search_code with repo:owner/name for deeper matches
+  - get_file_contents for README.md or key files
+
+SEARCH QUALIFIERS (use these):
+  - Code: language:typescript, path:src/, filename:auth
+  - Issues/PRs: is:open, is:closed, label:bug
+  - Scope: user:USERNAME, org:ORGNAME
+
+IMPORTANT: Call multiple search tools in the SAME turn (they run in parallel).
+
+Find up to {limit} relevant results. Return results as a JSON array with objects containing:
+- title: descriptive title (e.g., "PR #42: Add auth middleware" or "repo/path/file.ts")
+- url: full GitHub URL
+- type: "github"
+- key: repo name or PR/issue number
+
+Priority: recent open PRs > active issues > code matches > README docs""",
+
     'summary': """Generate a brief meeting prep for: {title}
 Attendees: {attendees}
 {description}

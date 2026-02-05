@@ -46,7 +46,7 @@ var gradients=[
 
 function getSettings(){
 var s=localStorage.getItem('startpage');
-var defaultHubSources={jira:true,confluence:true,slack:true,gmail:true,drive:true,aiBrief:true};
+var defaultHubSources={jira:true,confluence:true,slack:true,gmail:true,drive:true,github:true,aiBrief:true};
 if(s){try{var p=JSON.parse(s);if(!p.theme)p.theme='dark';if(p.hubEnabled===undefined)p.hubEnabled=true;if(!p.hubSources)p.hubSources=defaultHubSources;return p;}catch(e){}}
 return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:'',calEnabled:false,calUrl:'',calMinutes:60,hubEnabled:true,hubSources:defaultHubSources,hubModel:'anthropic-claude-4-5-haiku'};
 }
@@ -223,6 +223,7 @@ document.getElementById('hub-confluence').checked=sources.confluence!==false;
 document.getElementById('hub-slack').checked=sources.slack!==false;
 document.getElementById('hub-gmail').checked=sources.gmail!==false;
 document.getElementById('hub-drive').checked=sources.drive!==false;
+document.getElementById('hub-github').checked=sources.github!==false;
 document.getElementById('hub-model').value=settings.hubModel||'gpt-4o';
 toggleHubSettings();
 fetchHubAuthStatus();
@@ -273,6 +274,9 @@ updateSourceStatus('hub-gmail-status',gmail.authenticated,gmail.configured);
 if(!gmail.authenticated)needsSetup.push('gmail');
 // Drive uses same Google OAuth as Gmail
 updateSourceStatus('hub-drive-status',gmail.authenticated,gmail.configured);
+// GitHub status from hub auth response
+var gh=d.github||{};
+updateSourceStatus('hub-github-status',gh.authenticated,gh.configured);
 showSetupHints(needsSetup);
 })
 .catch(function(){
@@ -322,7 +326,7 @@ setInterval(fetchCalendar,60000);
 // AI Search
 // =============================================================================
 var aiSearchOpen=false;
-var aiSearchSources={slack:true,jira:true,confluence:true,gmail:true,drive:true};
+var aiSearchSources={slack:true,jira:true,confluence:true,gmail:true,drive:true,github:true};
 var aiSearchAbort=null;
 
 function openAISearch(){
@@ -377,6 +381,7 @@ if(aiSearchSources.jira)sources.push('jira');
 if(aiSearchSources.confluence)sources.push('confluence');
 if(aiSearchSources.gmail)sources.push('gmail');
 if(aiSearchSources.drive)sources.push('drive');
+if(aiSearchSources.github)sources.push('github');
 return sources;
 }
 
@@ -752,7 +757,8 @@ slack:'<svg viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.
 jira:'<svg viewBox="0 0 24 24"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z"/></svg>',
 confluence:'<svg viewBox="0 0 24 24"><path d="M.87 18.257c-.248.382-.53.875-.763 1.245a.764.764 0 0 0 .255 1.04l4.965 3.054a.764.764 0 0 0 1.058-.26c.199-.332.454-.763.733-1.221 1.967-3.247 3.945-2.853 7.508-1.146l4.957 2.377a.764.764 0 0 0 1.028-.382l2.245-5.185a.764.764 0 0 0-.378-1.019c-1.24-.574-3.122-1.444-4.959-2.32-5.458-2.597-9.65-2.923-12.65 3.817zm22.26-12.514c.249-.382.531-.875.764-1.245a.764.764 0 0 0-.256-1.04L18.673.404a.764.764 0 0 0-1.058.26c-.199.332-.454.763-.733 1.221-1.967 3.247-3.945 2.853-7.508 1.146L4.417.654a.764.764 0 0 0-1.028.382L1.144 6.221a.764.764 0 0 0 .378 1.019c1.24.574 3.122 1.444 4.959 2.32 5.458 2.597 9.65 2.923 12.65-3.817z"/></svg>',
 gmail:'<svg viewBox="0 0 24 24"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>',
-drive:'<svg viewBox="0 0 24 24"><path d="M12.01 1.485c-2.082 0-3.754.02-3.743.047.01.02 1.708 3.001 3.774 6.62l3.76 6.574h3.76c2.081 0 3.753-.02 3.742-.047-.005-.02-1.708-3.001-3.775-6.62l-3.76-6.574h-3.758zm-5.04 8.866l-3.758 6.574c-.02.047 1.598.067 3.68.047l3.782-.047 1.879-3.287 1.879-3.287-1.879-3.287c-1.035-1.808-1.889-3.287-1.899-3.287s-1.745 2.934-3.684 6.574zm10.045 6.621h-3.76L9.49 23.426c-.01.027 1.651.047 3.733.047h3.76l1.879-3.287 1.879-3.287-1.879-3.287c-1.035-1.808-1.889-3.287-1.899-3.287-.01 0-.009.022.037.047z"/></svg>'
+drive:'<svg viewBox="0 0 24 24"><path d="M12.01 1.485c-2.082 0-3.754.02-3.743.047.01.02 1.708 3.001 3.774 6.62l3.76 6.574h3.76c2.081 0 3.753-.02 3.742-.047-.005-.02-1.708-3.001-3.775-6.62l-3.76-6.574h-3.758zm-5.04 8.866l-3.758 6.574c-.02.047 1.598.067 3.68.047l3.782-.047 1.879-3.287 1.879-3.287-1.879-3.287c-1.035-1.808-1.889-3.287-1.899-3.287s-1.745 2.934-3.684 6.574zm10.045 6.621h-3.76L9.49 23.426c-.01.027 1.651.047 3.733.047h3.76l1.879-3.287 1.879-3.287-1.879-3.287c-1.035-1.808-1.889-3.287-1.899-3.287-.01 0-.009.022.037.047z"/></svg>',
+github:'<svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>'
 };
 return icons[type]||'<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>';
 }
@@ -785,13 +791,31 @@ el.innerHTML=formatted;
 function formatMarkdown(text){
 // Parse markdown tables first (before other transformations)
 text=parseMarkdownTables(text);
+
+// Extract fenced code blocks FIRST to protect them from other transformations
+var codeBlocks=[];
+text=text.replace(/```(\w*)\n([\s\S]*?)```/g,function(m,lang,code){
+var idx=codeBlocks.length;
+var escaped=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+var langLabel=lang?'<span class="code-lang">'+lang+'</span>':'';
+codeBlocks.push('<div class="code-block">'+langLabel+'<pre><code>'+escaped.trimEnd()+'</code></pre></div>');
+return '%%CODEBLOCK_'+idx+'%%';
+});
+
+// Numbered lists (1. 2. 3.)
+text=text.replace(/^(\d+)\. (.+)$/gm,'<li value="$1">$2</li>');
+text=text.replace(/(<li value="\d+">[^]*?<\/li>\n?)+/g,'<ol>$&</ol>');
+
 text=text.replace(/^### (.+)$/gm,'<h4>$1</h4>');
 text=text.replace(/^## (.+)$/gm,'<h3>$1</h3>');
 text=text.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
 text=text.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
 text=text.replace(/`([^`]+)`/g,'<code>$1</code>');
 text=text.replace(/^- (.+)$/gm,'<li>$1</li>');
-text=text.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+text=text.replace(/(<li>[^]*?<\/li>\n?)+/g,function(m){
+if(m.indexOf('value=')>-1)return m; // skip numbered lists
+return '<ul>'+m+'</ul>';
+});
 text=text.replace(/\n\n/g,'</p><p>');
 text='<p>'+text+'</p>';
 text=text.replace(/<p><\/p>/g,'');
@@ -799,8 +823,17 @@ text=text.replace(/<p>(<h[34]>)/g,'$1');
 text=text.replace(/(<\/h[34]>)<\/p>/g,'$1');
 text=text.replace(/<p>(<ul>)/g,'$1');
 text=text.replace(/(<\/ul>)<\/p>/g,'$1');
+text=text.replace(/<p>(<ol>)/g,'$1');
+text=text.replace(/(<\/ol>)<\/p>/g,'$1');
 text=text.replace(/<p>(<table)/g,'$1');
 text=text.replace(/(<\/table>)<\/p>/g,'$1');
+text=text.replace(/<p>(<div class="code-block")/g,'$1');
+
+// Restore fenced code blocks
+for(var i=0;i<codeBlocks.length;i++){
+text=text.replace('%%CODEBLOCK_'+i+'%%',codeBlocks[i]);
+}
+
 return text;
 }
 

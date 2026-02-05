@@ -21,6 +21,14 @@
       "args": ["$HOME/.local/share/briefdesk/gmail-mcp/dist/index.js"],
       "_comment": "Custom read-only Gmail MCP bundled with BriefDesk"
     },
+    "github": {
+      "command": "$HOME/.local/share/briefdesk/github-mcp-server",
+      "args": ["stdio"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-github-pat-here"
+      },
+      "_comment": "Create a PAT at https://github.com/settings/tokens with 'repo' scope for private repos, or 'public_repo' for public only"
+    },
     "apple-docs": {
       "disabled": true
     },

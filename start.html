@@ -78,6 +78,7 @@
 <button class="ai-source-pill active" data-source="confluence" onclick="toggleAISource('confluence')"><span class="ai-source-dot"></span>Confluence</button>
 <button class="ai-source-pill active" data-source="gmail" onclick="toggleAISource('gmail')"><span class="ai-source-dot"></span>Gmail</button>
 <button class="ai-source-pill active" data-source="drive" onclick="toggleAISource('drive')"><span class="ai-source-dot"></span>Drive</button>
+<button class="ai-source-pill active" data-source="github" onclick="toggleAISource('github')"><span class="ai-source-dot"></span>GitHub</button>
 <div class="ai-model-picker">
 <span class="ai-model-logo" id="ai-model-logo"></span>
 <select id="ai-search-model" onchange="updateAISearchModel()">
@@ -252,6 +253,11 @@
 <input type="checkbox" id="hub-drive" checked>
 <div class="hub-source-info"><span class="hub-source-name">Google Drive</span></div>
 <span class="hub-source-status" id="hub-drive-status">Checking...</span>
+</div>
+<div class="hub-source">
+<input type="checkbox" id="hub-github" checked>
+<div class="hub-source-info"><span class="hub-source-name">GitHub</span></div>
+<span class="hub-source-status" id="hub-github-status">Checking...</span>
 </div>
 </div>
 <div class="hub-setup-hint" id="hub-setup-hint" style="display:none"></div>
