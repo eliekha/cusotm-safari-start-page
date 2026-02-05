@@ -220,7 +220,7 @@ var meeting=data.meeting;
 var mins=meeting.minutes_until||0;
 var countdownClass='hub-prep-meeting-countdown';
 var countdownText='';
-if(mins<=0){countdownText='Starting now';countdownClass+=' now';}
+if(mins<=0){countdownText='Happening now';countdownClass+=' now';}
 else if(mins<=15){countdownText='In '+mins+' min';countdownClass+=' soon';}
 else if(mins<60){countdownText='In '+mins+' min';}
 else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
@@ -712,7 +712,7 @@ var isLoading=meeting.id==='_loading_';
 var mins=meeting.minutes_until||0;
 var countdownClass='hub-prep-meeting-countdown';
 var countdownText='';
-if(mins<=0){countdownText='Starting now';countdownClass+=' now';}
+if(mins<=0){countdownText='Happening now';countdownClass+=' now';}
 else if(mins<=15){countdownText='In '+mins+' min';countdownClass+=' soon';}
 else if(mins<60){countdownText='In '+mins+' min';}
 else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}

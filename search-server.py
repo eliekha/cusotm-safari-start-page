@@ -337,6 +337,7 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
         
         query = data.get('query', '').strip()
         sources = data.get('sources', ['slack', 'jira', 'confluence', 'gmail', 'drive'])
+        request_model = data.get('model')  # Model from frontend (optional)
         
         if not query:
             self.send_response(400)
@@ -381,7 +382,9 @@ Based on discussions in [DM with John](https://slack.com/...) and [#project-alph
                 logger.error(f"[AI Search Stream] Failed to send event: {e}")
         
         try:
-            model = get_hub_model()
+            # Use model from request if provided, otherwise fall back to hub default
+            model = request_model if request_model else get_hub_model()
+            logger.info(f"[AI Search Stream] Using model: {model}")
             
             for event_type, event_data in ai_search_stream(prompt, sources=sources, model=model, timeout=120):
                 send_event(event_type, event_data)

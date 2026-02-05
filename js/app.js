@@ -231,23 +231,20 @@ function updateHubModel(){
 var model=document.getElementById('hub-model').value;
 settings.hubModel=model;
 saveToStorage(settings);
-// Sync AI search model picker
-var aiModelPicker=document.getElementById('ai-search-model');
-if(aiModelPicker)aiModelPicker.value=model;
-// Notify backend of model change
+// Don't sync AI search model - it's independent (session-only)
+// Reset session model so next AI search open will use new hub default
+aiSearchSessionModel=null;
+// Notify backend of model change (for hub/meeting prep)
 fetch(S+'/hub/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model})}).catch(function(){});
 }
+// Session-only AI search model (doesn't affect hub default)
+var aiSearchSessionModel=null;
 function updateAISearchModel(){
 var model=document.getElementById('ai-search-model').value;
-settings.hubModel=model;
-saveToStorage(settings);
-// Sync main hub model picker
-var hubModel=document.getElementById('hub-model');
-if(hubModel)hubModel.value=model;
+// Store in session only - don't update settings.hubModel or sync with hub
+aiSearchSessionModel=model;
 // Update provider logo
 updateAIModelLogo();
-// Notify backend of model change
-fetch(S+'/hub/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:model})}).catch(function(){});
 }
 function updateAIModelLogo(){
 var select=document.getElementById('ai-search-model');
@@ -274,10 +271,12 @@ if(!slack.authenticated&&slack.configured)needsSetup.push('slack');
 else if(!slack.configured)needsSetup.push('slack-config');
 updateSourceStatus('hub-gmail-status',gmail.authenticated,gmail.configured);
 if(!gmail.authenticated)needsSetup.push('gmail');
+// Drive uses same Google OAuth as Gmail
+updateSourceStatus('hub-drive-status',gmail.authenticated,gmail.configured);
 showSetupHints(needsSetup);
 })
 .catch(function(){
-['hub-jira-status','hub-confluence-status','hub-slack-status','hub-gmail-status'].forEach(function(id){
+['hub-jira-status','hub-confluence-status','hub-slack-status','hub-gmail-status','hub-drive-status'].forEach(function(id){
 var el=document.getElementById(id);
 if(el){el.textContent='Unknown';el.className='hub-source-status warning';}
 });
@@ -332,10 +331,15 @@ aiSearchOpen=true;
 var overlay=document.getElementById('ai-search-overlay');
 var mainSearch=document.getElementById('s');
 overlay.classList.add('show');
-// Sync model picker with current setting
+// Sync model picker: use session model if set, otherwise use hub default
 var aiModelPicker=document.getElementById('ai-search-model');
-if(aiModelPicker&&settings.hubModel){
+if(aiModelPicker){
+// Only set to hub default if no session model has been selected
+if(!aiSearchSessionModel&&settings.hubModel){
 aiModelPicker.value=settings.hubModel;
+}else if(aiSearchSessionModel){
+aiModelPicker.value=aiSearchSessionModel;
+}
 }
 updateAIModelLogo();
 // Blur main search and focus AI search
@@ -414,10 +418,14 @@ aiEventSource=null;
 if(aiSearchAbort)aiSearchAbort.abort();
 aiSearchAbort=new AbortController();
 
+// Get model from AI search picker (session-only, doesn't affect hub default)
+var aiModel=document.getElementById('ai-search-model');
+var modelToUse=aiModel?aiModel.value:(settings.hubModel||'gpt-4o');
+
 fetch(S+'/hub/ai-search-stream',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({query:query,sources:sources}),
+body:JSON.stringify({query:query,sources:sources,model:modelToUse}),
 signal:aiSearchAbort.signal
 }).then(function(response){
 var reader=response.body.getReader();

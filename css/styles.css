@@ -512,7 +512,7 @@ input[type="file"]{display:none}
 .ai-source-pill.active .ai-source-dot{background:#34d399;opacity:1}
 
 /* AI Model Picker in search overlay - inline with sources */
-.ai-model-picker{display:flex;align-items:center;gap:5px;margin-left:auto;flex-shrink:0;padding:4px 8px;border-radius:6px;cursor:pointer;transition:background .15s}
+.ai-model-picker{display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0;padding:4px 8px;border-radius:6px;cursor:pointer;transition:background .15s}
 .ai-model-picker:hover{background:var(--bg-card-hover)}
 .ai-model-logo{width:14px;height:14px;border-radius:2px;flex-shrink:0;background-size:contain;background-repeat:no-repeat;background-position:center}
 .ai-model-logo.anthropic{background-image:url('../assets/logos/anthropic.svg')}
