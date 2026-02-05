@@ -287,6 +287,72 @@ var currentMeetingIndex=0;
 // Week view state
 var weekData=[];
 var selectedDate=null;
+// Auto-update intervals
+var countdownInterval=null;
+var meetingCheckInterval=null;
+
+// Update countdown based on meeting start time (called every minute)
+function updatePrepCountdown(){
+if(!prepState.meeting||!prepState.meeting.start||prepState.meeting.id==='_loading_')return;
+var now=new Date();
+var start=new Date(prepState.meeting.start);
+var diffMs=start-now;
+var mins=Math.floor(diffMs/60000);
+// Update minutes_until in state
+prepState.meeting.minutes_until=mins;
+// Update just the countdown element without re-rendering everything
+var countdownEl=document.querySelector('.hub-prep-meeting-countdown');
+if(countdownEl){
+var countdownClass='hub-prep-meeting-countdown';
+var countdownText='';
+if(mins<=0){countdownText='Happening now';countdownClass+=' now';}
+else if(mins<=15){countdownText='In '+mins+' min';countdownClass+=' soon';}
+else if(mins<60){countdownText='In '+mins+' min';}
+else{var hrs=Math.floor(mins/60);var m=mins%60;countdownText='In '+hrs+'h'+(m>0?' '+m+'m':'');}
+countdownEl.textContent=countdownText;
+countdownEl.className=countdownClass;
+}
+}
+
+// Check if meeting has ended or next meeting has changed (called every 30 seconds)
+function checkForMeetingChanges(){
+if(!settings.calEnabled||!settings.hubEnabled)return;
+// Only check for today (not when viewing other dates)
+if(selectedDate&&selectedDate!==new Date().toISOString().split('T')[0])return;
+
+// First check: has the current displayed meeting ended?
+if(prepState.meeting&&prepState.meeting.end){
+var now=new Date();
+var endTime=new Date(prepState.meeting.end);
+if(now>endTime){
+console.log('[Hub] Current meeting ended, refreshing to next meeting');
+fetchMeetingPrepForIndex(0);
+return;
+}
+}
+
+// Second check: has the server's next meeting changed?
+fetch(S+'/calendar?limit=1',{signal:AbortSignal.timeout(10000)})
+.then(function(r){return r.json();})
+.then(function(data){
+var events=data.events||[];
+if(events.length===0)return;
+var nextMeeting=events[0];
+// If no current meeting displayed, load the new one
+if(!prepState.meeting||prepState.meeting.id==='_loading_'){
+fetchMeetingPrepForIndex(0);
+return;
+}
+// If meeting ID changed, we have a new next meeting - refresh
+if(nextMeeting.id!==prepState.meeting.id){
+console.log('[Hub] Next meeting changed from',prepState.meeting.id,'to',nextMeeting.id);
+fetchMeetingPrepForIndex(0);
+}
+})
+.catch(function(e){
+console.log('[Hub] Meeting check failed:',e);
+});
+}
 
 function updateMeetingNav(){
 var nav=document.getElementById('meeting-nav');
@@ -1091,6 +1157,14 @@ return;
 // Start loading prep widget immediately (don't wait for auth status)
 if(settings.calEnabled){
 fetchMeetingPrep();
+// Start auto-update intervals
+if(countdownInterval)clearInterval(countdownInterval);
+if(meetingCheckInterval)clearInterval(meetingCheckInterval);
+// Update countdown every minute
+countdownInterval=setInterval(updatePrepCountdown,60000);
+// Check for meeting changes every 30 seconds
+meetingCheckInterval=setInterval(checkForMeetingChanges,30000);
+console.log('[Hub] Auto-update intervals started');
 }
 
 // Fetch auth status in parallel (for error messages only)
@@ -1150,11 +1224,20 @@ setTimeout(function(){s.focus();},50);
 setTimeout(function(){s.focus();},150);
 setTimeout(function(){s.focus();},300);
 
+function escapeAttr(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function R(a,q){if(!q){r.innerHTML='';r.classList.remove('a');return;}
 var h='<a href="https://www.google.com/search?q='+encodeURIComponent(q)+'" class="su sug"><svg class="sui" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><span class="sut">Search Google for "'+q.replace(/</g,'&lt;')+'"</span><span class="suy">Google</span></a>';
 for(var i=0;i<a.length;i++){var x=a[i],l=x.type==='bookmark'?'Saved':'History',v=x.visit_count||0,c=x.type==='bookmark'?'<svg class="sui" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>':'<svg class="sui" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.95 8.95 0 0013 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>';
-h+='<a href="'+x.url+'" class="su">'+c+'<span class="sut">'+(x.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span><span class="suy">'+l+'</span>'+(v>1?'<span class="suv">'+v+'×</span>':'')+'</a>';}
+var safeUrl=escapeAttr(x.url);
+if(!safeUrl||safeUrl==='undefined')continue;
+h+='<a href="'+safeUrl+'" class="su">'+c+'<span class="sut">'+(x.title||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span><span class="suy">'+l+'</span>'+(v>1?'<span class="suv">'+v+'×</span>':'')+'</a>';}
 r.innerHTML=h;r.classList.add('a');I=-1;}
+
+// Add loading indicator when clicking search results
+r.addEventListener('click',function(e){
+var link=e.target.closest('.su');
+if(link)link.classList.add('loading');
+});
 
 s.oninput=function(e){var q=e.target.value.trim();clearTimeout(D);if(!q){R([],'');return;}
 D=setTimeout(function(){fetch(S+'/search?q='+encodeURIComponent(q),{signal:AbortSignal.timeout(2000)}).then(function(x){return x.ok?x.json():[];}).catch(function(){return[];}).then(function(a){R(a,q);});},300);};

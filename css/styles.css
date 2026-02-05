@@ -40,6 +40,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 @keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
 .su:hover,.su.sl{background:var(--bg-card-hover)}
 .sui{width:18px;height:18px;margin-right:12px;flex-shrink:0;fill:var(--text-muted)}
+.su.loading .sui{display:none}
+.su.loading::before{content:'';width:18px;height:18px;margin-right:12px;flex-shrink:0;border:2px solid var(--text-muted);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 .sut{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;margin-right:10px;text-align:left;color:var(--text-primary)}
 .suy{font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:500;padding:3px 6px;border-radius:3px;color:var(--text-muted);background:var(--bg-card)}
 .sug .suy{background:rgba(100,150,255,.2);color:rgba(130,170,255,.9)}

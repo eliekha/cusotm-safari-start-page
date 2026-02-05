@@ -385,6 +385,9 @@ def search_history(query, limit=10):
         except Exception as e:
             logger.warning(f"Error in {search_fn.__name__}: {e}")
     
+    # Filter out BriefDesk's own page (its title changes dynamically, causing false matches)
+    results = [r for r in results if r.get('url', '') != 'http://127.0.0.1:8765/start.html']
+    
     # Dedupe by URL, keeping bookmarks over history (bookmarks are more intentional)
     seen = {}
     for r in results:
