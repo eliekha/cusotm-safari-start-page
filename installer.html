@@ -28,7 +28,7 @@ body {
   background: #0f1219;
   min-height: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 20px;
   color: var(--text-primary);
@@ -40,13 +40,18 @@ body {
   border: 1px solid var(--border-color);
   width: 100%;
   max-width: 680px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
   position: relative;
   z-index: 1;
   box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  margin: auto 0;
 }
 .header {
   padding: 28px 28px 20px;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 .header-title {
   display: flex;
@@ -81,6 +86,7 @@ body {
   padding: 16px 28px;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0,0,0,.15);
+  flex-shrink: 0;
 }
 .step-indicator {
   display: flex;
@@ -121,7 +127,9 @@ body {
 }
 .content {
   padding: 24px 28px;
-  min-height: 320px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
 }
 .step { display: none; }
 .step.active { display: block; animation: fadeIn .2s ease; }
@@ -309,6 +317,7 @@ h2 {
   display: flex;
   justify-content: space-between;
   background: rgba(0,0,0,.1);
+  flex-shrink: 0;
 }
 .btn {
   padding: 10px 20px;
