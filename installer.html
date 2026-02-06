@@ -1642,35 +1642,24 @@ async function checkIntegrations() {
     const res = await fetch(API + '/hub/status');
     const data = await res.json();
     
-    if (data.calendar?.authenticated) {
-      document.getElementById('int-calendar').classList.add('configured');
-      document.getElementById('calendar-status').textContent = 'Connected';
-    }
+    const setStatus = (id, statusId, authenticated) => {
+      const el = document.getElementById(id);
+      const statusEl = document.getElementById(statusId);
+      if (authenticated) {
+        el.classList.add('configured');
+        statusEl.textContent = 'Connected';
+      } else {
+        el.classList.remove('configured');
+        statusEl.textContent = 'Not configured';
+      }
+    };
     
-    if (data.slack?.authenticated) {
-      document.getElementById('int-slack').classList.add('configured');
-      document.getElementById('slack-status').textContent = 'Connected';
-    }
-    
-    if (data.gmail?.authenticated) {
-      document.getElementById('int-gmail').classList.add('configured');
-      document.getElementById('gmail-status').textContent = 'Connected';
-    }
-    
-    if (data.atlassian?.authenticated) {
-      document.getElementById('int-atlassian').classList.add('configured');
-      document.getElementById('atlassian-status').textContent = 'Connected';
-    }
-    
-    if (data.drive?.authenticated) {
-      document.getElementById('int-drive').classList.add('configured');
-      document.getElementById('drive-status').textContent = 'Connected';
-    }
-    
-    if (data.github?.authenticated) {
-      document.getElementById('int-github').classList.add('configured');
-      document.getElementById('github-status').textContent = 'Connected';
-    }
+    setStatus('int-calendar', 'calendar-status', data.calendar?.authenticated);
+    setStatus('int-slack', 'slack-status', data.slack?.authenticated);
+    setStatus('int-gmail', 'gmail-status', data.gmail?.authenticated);
+    setStatus('int-atlassian', 'atlassian-status', data.atlassian?.authenticated);
+    setStatus('int-drive', 'drive-status', data.drive?.authenticated);
+    setStatus('int-github', 'github-status', data.github?.authenticated);
   } catch (e) {
     console.error('Failed to check integrations:', e);
   }
@@ -1989,22 +1978,20 @@ async function connectGoogle() {
 }
 
 async function disconnectGoogle() {
-  if (!confirm('Disconnect Google account? You will need to reconnect to use Calendar, Drive, and Gmail features.')) {
-    return;
-  }
-
+  const btn = document.getElementById('google-disconnect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting...'; }
   try {
     const res = await fetch(API + '/oauth/google/disconnect');
     const data = await res.json();
-
-    if (data.success) {
-      checkGoogleStatus();
-      checkIntegrations();
-    } else {
-      alert(data.message || 'Failed to disconnect');
+    checkGoogleStatus();
+    checkIntegrations();
+    if (!data.success) {
+      console.error('Google disconnect failed:', data.message || data.error);
     }
   } catch (e) {
-    alert('Failed to disconnect: ' + e.message);
+    console.error('Failed to disconnect Google:', e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Disconnect'; }
   }
 }
 
@@ -2130,12 +2117,15 @@ async function connectGmailMcp() {
 }
 
 async function disconnectGmailMcp() {
-  if (!confirm('This will remove your Gmail credentials. You will need to re-authenticate to use Gmail search.')) {
-    return;
-  }
-  alert('To fully disconnect Gmail, delete the file:\n~/.gmail-mcp/credentials.json\n\nThen restart the search service.');
+  const btn = document.getElementById('gmail-disconnect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting...'; }
+  try {
+    // Remove Gmail credentials
+    await fetch(SEARCH_SERVICE + '/gmail/disconnect', { method: 'POST' }).catch(() => {});
+  } catch (e) { /* ignore */ }
   checkGmailModalStatus();
   checkIntegrations();
+  if (btn) { btn.disabled = false; btn.textContent = 'Disconnect'; }
 }
 
 // ─── Atlassian ───────────────────────────────────────────────────────
@@ -2217,18 +2207,20 @@ async function connectAtlassian() {
 }
 
 async function disconnectAtlassian() {
-  if (!confirm('Disconnect Atlassian? You will need to reconnect to use Jira and Confluence.')) return;
+  const btn = document.getElementById('atlassian-disconnect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting...'; }
   try {
     const res = await fetch(API + '/oauth/atlassian/disconnect');
     const data = await res.json();
-    if (data.success) {
-      checkAtlassianModalStatus();
-      checkIntegrations();
-    } else {
-      alert(data.message || 'Failed to disconnect');
+    checkAtlassianModalStatus();
+    checkIntegrations();
+    if (!data.success) {
+      console.error('Atlassian disconnect failed:', data.message || data.error);
     }
   } catch (e) {
-    alert('Failed to disconnect: ' + e.message);
+    console.error('Failed to disconnect Atlassian:', e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Disconnect'; }
   }
 }
 
