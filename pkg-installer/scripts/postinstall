@@ -350,19 +350,21 @@ fi
 # ============================================================
 # 6. BUILD MCP SERVERS (gdrive, gmail)
 # ============================================================
-if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NPM_PATH" ]; then
-    echo "Building gdrive-mcp..."
-    cd "$INSTALL_DIR/gdrive-mcp"
-    sudo -u "$INSTALL_USER" "$NPM_PATH" install --silent 2>/dev/null || true
-    sudo -u "$INSTALL_USER" "$NPM_PATH" run build --silent 2>/dev/null || true
-fi
-
-if [ -d "$INSTALL_DIR/gmail-mcp" ] && [ -n "$NPM_PATH" ]; then
-    echo "Building gmail-mcp..."
-    cd "$INSTALL_DIR/gmail-mcp"
-    sudo -u "$INSTALL_USER" "$NPM_PATH" install --silent 2>/dev/null || true
-    sudo -u "$INSTALL_USER" "$NPM_PATH" run build --silent 2>/dev/null || true
-fi
+for MCP_NAME in gdrive-mcp gmail-mcp; do
+    if [ -d "$INSTALL_DIR/$MCP_NAME" ] && [ -n "$NPM_PATH" ]; then
+        echo "Building $MCP_NAME..."
+        cd "$INSTALL_DIR/$MCP_NAME"
+        # HOME must be set explicitly for npm to find cache/config when running via sudo
+        # --include=dev ensures TypeScript compiler is installed (it's a devDependency)
+        sudo -u "$INSTALL_USER" HOME="$USER_HOME" "$NPM_PATH" install --include=dev 2>&1 | tail -3 || echo "WARNING: $MCP_NAME npm install failed"
+        sudo -u "$INSTALL_USER" HOME="$USER_HOME" "$NPM_PATH" run build 2>&1 | tail -3 || echo "WARNING: $MCP_NAME build failed"
+        if [ -f "$INSTALL_DIR/$MCP_NAME/dist/index.js" ]; then
+            echo "   ✓ $MCP_NAME built successfully"
+        else
+            echo "   ⚠ $MCP_NAME build failed - will retry on next install"
+        fi
+    fi
+done
 
 # Remove old Gmail credentials with modify scope (security)
 if [ -f "$USER_HOME/.gmail-mcp/credentials.json" ]; then
