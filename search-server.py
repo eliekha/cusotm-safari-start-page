@@ -1692,7 +1692,8 @@ Add a **Sources** section at the end listing all referenced links."""
         # Check common locations for npx (launchd doesn't have full PATH)
         npx_path = shutil.which('npx')
         if not npx_path:
-            for path in ['/opt/homebrew/bin/npx', '/usr/local/bin/npx', '/usr/bin/npx']:
+            devsai_npx = os.path.expanduser('~/.local/share/devsai/npx')
+            for path in ['/opt/homebrew/bin/npx', '/usr/local/bin/npx', '/usr/bin/npx', devsai_npx]:
                 if os.path.exists(path):
                     npx_path = path
                     break

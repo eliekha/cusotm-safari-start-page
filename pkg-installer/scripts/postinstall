@@ -148,13 +148,17 @@ if [ -z "$NODE_PATH" ]; then
             if [ -d "$NODE_TMP/lib/node_modules/npm" ]; then
                 # Copy npm's lib so npm-cli.js can resolve its require() paths
                 cp -r "$NODE_TMP/lib" "$DEVSAI_DIR/" 2>/dev/null || true
-                # Create an npm wrapper that uses our node binary + correct npm-cli.js path
+                # Create npm and npx wrappers that use our node binary
                 cat > "$DEVSAI_DIR/npm" << NPMEOF
 #!/bin/bash
 exec "$DEVSAI_DIR/node" "$DEVSAI_DIR/lib/node_modules/npm/bin/npm-cli.js" "\$@"
 NPMEOF
+                cat > "$DEVSAI_DIR/npx" << NPXEOF
+#!/bin/bash
+exec "$DEVSAI_DIR/node" "$DEVSAI_DIR/lib/node_modules/npm/bin/npx-cli.js" "\$@"
+NPXEOF
             fi
-            chmod +x "$DEVSAI_DIR/node" "$DEVSAI_DIR/npm" 2>/dev/null || true
+            chmod +x "$DEVSAI_DIR/node" "$DEVSAI_DIR/npm" "$DEVSAI_DIR/npx" 2>/dev/null || true
             chown -R "$INSTALL_USER" "$DEVSAI_DIR" 2>/dev/null || true
             # Point NODE_PATH to the persistent copy (temp dir is cleaned up below)
             NODE_PATH="$DEVSAI_DIR/node"
