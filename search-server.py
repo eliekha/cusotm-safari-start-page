@@ -2069,6 +2069,9 @@ Add a **Sources** section at the end listing all referenced links."""
                 self.end_headers()
                 return
             
+            # Clear stale slack-mcp-server cache before saving new token
+            self._clear_slack_mcp_cache()
+            
             # Save the token to MCP config
             self._save_slack_oauth_token(xoxp_token)
             
@@ -2167,8 +2170,20 @@ Add a **Sources** section at the end listing all referenced links."""
             "has_client_secret": bool(client_secret),
         })
 
+    @staticmethod
+    def _clear_slack_mcp_cache():
+        """Clear the slack-mcp-server channel/user cache to prevent stale data."""
+        import shutil
+        cache_dir = os.path.expanduser("~/Library/Caches/slack-mcp-server")
+        if os.path.exists(cache_dir):
+            try:
+                shutil.rmtree(cache_dir)
+                logger.info(f"[Slack] Cleared MCP cache: {cache_dir}")
+            except Exception as e:
+                logger.warning(f"[Slack] Failed to clear MCP cache: {e}")
+
     def handle_oauth_slack_disconnect(self):
-        """Disconnect Slack -- remove stored tokens."""
+        """Disconnect Slack -- remove stored tokens and cache."""
         mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
         
         try:
@@ -2187,7 +2202,10 @@ Add a **Sources** section at the end listing all referenced links."""
                 from lib.slack import reset_slack_tokens
                 reset_slack_tokens()
                 
-                logger.info("[Slack OAuth] Disconnected -- tokens removed")
+                # Clear slack-mcp-server cache (channels/users)
+                self._clear_slack_mcp_cache()
+                
+                logger.info("[Slack OAuth] Disconnected -- tokens and cache removed")
             
             self.send_json({
                 "success": True,
