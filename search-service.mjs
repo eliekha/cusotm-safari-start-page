@@ -273,6 +273,9 @@ export const MCP_RETRY_CONFIG = {
   maxRetries: 3,
   retryDelayMs: 5000,  // 5 seconds between retries
   retryableErrors: ['empty cache', 'not found in empty cache', 'cache not ready'],
+  // Deferred retry: re-attempt servers that failed or never connected on startup
+  deferredRetryDelayMs: 10000,  // 10 seconds after startup
+  deferredMaxRetries: 2,
 };
 
 // Functions to set state (for testing)
@@ -507,6 +510,98 @@ export async function retryFailedServers() {
 }
 
 /**
+ * Schedule a deferred retry for MCP servers that failed or never connected.
+ *
+ * On initial startup, mcp-remote (Atlassian) can fail silently — e.g. stale
+ * OAuth tokens, slow SSE handshake, or the process exiting before the MCP SDK
+ * registers an error.  This function reads the expected server list from
+ * .devsai.json, compares it with actually-connected servers, and retries any
+ * that are missing or in error state.  Runs in the background so it doesn't
+ * block startup.
+ */
+function scheduleDeferredRetry() {
+  setTimeout(async () => {
+    try {
+      if (!mcpManager) return;
+
+      // Read expected servers from .devsai.json
+      const devsaiConfigPath = path.join(process.cwd(), '.devsai.json');
+      let expectedServers = [];
+      try {
+        if (fs.existsSync(devsaiConfigPath)) {
+          const cfg = JSON.parse(fs.readFileSync(devsaiConfigPath, 'utf8'));
+          expectedServers = Object.keys(cfg.mcpServers || {});
+        }
+      } catch {}
+
+      if (expectedServers.length === 0) return;
+
+      const statuses = mcpManager.getServerStatuses();
+      const connectedNames = new Set(
+        statuses.filter(s => s.status === 'connected').map(s => s.name)
+      );
+
+      // Find servers that should be connected but aren't
+      const missing = expectedServers.filter(name => !connectedNames.has(name));
+      if (missing.length === 0) return;
+
+      console.log(`[SearchService] Deferred retry: ${missing.length} server(s) not connected: ${missing.join(', ')}`);
+
+      for (const serverName of missing) {
+        for (let attempt = 1; attempt <= MCP_RETRY_CONFIG.deferredMaxRetries; attempt++) {
+          console.log(`[SearchService] Deferred retry ${attempt}/${MCP_RETRY_CONFIG.deferredMaxRetries} for ${serverName}...`);
+
+          try {
+            // Disconnect first (ignore errors — server may never have registered)
+            try { await mcpManager.disconnectServer(serverName); } catch {}
+
+            // Re-read config to get server config (may have been added after startup)
+            let serverConfig = null;
+            try {
+              const cfg = JSON.parse(fs.readFileSync(devsaiConfigPath, 'utf8'));
+              serverConfig = (cfg.mcpServers || {})[serverName];
+            } catch {}
+
+            if (serverConfig) {
+              await mcpManager.connectServer(serverName, serverConfig);
+            } else {
+              await mcpManager.connectServer(serverName);
+            }
+
+            const newStatuses = mcpManager.getServerStatuses();
+            const newStatus = newStatuses.find(s => s.name === serverName);
+
+            if (newStatus?.status === 'connected') {
+              console.log(`[SearchService] ✓ ${serverName} connected via deferred retry (${newStatus.toolCount} tools)`);
+              break;
+            } else {
+              console.log(`[SearchService] ✗ ${serverName} deferred retry ${attempt} failed: ${newStatus?.error?.substring(0, 80) || 'unknown'}`);
+            }
+          } catch (err) {
+            console.log(`[SearchService] ✗ ${serverName} deferred retry ${attempt} error: ${err.message?.substring(0, 80)}`);
+          }
+
+          // Wait before next attempt
+          if (attempt < MCP_RETRY_CONFIG.deferredMaxRetries) {
+            await sleep(MCP_RETRY_CONFIG.retryDelayMs);
+          }
+        }
+      }
+
+      // Log final status after deferred retries
+      const finalStatuses = mcpManager.getServerStatuses();
+      const finalConnected = finalStatuses.filter(s => s.status === 'connected');
+      console.log(`[SearchService] After deferred retries: ${finalConnected.length} servers connected`);
+      for (const s of finalConnected) {
+        console.log(`  ✓ ${s.name} (${s.toolCount} tools)`);
+      }
+    } catch (err) {
+      console.error('[SearchService] Deferred retry error:', err.message);
+    }
+  }, MCP_RETRY_CONFIG.deferredRetryDelayMs);
+}
+
+/**
  * Initialize MCP connections and API client
  */
 export async function initialize() {
@@ -572,9 +667,15 @@ export async function initialize() {
       errors = statuses.filter(s => s.status === 'error');
       console.log(`[SearchService] After retries: ${connected.length} connected, ${errors.length} errors`);
     }
+    // Schedule deferred retry for any servers that failed or never connected.
+    // mcp-remote (Atlassian) can fail silently on first startup if tokens are
+    // stale or the SSE handshake takes too long.  We compare the expected
+    // server list from .devsai.json with what actually connected.
+    scheduleDeferredRetry();
   } catch (err) {
     console.error('[SearchService] MCP connection error:', err.message);
     // Continue anyway - some servers may have connected
+    scheduleDeferredRetry();
   }
   
   initialized = true;

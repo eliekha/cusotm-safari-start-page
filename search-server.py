@@ -1746,13 +1746,22 @@ Add a **Sources** section at the end listing all referenced links."""
             })
 
     def handle_oauth_atlassian_status(self):
-        """Check Atlassian OAuth status."""
+        """Check Atlassian OAuth status with token validation and auto-refresh."""
         import glob
+        import urllib.request
+        import urllib.error
 
         mcp_auth_dir = os.path.expanduser("~/.mcp-auth")
         has_tokens = False
+        token_valid = False
+        error_detail = None
 
-        # Check for mcp-remote token files inside subdirectories
+        # --- Step 1: Find token files in ~/.mcp-auth ---
+        access_token = None
+        refresh_token = None
+        client_id = None
+        token_file_path = None
+
         if os.path.exists(mcp_auth_dir):
             for subdir in os.listdir(mcp_auth_dir):
                 subdir_path = os.path.join(mcp_auth_dir, subdir)
@@ -1764,14 +1773,68 @@ Add a **Sources** section at the end listing all referenced links."""
                                 data = json.load(f)
                                 if data.get('access_token'):
                                     has_tokens = True
+                                    access_token = data['access_token']
+                                    refresh_token = data.get('refresh_token')
+                                    token_file_path = tf
+                                    # Load client_info for same hash prefix
+                                    ci_file = tf.replace('_tokens.json', '_client_info.json')
+                                    if os.path.exists(ci_file):
+                                        with open(ci_file, 'r') as cf:
+                                            ci = json.load(cf)
+                                            client_id = ci.get('client_id')
                                     break
                         except Exception:
                             pass
                 if has_tokens:
                     break
 
-        # If authenticated, ensure the Atlassian MCP is configured and domain is detected
+        # --- Step 2: Validate that Atlassian is actually working ---
+        # mcp-remote manages its own OAuth token refresh internally, so we
+        # can't reliably refresh tokens ourselves (403 on dynamic clients).
+        # Instead, check if the search service has Atlassian MCP connected.
         if has_tokens:
+            # Primary: check if the search service has atlassian connected
+            search_service_connected = False
+            try:
+                ss_req = urllib.request.Request("http://127.0.0.1:19765/status")
+                with urllib.request.urlopen(ss_req, timeout=3) as resp:
+                    ss_data = json.loads(resp.read().decode())
+                    for srv in ss_data.get('servers', []):
+                        if srv.get('name') == 'atlassian' and srv.get('status') == 'connected':
+                            search_service_connected = True
+                            break
+            except Exception:
+                pass
+
+            if search_service_connected:
+                token_valid = True
+            else:
+                # Fallback: try calling Atlassian API directly with the token
+                try:
+                    self._call_atlassian_resources(access_token)
+                    token_valid = True
+                except urllib.error.HTTPError as e:
+                    if e.code in (401, 403):
+                        # Token expired/invalid — mcp-remote may still refresh on
+                        # its own when the search service reconnects.  Trigger a
+                        # reconnect attempt and report as needing re-auth only if
+                        # the search service doesn't have it either.
+                        error_detail = "oauth_expired"
+                        logger.warning(f"[Atlassian] Status check: API {e.code}, search service not connected — re-auth may be required")
+                        # Try triggering a reconnect so the deferred retry can pick it up
+                        self._trigger_search_service_reconnect("atlassian")
+                    else:
+                        error_detail = f"api_error_{e.code}"
+                        logger.warning(f"[Atlassian] Status check: API error {e.code}")
+                except Exception as e:
+                    # Network error — be lenient, assume valid
+                    token_valid = True
+                    logger.debug(f"[Atlassian] Status check: network error, assuming valid — {e}")
+
+        authenticated = has_tokens and token_valid
+
+        # --- Step 3: If validated, ensure MCP config and domain detection ---
+        if authenticated:
             import shutil
             mcp_remote_path = shutil.which('mcp-remote')
             if not mcp_remote_path:
@@ -1783,7 +1846,7 @@ Add a **Sources** section at the end listing all referenced links."""
                 "command": mcp_remote_path or "mcp-remote",
                 "args": ["https://mcp.atlassian.com/v1/sse"]
             })
-            
+
             # Auto-detect Atlassian domain if not already set
             config_path = os.path.join(CONFIG_DIR, 'config.json')
             existing_domain = ''
@@ -1793,14 +1856,35 @@ Add a **Sources** section at the end listing all referenced links."""
                         existing_domain = json.load(f).get('atlassian_domain', '')
             except Exception:
                 pass
-            
+
             if not existing_domain or existing_domain == 'your-domain.atlassian.net':
                 self._auto_detect_atlassian_domain(mcp_auth_dir)
 
-        self.send_json({
-            "authenticated": has_tokens,
-            "token_path": mcp_auth_dir
-        })
+        response = {
+            "authenticated": authenticated,
+            "token_path": mcp_auth_dir,
+            "configured": has_tokens,
+        }
+        if error_detail:
+            response["error"] = error_detail
+        self.send_json(response)
+
+    def _trigger_search_service_reconnect(self, server_name):
+        """Ask the search service to reconnect a specific MCP server (fire-and-forget)."""
+        import urllib.request
+        try:
+            url = f"http://127.0.0.1:19765/reconnect?mcp={server_name}"
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+                if data.get('success'):
+                    logger.info(f"[Atlassian] Triggered search-service reconnect for {server_name}")
+                elif data.get('restarting'):
+                    logger.info(f"[Atlassian] Search service restarting to load {server_name}")
+                else:
+                    logger.warning(f"[Atlassian] Reconnect response: {data}")
+        except Exception as e:
+            logger.debug(f"[Atlassian] Could not trigger search-service reconnect: {e}")
 
     def _auto_detect_atlassian_domain(self, mcp_auth_dir):
         """Auto-detect Atlassian domain from OAuth token by calling accessible-resources API."""
