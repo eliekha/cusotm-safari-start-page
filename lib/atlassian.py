@@ -24,10 +24,9 @@ _mcp_config_cache = None
 _config_data = None
 
 def _get_atlassian_domain():
-    """Get Atlassian domain from config."""
+    """Get Atlassian domain from config (re-reads each time to pick up auto-detected domain)."""
     global _config_data
-    if _config_data is None:
-        _config_data = load_config()
+    _config_data = load_config()
     return _config_data.get('atlassian_domain', 'your-domain.atlassian.net')
 
 ATLASSIAN_DOMAIN = property(lambda self: _get_atlassian_domain())
@@ -66,6 +65,7 @@ def load_config():
     config = {"slack_workspace": "your-workspace", "atlassian_domain": "your-domain.atlassian.net"}
     config_paths = [
         os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json'),
+        os.path.expanduser('~/.local/share/briefdesk/config.json'),
         os.path.expanduser('~/.config/briefdesk/config.json')
     ]
     for path in config_paths:

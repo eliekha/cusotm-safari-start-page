@@ -173,8 +173,8 @@ MAX_ACTIVITY_LOG = 50  # Max prefetch activity log entries
 # Slack Configuration
 # =============================================================================
 
-# Get workspace from environment or use default
-SLACK_WORKSPACE = os.environ.get('SLACK_WORKSPACE', 'appdirect')
+# Get workspace from config.json, environment, or default
+SLACK_WORKSPACE = USER_CONFIG.get('slack_workspace') or os.environ.get('SLACK_WORKSPACE', 'your-workspace')
 
 # =============================================================================
 # Default Prompts

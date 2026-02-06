@@ -988,6 +988,20 @@ Add a **Sources** section at the end listing all referenced links."""
         except Exception:
             pass
 
+        # Auto-ensure Gmail MCP config when Gmail is authenticated
+        if gmail_authenticated:
+            gmail_dist = os.path.join(CONFIG_DIR, 'gmail-mcp', 'dist', 'index.js')
+            if os.path.exists(gmail_dist):
+                self._ensure_mcp_server_config("gmail", {
+                    "command": "node",
+                    "args": [gmail_dist]
+                })
+
+        # Google is configured if we have a credentials file, a valid token, or embedded creds
+        from lib.config import get_oauth_credentials_config
+        google_token_exists = os.path.exists(TOKEN_PATH)
+        google_configured = calendar_configured or google_token_exists or (get_oauth_credentials_config() is not None)
+
         # Format auth status for frontend (expects objects with .configured/.authenticated properties)
         self.send_json({
             **status,
@@ -995,11 +1009,11 @@ Add a **Sources** section at the end listing all referenced links."""
             # Frontend expects these at top level with {configured: bool, authenticated: bool} format
             "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
             "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
-            "gmail": {"configured": calendar_configured, "authenticated": gmail_authenticated},
-            "calendar": {"configured": calendar_configured,
+            "gmail": {"configured": google_configured, "authenticated": gmail_authenticated},
+            "calendar": {"configured": google_configured,
                         "authenticated": calendar_authenticated,
                         "error": calendar_error},
-            "drive": {"configured": calendar_configured, "authenticated": drive_authenticated},
+            "drive": {"configured": google_configured, "authenticated": drive_authenticated},
             "github": {"configured": github_configured, "authenticated": github_authenticated},
         })
     
@@ -1617,6 +1631,43 @@ Add a **Sources** section at the end listing all referenced links."""
     # Atlassian OAuth Endpoints
     # ==========================================================================
 
+    def _save_config_value(self, key, value):
+        """Save a key-value pair to config.json."""
+        config_path = os.path.join(CONFIG_DIR, 'config.json')
+        try:
+            config = {}
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            config[key] = value
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            logger.info(f"[Config] Saved {key}={value}")
+        except Exception as e:
+            logger.error(f"[Config] Failed to save {key}: {e}")
+
+    def _ensure_mcp_server_config(self, server_name, config_entry):
+        """Ensure an MCP server entry exists in .devsai.json."""
+        mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+        try:
+            config = {}
+            if os.path.exists(mcp_config_path):
+                with open(mcp_config_path, 'r') as f:
+                    config = json.load(f)
+            
+            if 'mcpServers' not in config:
+                config['mcpServers'] = {}
+            
+            if server_name not in config['mcpServers']:
+                config['mcpServers'][server_name] = config_entry
+                with open(mcp_config_path, 'w') as f:
+                    json.dump(config, f, indent=2)
+                logger.info(f"[MCP Config] Added {server_name} to .devsai.json")
+                return True
+        except Exception as e:
+            logger.error(f"[MCP Config] Failed to add {server_name}: {e}")
+        return False
+
     def handle_oauth_atlassian_start(self):
         """Start Atlassian OAuth flow via mcp-remote."""
         import subprocess
@@ -1637,6 +1688,14 @@ Add a **Sources** section at the end listing all referenced links."""
             })
             return
 
+        # Find mcp-remote binary path
+        mcp_remote_path = shutil.which('mcp-remote')
+        if not mcp_remote_path:
+            for path in ['/opt/homebrew/bin/mcp-remote', '/usr/local/bin/mcp-remote']:
+                if os.path.exists(path):
+                    mcp_remote_path = path
+                    break
+
         try:
             # Spawn mcp-remote in background - it will open browser for OAuth
             # The process handles OAuth and caches tokens in ~/.mcp-auth/
@@ -1651,6 +1710,13 @@ Add a **Sources** section at the end listing all referenced links."""
                 start_new_session=True,
                 env=env
             )
+
+            # Ensure Atlassian MCP is configured in .devsai.json
+            atlassian_config = {
+                "command": mcp_remote_path or "mcp-remote",
+                "args": ["https://mcp.atlassian.com/v1/sse"]
+            }
+            self._ensure_mcp_server_config("atlassian", atlassian_config)
 
             self.send_json({
                 "success": True,
@@ -1688,10 +1754,140 @@ Add a **Sources** section at the end listing all referenced links."""
                 if has_tokens:
                     break
 
+        # If authenticated, ensure the Atlassian MCP is configured and domain is detected
+        if has_tokens:
+            import shutil
+            mcp_remote_path = shutil.which('mcp-remote')
+            if not mcp_remote_path:
+                for p in ['/opt/homebrew/bin/mcp-remote', '/usr/local/bin/mcp-remote']:
+                    if os.path.exists(p):
+                        mcp_remote_path = p
+                        break
+            self._ensure_mcp_server_config("atlassian", {
+                "command": mcp_remote_path or "mcp-remote",
+                "args": ["https://mcp.atlassian.com/v1/sse"]
+            })
+            
+            # Auto-detect Atlassian domain if not already set
+            config_path = os.path.join(CONFIG_DIR, 'config.json')
+            existing_domain = ''
+            try:
+                if os.path.exists(config_path):
+                    with open(config_path, 'r') as f:
+                        existing_domain = json.load(f).get('atlassian_domain', '')
+            except Exception:
+                pass
+            
+            if not existing_domain or existing_domain == 'your-domain.atlassian.net':
+                self._auto_detect_atlassian_domain(mcp_auth_dir)
+
         self.send_json({
             "authenticated": has_tokens,
             "token_path": mcp_auth_dir
         })
+
+    def _auto_detect_atlassian_domain(self, mcp_auth_dir):
+        """Auto-detect Atlassian domain from OAuth token by calling accessible-resources API."""
+        import glob
+        import urllib.request
+        import urllib.parse
+        
+        try:
+            # Find token data and client info from mcp-auth
+            access_token = None
+            refresh_token = None
+            client_id = None
+            token_file_path = None
+            
+            for subdir in os.listdir(mcp_auth_dir):
+                subdir_path = os.path.join(mcp_auth_dir, subdir)
+                if os.path.isdir(subdir_path):
+                    for tf in glob.glob(os.path.join(subdir_path, "*_tokens.json")):
+                        with open(tf, 'r') as f:
+                            data = json.load(f)
+                            if data.get('access_token'):
+                                access_token = data['access_token']
+                                refresh_token = data.get('refresh_token')
+                                token_file_path = tf
+                                # Load client_info for the same hash prefix
+                                ci_file = tf.replace('_tokens.json', '_client_info.json')
+                                if os.path.exists(ci_file):
+                                    with open(ci_file, 'r') as cf:
+                                        ci = json.load(cf)
+                                        client_id = ci.get('client_id')
+                                break
+                if access_token:
+                    break
+            
+            if not access_token:
+                return
+            
+            # Try calling accessible-resources API with current access token
+            try:
+                resources = self._call_atlassian_resources(access_token)
+            except urllib.error.HTTPError as e:
+                if e.code == 401 and refresh_token and client_id:
+                    # Token expired -- try to refresh it
+                    logger.info("[Atlassian] Access token expired, attempting refresh...")
+                    new_token = self._refresh_atlassian_token(refresh_token, client_id, token_file_path)
+                    if new_token:
+                        resources = self._call_atlassian_resources(new_token)
+                    else:
+                        return
+                else:
+                    raise
+            
+            if resources and len(resources) > 0:
+                site_url = resources[0].get('url', '')
+                site_name = resources[0].get('name', '')
+                if site_url:
+                    domain = site_url.replace('https://', '').strip('/')
+                    self._save_config_value('atlassian_domain', domain)
+                    logger.info(f"[Atlassian] Auto-detected domain: {domain} (site: {site_name})")
+        except Exception as e:
+            logger.warning(f"[Atlassian] Could not auto-detect domain: {e}")
+
+    def _call_atlassian_resources(self, access_token):
+        """Call Atlassian accessible-resources API."""
+        import urllib.request
+        req = urllib.request.Request(
+            'https://api.atlassian.com/oauth/token/accessible-resources',
+            headers={'Authorization': f'Bearer {access_token}', 'Accept': 'application/json'}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+
+    def _refresh_atlassian_token(self, refresh_token, client_id, token_file_path):
+        """Refresh an Atlassian OAuth token and save the new token data."""
+        import urllib.request
+        import urllib.parse
+        
+        try:
+            token_data = urllib.parse.urlencode({
+                'grant_type': 'refresh_token',
+                'client_id': client_id,
+                'refresh_token': refresh_token,
+            }).encode()
+            
+            req = urllib.request.Request(
+                'https://auth.atlassian.com/oauth/token',
+                data=token_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode())
+            
+            new_access_token = result.get('access_token')
+            if new_access_token and token_file_path:
+                # Update the token file with new tokens
+                with open(token_file_path, 'w') as f:
+                    json.dump(result, f, indent=2)
+                logger.info("[Atlassian] Successfully refreshed access token")
+                return new_access_token
+        except Exception as e:
+            logger.warning(f"[Atlassian] Token refresh failed: {e}")
+        
+        return None
 
     def handle_oauth_atlassian_disconnect(self):
         """Disconnect Atlassian account."""
@@ -1704,6 +1900,17 @@ Add a **Sources** section at the end listing all referenced links."""
             if os.path.exists(mcp_auth_dir):
                 shutil.rmtree(mcp_auth_dir)
                 logger.info(f"Removed Atlassian tokens directory: {mcp_auth_dir}")
+
+            # Also remove Atlassian MCP config from .devsai.json
+            mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+            if os.path.exists(mcp_config_path):
+                with open(mcp_config_path, 'r') as f:
+                    config = json.load(f)
+                if 'mcpServers' in config and 'atlassian' in config['mcpServers']:
+                    del config['mcpServers']['atlassian']
+                    with open(mcp_config_path, 'w') as f:
+                        json.dump(config, f, indent=2)
+                    logger.info("[MCP Config] Removed atlassian from .devsai.json")
 
             self.send_json({
                 "success": True,
@@ -1864,6 +2071,25 @@ Add a **Sources** section at the end listing all referenced links."""
             
             # Save the token to MCP config
             self._save_slack_oauth_token(xoxp_token)
+            
+            # Auto-detect and save workspace name to config.json
+            try:
+                # Call auth.test to get workspace URL
+                auth_req = urllib.request.Request(
+                    'https://slack.com/api/auth.test',
+                    headers={'Authorization': f'Bearer {xoxp_token}'}
+                )
+                with urllib.request.urlopen(auth_req, timeout=10) as auth_resp:
+                    auth_data = json.loads(auth_resp.read().decode())
+                if auth_data.get('ok'):
+                    # Extract workspace subdomain from URL (e.g., "https://appdirect.slack.com/")
+                    team_url = auth_data.get('url', '')
+                    workspace_name = team_url.replace('https://', '').replace('.slack.com/', '').strip()
+                    if workspace_name:
+                        self._save_config_value('slack_workspace', workspace_name)
+                        logger.info(f"[Slack OAuth] Auto-detected workspace: {workspace_name}")
+            except Exception as e:
+                logger.warning(f"[Slack OAuth] Could not auto-detect workspace: {e}")
             
             logger.info(f"[Slack OAuth] Successfully authenticated with workspace: {team_name}")
             
