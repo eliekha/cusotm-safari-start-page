@@ -6,7 +6,7 @@ import glob
 from datetime import datetime, timedelta
 
 from .config import (
-    logger, TOKEN_PATH, CREDENTIALS_PATH, SCOPES, ALL_SCOPES,
+    logger, CONFIG_DIR, TOKEN_PATH, CREDENTIALS_PATH, SCOPES, ALL_SCOPES,
     GOOGLE_API_AVAILABLE, GOOGLE_DRIVE_PATHS,
     Request, Credentials, InstalledAppFlow, build,
     get_oauth_credentials_config, GOOGLE_CLIENT_ID

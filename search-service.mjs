@@ -31,11 +31,58 @@ import { spawn } from 'child_process';
 // Uses ~/.local/share/devsai/dist/ which has Full Disk Access
 import os from 'os';
 import path from 'path';
+import { execSync } from 'child_process';
 
 const HOME = os.homedir();
-const DEVSAI_BASE_PATH = process.env.DEVSAI_LIB_PATH
-  ? path.join(process.env.DEVSAI_LIB_PATH, 'dist', 'lib')
-  : path.join(HOME, '.local/share/devsai/dist/lib');
+
+/**
+ * Find the devsai library path by checking multiple locations.
+ * The dist files use bare imports (@modelcontextprotocol/sdk etc.)
+ * so we need a location where node_modules is resolvable.
+ */
+function findDevsaiLibPath() {
+  const candidates = [
+    // 1. Standard install location (set up by install.sh with node_modules symlink)
+    path.join(HOME, '.local/share/devsai/dist/lib'),
+    // 2. Dev repo (has its own node_modules with all deps)
+    path.join(HOME, 'Documents/GitHub/devs-ai-cli/dist/lib'),
+  ];
+  
+  // 3. Try global npm install location
+  try {
+    const npmRoot = execSync('npm root -g 2>/dev/null', { encoding: 'utf8', timeout: 5000 }).trim();
+    if (npmRoot) {
+      candidates.push(path.join(npmRoot, 'devsai/dist/lib'));
+    }
+  } catch {
+    // npm not available or timed out, skip
+  }
+  
+  // Return first candidate that has the expected entry point
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, 'mcp', 'index.js'))) {
+      return dir;
+    }
+  }
+  
+  // Default fallback (will fail gracefully in loadDevsaiModules)
+  return path.join(HOME, '.local/share/devsai/dist/lib');
+}
+
+// Resolve DEVSAI_BASE_PATH: use env var if it points to a valid location,
+// otherwise auto-detect from multiple candidate locations
+function resolveDevsaiBasePath() {
+  if (process.env.DEVSAI_LIB_PATH) {
+    const envPath = path.join(process.env.DEVSAI_LIB_PATH, 'dist', 'lib');
+    if (fs.existsSync(path.join(envPath, 'mcp', 'index.js'))) {
+      return envPath;
+    }
+    console.log(`[SearchService] DEVSAI_LIB_PATH env points to invalid location: ${envPath}`);
+  }
+  return findDevsaiLibPath();
+}
+
+const DEVSAI_BASE_PATH = resolveDevsaiBasePath();
 
 function resolveDevsaiCliPath() {
   const candidates = [
@@ -256,42 +303,75 @@ function refreshApiClient() {
 }
 
 /**
- * Dynamic import of devsai modules from local installation
+ * Load all devsai modules from a given base path.
+ * Returns true on success, throws on failure.
+ */
+async function _loadModulesFrom(basePath) {
+  const mcpModule = await import(`file://${basePath}/mcp/index.js`);
+  MCPManager = mcpModule.MCPManager;
+  getMCPToolDefinitions = mcpModule.getMCPToolDefinitions;
+  executeMCPTool = mcpModule.executeMCPTool;
+  isMCPTool = mcpModule.isMCPTool;
+  
+  const apiModule = await import(`file://${basePath}/api-client.js`);
+  createApiClient = apiModule.createApiClient;
+  
+  const configModule = await import(`file://${basePath}/config.js`);
+  isAuthenticated = configModule.isAuthenticated;
+  getConfig = configModule.getConfig;
+  getConfigPath = configModule.getConfigPath;
+  getApiKey = configModule.getApiKey;
+  
+  const cliToolsModule = await import(`file://${basePath}/cli-tools.js`);
+  CLI_TOOLS = cliToolsModule.CLI_TOOLS;
+  executeSearchFiles = cliToolsModule.executeSearchFiles;
+  executeFindFiles = cliToolsModule.executeFindFiles;
+  executeReadFile = cliToolsModule.executeReadFile;
+  executeListDirectory = cliToolsModule.executeListDirectory;
+  
+  return true;
+}
+
+/**
+ * Dynamic import of devsai modules with multi-path fallback.
+ * Tries the primary path first, then falls back to dev repo and global npm.
  */
 export async function loadDevsaiModules() {
-  try {
-    // Use the local devsai installation (has Full Disk Access)
-    const mcpModule = await import(`file://${DEVSAI_BASE_PATH}/mcp/index.js`);
-    MCPManager = mcpModule.MCPManager;
-    getMCPToolDefinitions = mcpModule.getMCPToolDefinitions;
-    executeMCPTool = mcpModule.executeMCPTool;
-    isMCPTool = mcpModule.isMCPTool;
-    
-    const apiModule = await import(`file://${DEVSAI_BASE_PATH}/api-client.js`);
-    createApiClient = apiModule.createApiClient;
-    
-    const configModule = await import(`file://${DEVSAI_BASE_PATH}/config.js`);
-    isAuthenticated = configModule.isAuthenticated;
-    getConfig = configModule.getConfig;
-    getConfigPath = configModule.getConfigPath;
-    getApiKey = configModule.getApiKey;
-    
-    // Load CLI tools for file operations
-    const cliToolsModule = await import(`file://${DEVSAI_BASE_PATH}/cli-tools.js`);
-    CLI_TOOLS = cliToolsModule.CLI_TOOLS;
-    executeSearchFiles = cliToolsModule.executeSearchFiles;
-    executeFindFiles = cliToolsModule.executeFindFiles;
-    executeReadFile = cliToolsModule.executeReadFile;
-    executeListDirectory = cliToolsModule.executeListDirectory;
-    
-    console.log('[SearchService] Loaded devsai modules from:', DEVSAI_BASE_PATH);
-    devsaiLoaded = true;
-    return true;
-  } catch (err) {
-    console.error('[SearchService] Failed to load devsai modules:', err.message);
-    initError = err.message;
-    return false;
+  // Build list of candidate paths (primary first, then fallbacks)
+  const candidatePaths = [DEVSAI_BASE_PATH];
+  
+  // Add fallback paths that aren't already the primary
+  const devRepoPath = path.join(HOME, 'Documents/GitHub/devs-ai-cli/dist/lib');
+  if (devRepoPath !== DEVSAI_BASE_PATH && fs.existsSync(path.join(devRepoPath, 'mcp', 'index.js'))) {
+    candidatePaths.push(devRepoPath);
   }
+  
+  // Try global npm location as last resort
+  try {
+    const npmRoot = execSync('npm root -g 2>/dev/null', { encoding: 'utf8', timeout: 5000 }).trim();
+    const npmPath = path.join(npmRoot, 'devsai/dist/lib');
+    if (npmPath !== DEVSAI_BASE_PATH && fs.existsSync(path.join(npmPath, 'mcp', 'index.js'))) {
+      candidatePaths.push(npmPath);
+    }
+  } catch {}
+  
+  // Try each candidate path
+  for (const basePath of candidatePaths) {
+    try {
+      await _loadModulesFrom(basePath);
+      console.log('[SearchService] Loaded devsai modules from:', basePath);
+      devsaiLoaded = true;
+      return true;
+    } catch (err) {
+      const shortErr = err.message.substring(0, 100);
+      console.log(`[SearchService] Failed to load from ${basePath}: ${shortErr}`);
+    }
+  }
+  
+  console.error('[SearchService] Failed to load devsai modules from any location');
+  console.error('[SearchService] Tried:', candidatePaths.join(', '));
+  initError = 'Failed to load devsai modules - ensure devsai CLI is installed';
+  return false;
 }
 
 /**

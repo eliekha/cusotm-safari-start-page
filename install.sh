@@ -264,18 +264,66 @@ if [ -n "$NODE_PATH" ]; then
     chmod +x "$DEVSAI_DIR/node"
     echo "   ✓ Copied Node to $DEVSAI_DIR/node"
     
-    # Check if devsai is installed
+    # Check if devsai is installed and set up module resolution
+    # The dist files use bare imports (@modelcontextprotocol/sdk etc.)
+    # so we need node_modules available for resolution
+    DEVSAI_SRC=""
     DEVSAI_DIST=""
-    if npm list -g devsai &> /dev/null; then
-        DEVSAI_DIST=$(npm root -g)/devsai/dist
-    elif [ -d "$HOME/Documents/GitHub/devs-ai-cli/dist" ]; then
-        # Development install
-        DEVSAI_DIST="$HOME/Documents/GitHub/devs-ai-cli/dist"
+    
+    # Priority 1: Development repo (has its own node_modules with all deps)
+    if [ -d "$HOME/Documents/GitHub/devs-ai-cli/dist" ] && [ -d "$HOME/Documents/GitHub/devs-ai-cli/node_modules" ]; then
+        DEVSAI_SRC="$HOME/Documents/GitHub/devs-ai-cli"
+        DEVSAI_DIST="$DEVSAI_SRC/dist"
+        echo "   Found devsai dev repo at $DEVSAI_SRC"
+    fi
+    
+    # Priority 2: Global npm install
+    if [ -z "$DEVSAI_SRC" ]; then
+        NPM_ROOT=""
+        # Try npm root -g with common npm paths (pkg installer may not have npm in PATH)
+        for NPM_BIN in "npm" "/opt/homebrew/bin/npm" "/usr/local/bin/npm"; do
+            if command -v "$NPM_BIN" &> /dev/null || [ -x "$NPM_BIN" ]; then
+                NPM_ROOT=$("$NPM_BIN" root -g 2>/dev/null)
+                [ -n "$NPM_ROOT" ] && break
+            fi
+        done
+        
+        if [ -n "$NPM_ROOT" ] && [ -d "$NPM_ROOT/devsai/dist" ]; then
+            DEVSAI_SRC="$NPM_ROOT/devsai"
+            DEVSAI_DIST="$DEVSAI_SRC/dist"
+            echo "   Found devsai global install at $DEVSAI_SRC"
+        fi
     fi
     
     if [ -n "$DEVSAI_DIST" ] && [ -d "$DEVSAI_DIST" ]; then
+        # Copy dist files for the CLI wrapper
         cp -r "$DEVSAI_DIST" "$DEVSAI_DIR/"
-        echo "   ✓ Copied devsai to $DEVSAI_DIR/dist"
+        echo "   ✓ Copied devsai dist to $DEVSAI_DIR/dist"
+        
+        # Create package.json with type: module (ESM) and version info
+        # The dist files use export/import syntax and read version from package.json
+        DEVSAI_VERSION=""
+        if [ -f "$DEVSAI_SRC/package.json" ]; then
+            DEVSAI_VERSION=$("$NODE_PATH" -e "console.log(require('$DEVSAI_SRC/package.json').version)" 2>/dev/null)
+        fi
+        echo "{\"type\": \"module\", \"name\": \"devsai\", \"version\": \"${DEVSAI_VERSION:-0.0.0}\"}" > "$DEVSAI_DIR/package.json"
+        
+        # Set up node_modules for bare import resolution
+        # The search-service loads devsai dist files which import from
+        # @modelcontextprotocol/sdk etc. - these need node_modules to resolve
+        rm -f "$DEVSAI_DIR/node_modules" 2>/dev/null  # Remove stale symlink
+        rm -rf "$DEVSAI_DIR/node_modules" 2>/dev/null  # Remove stale dir
+        
+        if [ -d "$DEVSAI_SRC/node_modules" ]; then
+            # Link to the source package's node_modules (dev repo or global)
+            ln -sf "$DEVSAI_SRC/node_modules" "$DEVSAI_DIR/node_modules"
+            echo "   ✓ Linked node_modules for dependency resolution"
+        elif [ -n "$NPM_ROOT" ]; then
+            # Fallback: link global npm root as node_modules
+            # (global packages are siblings, so this provides resolution)
+            ln -sf "$NPM_ROOT" "$DEVSAI_DIR/node_modules"
+            echo "   ✓ Linked global npm root for dependency resolution"
+        fi
     else
         echo "   ℹ️  devsai not found. Install with: npm install -g devsai"
     fi

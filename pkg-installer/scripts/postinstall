@@ -305,7 +305,7 @@ if [ -n "$NODE_PATH" ]; then
     <key>EnvironmentVariables</key>
     <dict>
         <key>DEVSAI_LIB_PATH</key>
-        <string>$DEVSAI_DIR/node_modules/devsai</string>
+        <string>$DEVSAI_DIR</string>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
