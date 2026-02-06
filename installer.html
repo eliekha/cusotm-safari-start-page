@@ -709,6 +709,9 @@ h2 {
 .server-error-content li {
   margin: 6px 0;
 }
+
+/* FDA all-granted banner */
+/* FDA styles removed - FDA step eliminated */
 </style>
 </head>
 <body>
@@ -727,161 +730,67 @@ h2 {
   <div class="steps-nav">
     <div class="step-indicator active" data-step="1">
       <div class="step-num">1</div>
-      <span>Welcome</span>
+      <span>Status</span>
     </div>
     <div class="step-connector"></div>
     <div class="step-indicator" data-step="2">
       <div class="step-num">2</div>
-      <span>Requirements</span>
+      <span>Connect</span>
     </div>
     <div class="step-connector"></div>
     <div class="step-indicator" data-step="3">
       <div class="step-num">3</div>
-      <span>Install</span>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="4">
-      <div class="step-num">4</div>
-      <span>Permissions</span>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="5">
-      <div class="step-num">5</div>
-      <span>Connect</span>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step-indicator" data-step="6">
-      <div class="step-num">6</div>
-      <span>Browser</span>
+      <span>Done</span>
     </div>
   </div>
   
   <div class="content">
-    <!-- Step 1: Welcome -->
+    <!-- Step 1: Welcome & Status -->
     <div class="step active" id="step-1">
-      <h2>Welcome</h2>
-      <p class="step-desc">BriefDesk brings your calendar, Slack, email, and productivity tools together in one place. This setup will guide you through the installation.</p>
+      <h2>BriefDesk is Ready</h2>
+      <p class="step-desc">Everything has been set up by the installer. Here's what's running:</p>
       
-      <ul class="checklist">
-        <li class="check-item">
-          <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
-          <div class="check-info">
-            <div class="check-name">Check system requirements</div>
-            <div class="check-status">Verify Python and Node.js</div>
-          </div>
-        </li>
-        <li class="check-item">
-          <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
-          <div class="check-info">
-            <div class="check-name">Install BriefDesk</div>
-            <div class="check-status">Set up files and background services</div>
-          </div>
-        </li>
-        <li class="check-item">
-          <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
-          <div class="check-info">
-            <div class="check-name">Connect your services</div>
-            <div class="check-status">Calendar, Slack, and more</div>
-          </div>
-        </li>
-      </ul>
-    </div>
-    
-    <!-- Step 2: Requirements -->
-    <div class="step" id="step-2">
-      <h2>System Requirements</h2>
-      <p class="step-desc">Checking that your system has the required dependencies.</p>
-      
-      <ul class="checklist" id="requirements-list">
-        <li class="check-item" id="req-python">
+      <ul class="checklist" id="system-info-list">
+        <li class="check-item checking" id="si-python">
           <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg></div>
           <div class="check-info">
-            <div class="check-name">Python 3</div>
+            <div class="check-name">Python</div>
             <div class="check-status">Checking...</div>
           </div>
         </li>
-        <li class="check-item" id="req-node">
+        <li class="check-item checking" id="si-node">
           <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg></div>
           <div class="check-info">
             <div class="check-name">Node.js</div>
             <div class="check-status">Checking...</div>
           </div>
         </li>
-      </ul>
-      
-      <div class="help-box" id="requirements-help" style="display:none;">
-        <strong>Missing dependencies?</strong><br>
-        Install with Homebrew: <code>brew install python3 node</code><br>
-        Or download from python.org and nodejs.org
-      </div>
-    </div>
-    
-    <!-- Step 3: Installation -->
-    <div class="step" id="step-3">
-      <h2>Installing</h2>
-      <p class="step-desc">Setting up BriefDesk on your system.</p>
-      
-      <div class="progress-section">
-        <div class="progress-bar">
-          <div class="progress-fill" id="install-progress"></div>
-        </div>
-        <div class="progress-label" id="install-status">Preparing...</div>
-      </div>
-      
-      <div class="log-box" id="install-log"></div>
-    </div>
-    
-    <!-- Step 4: Permissions -->
-    <div class="step" id="step-4">
-      <h2>Grant Permissions</h2>
-      <p class="step-desc">BriefDesk needs Full Disk Access to read your browser history and search Google Drive files.</p>
-      
-      <ul class="checklist">
-        <li class="check-item" id="fda-python">
+        <li class="check-item checking" id="si-services">
           <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg></div>
           <div class="check-info">
-            <div class="check-name">Python (Safari history)</div>
-            <div class="check-status" id="fda-python-status">Checking...</div>
+            <div class="check-name">Background Services</div>
+            <div class="check-status">Checking...</div>
           </div>
         </li>
-        <li class="check-item" id="fda-node">
+        <li class="check-item checking" id="si-devsai">
           <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg></div>
           <div class="check-info">
-            <div class="check-name">Node.js (Google Drive)</div>
-            <div class="check-status" id="fda-node-status">Checking...</div>
+            <div class="check-name">DevsAI CLI</div>
+            <div class="check-status">Checking...</div>
+          </div>
+        </li>
+        <li class="check-item checking" id="si-github">
+          <div class="check-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg></div>
+          <div class="check-info">
+            <div class="check-name">GitHub MCP</div>
+            <div class="check-status">Checking...</div>
           </div>
         </li>
       </ul>
-      
-      <div class="help-box">
-        <strong>How to grant Full Disk Access:</strong><br><br>
-        1. Click "Open System Settings" below<br>
-        2. Click the <strong>+</strong> button to add an app<br>
-        3. Press <strong>Cmd+Shift+G</strong> and paste one of these Python paths:
-        <div class="copyable" style="margin:8px 0 4px;">
-          <code id="python-path-primary">/opt/homebrew/bin/python3</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 8px 0;">
-          Or try: <code style="background:rgba(0,0,0,.2);padding:2px 4px;border-radius:3px">/usr/local/bin/python3</code> or <code style="background:rgba(0,0,0,.2);padding:2px 4px;border-radius:3px">/usr/bin/python3</code>
-        </div>
-        <div class="copyable" style="margin:4px 0 12px;">
-          <code>~/.local/share/devsai/node</code>
-          <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-        </div>
-        4. Toggle them ON, then click "Check Again"
-      </div>
-      
-      <div style="display:flex;gap:10px;margin-top:16px;">
-        <button class="btn btn-secondary" onclick="openFDASettings()" style="flex:1;">Open System Settings</button>
-        <button class="btn btn-primary" onclick="checkFDA()" style="flex:1;">Check Again</button>
-      </div>
-      
-      <span class="skip-link" onclick="goToStep(5)">Skip for now (history search may not work)</span>
     </div>
     
-    <!-- Step 5: Integrations -->
-    <div class="step" id="step-5">
+    <!-- Step 2: Connect Services -->
+    <div class="step" id="step-2">
       <h2>Connect Services</h2>
       <p class="step-desc">Configure the integrations you want to use. You can always set these up later from Settings.</p>
       
@@ -960,105 +869,90 @@ h2 {
         <button class="integration-action" onclick="showDevsaiSetup()">Setup</button>
       </div>
       
-      <span class="skip-link" onclick="goToStep(6)">Skip for now, configure later</span>
+      <span class="skip-link" onclick="goToStep(3)">Skip for now, configure later</span>
     </div>
     
-    <!-- Step 6: Browser Setup -->
-    <div class="step" id="step-6">
-      <h2>Set Up New Tab</h2>
-      <p class="step-desc">Make BriefDesk your browser's new tab page for instant access to your dashboard.</p>
-      
-      <div id="browser-tabs">
-        <div class="browser-tab active" data-browser="chrome" onclick="selectBrowser('chrome')">
-          <img src="icons/chrome.png" width="20" height="20" alt="Chrome">
-          Chrome
-        </div>
-        <div class="browser-tab" data-browser="firefox" onclick="selectBrowser('firefox')">
-          <img src="icons/firefox.svg" width="20" height="20" alt="Firefox">
-          Firefox
-        </div>
-        <div class="browser-tab" data-browser="safari" onclick="selectBrowser('safari')">
-          <img src="icons/safari.svg" width="20" height="20" alt="Safari">
-          Safari
-        </div>
-      </div>
-      
-      <!-- Chrome Instructions -->
-      <div class="browser-content" id="browser-chrome">
-        <div class="help-box" style="margin-top:0;">
-          <strong>Install "New Tab Redirect" Extension</strong><br><br>
-          1. Click the button below to open the Chrome Web Store<br>
-          2. Click "Add to Chrome" to install the extension<br>
-          3. After install, paste this URL in the extension settings:
-          <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://127.0.0.1:8765/start.html</code>
-            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-          </div>
-          4. Open a new tab to verify it works
-        </div>
-        <a href="https://chrome.google.com/webstore/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna" target="_blank" class="btn btn-primary" style="width:100%;text-align:center;margin-top:12px;text-decoration:none;display:block;">
-          Open Chrome Web Store
-        </a>
-      </div>
-      
-      <!-- Firefox Instructions -->
-      <div class="browser-content" id="browser-firefox" style="display:none;">
-        <div class="help-box" style="margin-top:0;">
-          <strong>Install "New Tab Override" Extension</strong><br><br>
-          1. Click the button below to open Firefox Add-ons<br>
-          2. Click "Add to Firefox" to install the extension<br>
-          3. After install, paste this URL in the extension settings:
-          <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://127.0.0.1:8765/start.html</code>
-            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-          </div>
-          4. Open a new tab to verify it works
-        </div>
-        <a href="https://addons.mozilla.org/en-US/firefox/addon/new-tab-override/" target="_blank" class="btn btn-primary" style="width:100%;text-align:center;margin-top:12px;text-decoration:none;display:block;">
-          Open Firefox Add-ons
-        </a>
-      </div>
-      
-      <!-- Safari Instructions -->
-      <div class="browser-content" id="browser-safari" style="display:none;">
-        <div class="help-box" style="margin-top:0;">
-          <strong>Set Homepage in Safari</strong><br><br>
-          Safari doesn't support new tab redirect extensions, but you can set BriefDesk as your homepage:<br><br>
-          1. Open <strong>Safari → Settings</strong> (or press <strong>Cmd+,</strong>)<br>
-          2. Go to the <strong>General</strong> tab<br>
-          3. Set "Homepage" to:
-          <div class="copyable" style="margin:12px 0 8px;">
-            <code>http://127.0.0.1:8765/start.html</code>
-            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-          </div>
-          4. Set "New windows open with" and "New tabs open with" to <strong>Homepage</strong><br><br>
-          <em style="color:var(--text-muted);">Tip: Press <strong>Cmd+Shift+H</strong> anytime to go to your homepage.</em>
-        </div>
-        <button class="btn btn-secondary" onclick="openSafariSettings()" style="width:100%;margin-top:12px;">
-          Open Safari Settings
-        </button>
-      </div>
-      
-      <span class="skip-link" onclick="goToStep(7)">Skip for now</span>
-    </div>
-    
-    <!-- Step 7: Complete -->
-    <div class="step" id="step-7">
+    <!-- Step 3: You're All Set -->
+    <div class="step" id="step-3">
       <div class="complete-section">
         <div class="complete-icon">
           <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
         </div>
-        <h2>Setup Complete</h2>
+        <h2>You're All Set!</h2>
         <p class="step-desc">BriefDesk is installed and running. Set this as your browser homepage for quick access.</p>
         <div class="complete-url">http://127.0.0.1:8765/start.html</div>
-        <p class="step-desc" style="font-size:12px;">You can configure more integrations anytime from the Settings panel.</p>
       </div>
+      
+      <div id="browser-setup-section" style="margin-top:20px;">
+        <!-- Chrome Instructions -->
+        <div class="browser-content" id="browser-chrome" style="display:none;">
+          <div class="help-box" style="margin-top:0;">
+            <strong>Load BriefDesk New Tab Extension</strong><br><br>
+            1. Copy the extension folder path:<br>
+            <div class="copyable" style="margin:8px 0;">
+              <code id="chrome-ext-path">~/.local/share/briefdesk/browser-extension/chrome</code>
+              <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+            </div>
+            2. Open <strong>chrome://extensions</strong> in Chrome<br>
+            3. Enable <strong>Developer Mode</strong> (toggle in the top-right)<br>
+            4. Click <strong>"Load unpacked"</strong><br>
+            5. Press <strong>Cmd+Shift+G</strong>, paste the path, and select the folder<br>
+            6. Open a new tab to verify it works
+          </div>
+          <button class="btn btn-primary" onclick="copyExtPath('chrome')" style="width:100%;margin-top:12px;">
+            Copy Extension Path
+          </button>
+        </div>
+        
+        <!-- Firefox Instructions -->
+        <div class="browser-content" id="browser-firefox" style="display:none;">
+          <div class="help-box" style="margin-top:0;">
+            <strong>Load BriefDesk New Tab Extension</strong><br><br>
+            The extension may have been auto-installed during setup. If not:<br><br>
+            1. Copy the extension folder path:<br>
+            <div class="copyable" style="margin:8px 0;">
+              <code id="firefox-ext-path">~/.local/share/briefdesk/browser-extension/firefox</code>
+              <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+            </div>
+            2. Open <strong>about:debugging#/runtime/this-firefox</strong> in Firefox<br>
+            3. Click <strong>"Load Temporary Add-on..."</strong><br>
+            4. Navigate to the path above and select <strong>manifest.json</strong><br>
+            5. Open a new tab to verify it works<br><br>
+            <em style="color:var(--text-muted);">Note: Temporary add-ons persist until Firefox is restarted. For permanent install, restart Firefox and the extension should load automatically.</em>
+          </div>
+          <button class="btn btn-primary" onclick="copyExtPath('firefox')" style="width:100%;margin-top:12px;">
+            Copy Extension Path
+          </button>
+        </div>
+        
+        <!-- Safari Instructions -->
+        <div class="browser-content" id="browser-safari" style="display:none;">
+          <div class="help-box" style="margin-top:0;">
+            <strong>Set Homepage in Safari</strong><br><br>
+            Safari doesn't support new tab redirect extensions, but you can set BriefDesk as your homepage:<br><br>
+            1. Open <strong>Safari → Settings</strong> (or press <strong>Cmd+,</strong>)<br>
+            2. Go to the <strong>General</strong> tab<br>
+            3. Set "Homepage" to:
+            <div class="copyable" style="margin:12px 0 8px;">
+              <code>http://127.0.0.1:8765/start.html</code>
+              <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+            </div>
+            4. Set "New windows open with" and "New tabs open with" to <strong>Homepage</strong><br><br>
+            <em style="color:var(--text-muted);">Tip: Press <strong>Cmd+Shift+H</strong> anytime to go to your homepage.</em>
+          </div>
+          <button class="btn btn-secondary" onclick="openSafariSettings()" style="width:100%;margin-top:12px;">
+            Open Safari Settings
+          </button>
+        </div>
+      </div>
+      
+      <p class="step-desc" style="font-size:12px;text-align:center;margin-top:16px;">You can configure more integrations anytime from the Settings panel.</p>
     </div>
   </div>
   
   <div class="footer">
     <button class="btn btn-secondary" id="btn-back" onclick="prevStep()" style="visibility:hidden;">Back</button>
-    <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Get Started</button>
+    <button class="btn btn-primary" id="btn-next" onclick="nextStep()">Continue</button>
   </div>
 </div>
 
@@ -1488,14 +1382,15 @@ h2 {
 </div>
 
 <script>
-const API = 'http://localhost:18765';
+const API = 'http://127.0.0.1:18765';
 const SEARCH_SERVICE = 'http://127.0.0.1:19765';
 let currentStep = 1;
-let requirementsOk = false;
-let installComplete = false;
 let serverConnected = false;
+let systemInfo = null;
+// fdaPollInterval removed - FDA step eliminated
 
-// Check server connection on load
+// ─── Server Connection ───────────────────────────────────────────────
+
 async function checkServerConnection() {
   const errorEl = document.getElementById('server-error');
   try {
@@ -1516,6 +1411,8 @@ async function checkServerConnection() {
 // Check on page load
 setTimeout(checkServerConnection, 500);
 
+// ─── Clipboard ───────────────────────────────────────────────────────
+
 function copyText(btn) {
   const code = btn.parentElement.querySelector('code');
   const text = code.textContent;
@@ -1529,6 +1426,12 @@ function copyText(btn) {
   });
 }
 
+// ─── Step Navigation ─────────────────────────────────────────────────
+
+const SVG_CHECK = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+const SVG_CIRCLE = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>';
+const SVG_X = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+
 function updateUI() {
   // Update step indicators
   document.querySelectorAll('.step-indicator').forEach((el, i) => {
@@ -1537,7 +1440,7 @@ function updateUI() {
     if (step === currentStep) el.classList.add('active');
     else if (step < currentStep) {
       el.classList.add('completed');
-      el.querySelector('.step-num').innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+      el.querySelector('.step-num').innerHTML = SVG_CHECK;
     }
   });
   
@@ -1551,30 +1454,14 @@ function updateUI() {
   const nextBtn = document.getElementById('btn-next');
   
   if (currentStep === 1) {
-    nextBtn.textContent = 'Get Started';
+    nextBtn.textContent = 'Continue';
     nextBtn.disabled = false;
     nextBtn.className = 'btn btn-primary';
   } else if (currentStep === 2) {
     nextBtn.textContent = 'Continue';
-    nextBtn.disabled = !requirementsOk;
+    nextBtn.disabled = false;
     nextBtn.className = 'btn btn-primary';
   } else if (currentStep === 3) {
-    nextBtn.textContent = 'Continue';
-    nextBtn.disabled = !installComplete;
-    nextBtn.className = 'btn btn-primary';
-  } else if (currentStep === 4) {
-    nextBtn.textContent = 'Continue';
-    nextBtn.disabled = false;
-    nextBtn.className = 'btn btn-primary';
-  } else if (currentStep === 5) {
-    nextBtn.textContent = 'Continue';
-    nextBtn.disabled = false;
-    nextBtn.className = 'btn btn-primary';
-  } else if (currentStep === 6) {
-    nextBtn.textContent = 'Finish';
-    nextBtn.disabled = false;
-    nextBtn.className = 'btn btn-primary';
-  } else if (currentStep === 7) {
     nextBtn.textContent = 'Open BriefDesk';
     nextBtn.disabled = false;
     nextBtn.className = 'btn btn-success';
@@ -1584,14 +1471,13 @@ function updateUI() {
 function goToStep(step) {
   currentStep = step;
   updateUI();
-  if (step === 2) checkRequirements();
-  if (step === 3) runInstallation();
-  if (step === 4) checkFDA();
-  if (step === 5) checkIntegrations();
+  if (step === 1) loadSystemInfo();
+  if (step === 2) checkIntegrations();
+  if (step === 3) setupBrowserInstructions();
 }
 
 function nextStep() {
-  if (currentStep === 7) {
+  if (currentStep === 3) {
     window.open('http://127.0.0.1:8765/start.html', '_blank');
     return;
   }
@@ -1602,91 +1488,108 @@ function prevStep() {
   if (currentStep > 1) goToStep(currentStep - 1);
 }
 
-async function checkRequirements() {
-  const checks = [
-    { id: 'req-python', cmd: 'python3 --version' },
-    { id: 'req-node', cmd: 'node --version' }
-  ];
-  
-  let allOk = true;
-  
-  for (const check of checks) {
-    const el = document.getElementById(check.id);
-    const icon = el.querySelector('.check-icon');
-    const status = el.querySelector('.check-status');
-    
-    el.className = 'check-item checking';
-    icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>';
-    status.textContent = 'Checking...';
-    
-    await new Promise(r => setTimeout(r, 400));
-    
-    try {
-      const res = await fetch(API + '/installer/check?cmd=' + encodeURIComponent(check.cmd));
-      const data = await res.json();
-      
-      if (data.ok) {
-        el.className = 'check-item success';
-        icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-        status.textContent = data.version || 'Installed';
-      } else {
-        throw new Error('Not found');
-      }
-    } catch (e) {
-      el.className = 'check-item error';
-      icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
-      status.textContent = 'Not installed';
-      allOk = false;
-    }
+// ─── Step 1: System Info ─────────────────────────────────────────────
+
+function setCheckItem(id, state, statusText) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const icon = el.querySelector('.check-icon');
+  const status = el.querySelector('.check-status');
+  el.className = 'check-item ' + state;
+  if (state === 'success') {
+    icon.innerHTML = SVG_CHECK;
+  } else if (state === 'error') {
+    icon.innerHTML = SVG_X;
+  } else if (state === 'checking') {
+    icon.innerHTML = SVG_CIRCLE;
+  } else {
+    icon.innerHTML = SVG_CIRCLE;
   }
-  
-  requirementsOk = allOk;
-  document.getElementById('requirements-help').style.display = allOk ? 'none' : 'block';
-  updateUI();
+  status.textContent = statusText;
 }
 
-async function runInstallation() {
-  const progress = document.getElementById('install-progress');
-  const status = document.getElementById('install-status');
-  const log = document.getElementById('install-log');
-  
-  const steps = [
-    { msg: 'Creating directories...', pct: 15 },
-    { msg: 'Copying files...', pct: 35 },
-    { msg: 'Setting up services...', pct: 60 },
-    { msg: 'Starting background processes...', pct: 80 },
-    { msg: 'Verifying installation...', pct: 95 }
-  ];
-  
-  log.innerHTML = '';
-  
-  for (const step of steps) {
-    status.textContent = step.msg;
-    progress.style.width = step.pct + '%';
-    log.innerHTML += `<span class="info">› ${step.msg}</span>\n`;
-    log.scrollTop = log.scrollHeight;
-    await new Promise(r => setTimeout(r, 300));
-  }
-  
+async function loadSystemInfo() {
+  // Set all to checking state
+  ['si-python', 'si-node', 'si-services', 'si-devsai', 'si-github'].forEach(id => {
+    setCheckItem(id, 'checking', 'Checking...');
+  });
+
   try {
-    const res = await fetch(API + '/installer/install', { method: 'POST' });
+    const res = await fetch(API + '/installer/system-info', { signal: AbortSignal.timeout(8000) });
     const data = await res.json();
-    
-    if (data.success) {
-      progress.style.width = '100%';
-      status.textContent = 'Installation complete';
-      log.innerHTML += '<span class="ok">✓ Done</span>\n';
-      installComplete = true;
+    systemInfo = data;
+
+    // Python
+    if (data.python_version) {
+      setCheckItem('si-python', 'success', data.python_version);
     } else {
-      throw new Error(data.error || 'Installation failed');
+      setCheckItem('si-python', 'error', 'Not found');
     }
+
+    // Node.js
+    if (data.node_version) {
+      const nodeLabel = data.node_source === 'downloaded' 
+        ? data.node_version + ' (auto-downloaded)' 
+        : data.node_version;
+      setCheckItem('si-node', 'success', nodeLabel);
+    } else {
+      setCheckItem('si-node', 'error', 'Not found');
+    }
+
+    // Background Services - if we got a response, the server is running
+    setCheckItem('si-services', 'success', 'Running');
+
+    // DevsAI CLI - check auth via search service
+    if (data.devsai_installed) {
+      setCheckItem('si-devsai', 'checking', 'Checking login...');
+      try {
+        const devsaiRes = await fetch(SEARCH_SERVICE + '/devsai/status', { signal: AbortSignal.timeout(5000) });
+        const devsaiData = await devsaiRes.json();
+        if (devsaiData.authenticated) {
+          const label = devsaiData.userEmail ? 'Logged in as ' + devsaiData.userEmail : 'Logged in';
+          setCheckItem('si-devsai', 'success', label);
+        } else {
+          setCheckItem('si-devsai', 'checking', 'Installed, not logged in');
+        }
+      } catch (e) {
+        setCheckItem('si-devsai', 'checking', 'Installed (status unavailable)');
+      }
+    } else {
+      setCheckItem('si-devsai', 'checking', 'Not installed');
+    }
+
+    // GitHub MCP
+    if (data.github_mcp_installed) {
+      setCheckItem('si-github', 'success', 'Binary installed');
+    } else {
+      setCheckItem('si-github', 'checking', 'Not installed');
+    }
+
+    // Store Python path for potential Settings use
+    // (FDA step removed -- Safari history is opt-in via Settings)
+
+    // Auto-advance to Step 2 (Connect) if all core checks pass
+    const pythonOk = !!data.python_version;
+    const nodeOk = !!data.node_version;
+    const servicesOk = true; // If we got here, the server responded
+    if (pythonOk && nodeOk && servicesOk) {
+      setTimeout(() => {
+        if (currentStep === 1) goToStep(2);
+      }, 2000);
+    }
+
   } catch (e) {
-    log.innerHTML += `<span class="err">✗ ${e.message}</span>\n`;
-    status.textContent = 'Error: ' + e.message;
+    console.error('Failed to load system info:', e);
+    // Server is running (we checked earlier), mark services as running
+    setCheckItem('si-services', 'success', 'Running');
+    setCheckItem('si-python', 'checking', 'Unable to verify');
+    setCheckItem('si-node', 'checking', 'Unable to verify');
+    setCheckItem('si-devsai', 'checking', 'Unable to verify');
+    setCheckItem('si-github', 'checking', 'Unable to verify');
   }
-  
-  updateUI();
 }
+
+// ─── Step 2: Integrations ────────────────────────────────────────────
 
 async function checkIntegrations() {
   try {
@@ -1733,84 +1636,56 @@ async function checkIntegrations() {
   checkDevsaiStatus();
 }
 
-async function checkFDA() {
-  // Check if FDA is granted by trying to read Safari history
-  const checks = [
-    { id: 'fda-python', name: 'Python', statusId: 'fda-python-status' },
-    { id: 'fda-node', name: 'Node.js', statusId: 'fda-node-status' }
-  ];
+// ─── Step 3: Browser Setup ───────────────────────────────────────────
+
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (ua.includes('Chrome') && !ua.includes('Edg')) return 'chrome';
+  if (ua.includes('Firefox')) return 'firefox';
+  if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
+  return 'chrome'; // default
+}
+
+function setupBrowserInstructions() {
+  const browser = detectBrowser();
+  // Hide all browser contents
+  document.querySelectorAll('.browser-content').forEach(el => {
+    el.style.display = 'none';
+  });
+  // Show only the detected browser
+  const target = document.getElementById('browser-' + browser);
+  if (target) target.style.display = 'block';
   
-  for (const check of checks) {
-    const el = document.getElementById(check.id);
-    const status = document.getElementById(check.statusId);
-    const icon = el.querySelector('.check-icon');
-    
-    el.className = 'check-item checking';
-    icon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>';
-    status.textContent = 'Checking...';
-  }
-  
-  await new Promise(r => setTimeout(r, 500));
-  
-  try {
-    // Test FDA by doing a search - if it works, FDA is granted
-    const res = await fetch(API + '/installer/check-fda');
-    const data = await res.json();
-    
-    // Python FDA check
-    const pythonEl = document.getElementById('fda-python');
-    const pythonStatus = document.getElementById('fda-python-status');
-    const pythonIcon = pythonEl.querySelector('.check-icon');
-    
-    if (data.python_fda) {
-      pythonEl.className = 'check-item success';
-      pythonIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-      pythonStatus.textContent = 'Access granted';
-    } else {
-      pythonEl.className = 'check-item error';
-      pythonIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
-      pythonStatus.textContent = 'Not granted - add to Full Disk Access';
-    }
-    
-    // Node FDA check (optional, only if devsai is installed)
-    const nodeEl = document.getElementById('fda-node');
-    const nodeStatus = document.getElementById('fda-node-status');
-    const nodeIcon = nodeEl.querySelector('.check-icon');
-    
-    if (data.node_fda === true) {
-      nodeEl.className = 'check-item success';
-      nodeIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-      nodeStatus.textContent = 'Access granted';
-    } else if (data.node_fda === 'not_installed') {
-      nodeEl.className = 'check-item';
-      nodeIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>';
-      nodeStatus.textContent = 'Optional - for Google Drive search';
-    } else {
-      nodeEl.className = 'check-item error';
-      nodeIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
-      nodeStatus.textContent = 'Not granted - add to Full Disk Access';
-    }
-    
-    // Update the Python path in instructions if server provided it
-    if (data.python_path) {
-      const pathEl = document.getElementById('python-path-primary');
-      if (pathEl) pathEl.textContent = data.python_path;
-    }
-  } catch (e) {
-    console.error('FDA check failed:', e);
-    // Show as needing setup
-    document.getElementById('fda-python').className = 'check-item';
-    document.getElementById('fda-python-status').textContent = 'Unable to check - grant access manually';
-    document.getElementById('fda-node').className = 'check-item';
-    document.getElementById('fda-node-status').textContent = 'Optional - for Google Drive search';
+  // Expand ~ to actual install path if available from system info
+  if (systemInfo && systemInfo.install_dir) {
+    const installDir = systemInfo.install_dir;
+    const chromePathEl = document.getElementById('chrome-ext-path');
+    const firefoxPathEl = document.getElementById('firefox-ext-path');
+    if (chromePathEl) chromePathEl.textContent = installDir + '/browser-extension/chrome';
+    if (firefoxPathEl) firefoxPathEl.textContent = installDir + '/browser-extension/firefox';
   }
 }
 
-function openFDASettings() {
-  // Open System Settings to Privacy & Security > Full Disk Access
-  // This uses a URL scheme that works on macOS Ventura+
-  window.open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles');
+function copyExtPath(browser) {
+  const el = document.getElementById(browser + '-ext-path');
+  if (el) {
+    navigator.clipboard.writeText(el.textContent).then(() => {
+      const btn = el.closest('.browser-content').querySelector('.btn-primary');
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.background = 'var(--green)';
+        setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2000);
+      }
+    });
+  }
 }
+
+function openSafariSettings() {
+  window.location.href = 'x-apple.systempreferences:com.apple.Safari';
+}
+
+// ─── Slack ───────────────────────────────────────────────────────────
 
 function showSlackSetup() { document.getElementById('slack-modal').classList.add('show'); }
 function closeSlackModal() { document.getElementById('slack-modal').classList.remove('show'); }
@@ -1823,7 +1698,7 @@ async function autoDetectSlack() {
   
   btn.disabled = true;
   btn.textContent = 'Detecting...';
-  resultEl.innerHTML = '<span style="color:var(--accent-blue)">Reading browser data (requires Full Disk Access)...</span>';
+  resultEl.innerHTML = '<span style="color:var(--accent-blue)">Reading browser data...</span>';
   
   try {
     const res = await fetch(API + '/slack/auto-detect');
@@ -1834,7 +1709,6 @@ async function autoDetectSlack() {
       if (data.xoxd) xoxdInput.value = data.xoxd;
       
       if (data.partial) {
-        // Show instructions for getting the missing token
         let instructions = '';
         if (!data.xoxd && data.xoxc) {
           instructions = '<br><br><strong>To get the missing xoxd token:</strong><br>' +
@@ -1857,12 +1731,45 @@ async function autoDetectSlack() {
       resultEl.innerHTML = '<span style="color:var(--accent-red)">✗ ' + data.error + '</span>';
     }
   } catch (e) {
-    resultEl.innerHTML = `<span style="color:var(--accent-red)">✗ Failed to detect: ${e.message}</span>`;
+    resultEl.innerHTML = '<span style="color:var(--accent-red)">✗ Failed to detect: ' + e.message + '</span>';
   }
   
   btn.disabled = false;
   btn.textContent = 'Auto-Detect from Browser';
 }
+
+async function saveSlackTokens() {
+  const xoxc = document.getElementById('modal-slack-xoxc').value.trim();
+  const xoxd = document.getElementById('modal-slack-xoxd').value.trim();
+  const result = document.getElementById('slack-modal-result');
+  
+  if (!xoxc || !xoxd) {
+    result.innerHTML = '<div class="modal-result error">Please enter both tokens</div>';
+    return;
+  }
+  
+  result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Saving...</div>';
+  
+  try {
+    const res = await fetch(API + '/setup/slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ xoxc, xoxd })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      result.innerHTML = '<div class="modal-result success">Connected successfully</div>';
+      setTimeout(() => { closeSlackModal(); checkIntegrations(); }, 1000);
+    } else {
+      result.innerHTML = '<div class="modal-result error">' + (data.error || 'Failed to connect') + '</div>';
+    }
+  } catch (e) {
+    result.innerHTML = '<div class="modal-result error">Connection failed</div>';
+  }
+}
+
+// ─── Google Calendar / Drive / Gmail ─────────────────────────────────
 
 function showCalendarSetup() {
   document.getElementById('calendar-modal').classList.add('show');
@@ -1870,7 +1777,6 @@ function showCalendarSetup() {
 }
 function closeCalendarModal() { document.getElementById('calendar-modal').classList.remove('show'); }
 
-// Google OAuth functions
 async function checkGoogleStatus() {
   try {
     const res = await fetch(API + '/oauth/google/status');
@@ -1912,7 +1818,6 @@ async function connectGoogle() {
     const data = await res.json();
 
     if (data.success && data.auth_url) {
-      // Redirect to Google OAuth
       window.location.href = data.auth_url;
     } else {
       alert(data.error || 'Failed to start OAuth flow');
@@ -1949,11 +1854,10 @@ function handleOAuthCallback() {
   const oauthError = params.get('oauth_error');
 
   if (oauthSuccess === 'google') {
-    // Clean URL
     window.history.replaceState({}, document.title, window.location.pathname);
-    // Go to step 5 (Connect Services) and refresh integrations
+    // Go to step 2 (Connect Services) and refresh integrations
     setTimeout(() => {
-      goToStep(5);
+      goToStep(2);
       checkIntegrations();
     }, 100);
   } else if (oauthError) {
@@ -1965,11 +1869,103 @@ function handleOAuthCallback() {
 // Call on page load
 document.addEventListener('DOMContentLoaded', handleOAuthCallback);
 
+// ─── Gmail ───────────────────────────────────────────────────────────
+
 function showGmailSetup() {
   document.getElementById('gmail-modal').classList.add('show');
   checkGmailModalStatus();
 }
 function closeGmailModal() { document.getElementById('gmail-modal').classList.remove('show'); }
+
+async function checkGmailModalStatus() {
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/gmail/status');
+    const data = await res.json();
+    const connected = document.getElementById('gmail-connected');
+    const notConnected = document.getElementById('gmail-not-connected');
+    const connectBtn = document.getElementById('gmail-connect-btn');
+    const disconnectBtn = document.getElementById('gmail-disconnect-btn');
+
+    if (data.authenticated && data.isReadOnly) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else if (data.authenticated && !data.isReadOnly) {
+      connected.style.display = 'none';
+      notConnected.style.display = 'block';
+      notConnected.querySelector('strong').textContent = 'Re-authentication required';
+      notConnected.querySelector('p').textContent = 'Gmail needs to be re-authenticated with read-only access for security.';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = data.hasOAuthKeys ? 'block' : 'none';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+      if (!data.hasOAuthKeys) {
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth keys not configured</span>';
+      } else if (!data.mcpAvailable) {
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Gmail MCP not available</span>';
+      }
+    }
+  } catch (e) { console.error('Error checking Gmail status:', e); }
+}
+
+async function connectGmailMcp() {
+  const btn = document.getElementById('gmail-connect-btn');
+  const originalContent = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span style="color:var(--text-muted);">Opening browser...</span>';
+  
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/gmail/auth', { method: 'POST' });
+    const data = await res.json();
+    
+    if (data.alreadyAuthenticated) {
+      checkGmailModalStatus();
+      checkIntegrations();
+      return;
+    }
+    
+    if (data.launched) {
+      btn.innerHTML = '<span style="color:var(--text-muted);">Complete login in browser...</span>';
+      let attempts = 0;
+      const checkAuth = setInterval(async () => {
+        attempts++;
+        const statusRes = await fetch(SEARCH_SERVICE + '/gmail/status');
+        const status = await statusRes.json();
+        if (status.authenticated) {
+          clearInterval(checkAuth);
+          checkGmailModalStatus();
+          checkIntegrations();
+          await fetch(SEARCH_SERVICE + '/reconnect?mcp=gmail');
+        } else if (attempts > 60) {
+          clearInterval(checkAuth);
+          btn.innerHTML = originalContent;
+          btn.disabled = false;
+        }
+      }, 5000);
+    }
+  } catch (e) {
+    console.error('Gmail auth error:', e);
+    btn.innerHTML = originalContent;
+    btn.disabled = false;
+  }
+}
+
+async function disconnectGmailMcp() {
+  if (!confirm('This will remove your Gmail credentials. You will need to re-authenticate to use Gmail search.')) {
+    return;
+  }
+  alert('To fully disconnect Gmail, delete the file:\n~/.gmail-mcp/credentials.json\n\nThen restart the search service.');
+  checkGmailModalStatus();
+  checkIntegrations();
+}
+
+// ─── Atlassian ───────────────────────────────────────────────────────
 
 function showAtlassianSetup() {
   document.getElementById('atlassian-modal').classList.add('show');
@@ -1977,11 +1973,95 @@ function showAtlassianSetup() {
 }
 function closeAtlassianModal() { document.getElementById('atlassian-modal').classList.remove('show'); }
 
+async function checkAtlassianModalStatus() {
+  try {
+    const res = await fetch(API + '/oauth/atlassian/status');
+    const data = await res.json();
+    const connected = document.getElementById('atlassian-connected');
+    const notConnected = document.getElementById('atlassian-not-connected');
+    const connectBtn = document.getElementById('atlassian-connect-btn');
+    const disconnectBtn = document.getElementById('atlassian-disconnect-btn');
+
+    if (data.authenticated) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = 'block';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+    }
+  } catch (e) { console.error('Error checking Atlassian status:', e); }
+}
+
+async function connectAtlassian() {
+  try {
+    const res = await fetch(API + '/oauth/atlassian/start');
+    const data = await res.json();
+    if (data.success) {
+      alert('Atlassian OAuth started. A browser window should open to sign in. After signing in, click "Check Status" to verify.');
+    } else {
+      alert(data.error || 'Failed to start Atlassian OAuth. Try the manual method below.');
+    }
+  } catch (e) {
+    alert('Failed to connect: ' + e.message);
+  }
+}
+
+async function disconnectAtlassian() {
+  if (!confirm('Disconnect Atlassian? You will need to reconnect to use Jira and Confluence.')) return;
+  try {
+    const res = await fetch(API + '/oauth/atlassian/disconnect');
+    const data = await res.json();
+    if (data.success) {
+      checkAtlassianModalStatus();
+      checkIntegrations();
+    } else {
+      alert(data.message || 'Failed to disconnect');
+    }
+  } catch (e) {
+    alert('Failed to disconnect: ' + e.message);
+  }
+}
+
+// ─── Drive ───────────────────────────────────────────────────────────
+
 function showDriveSetup() {
   document.getElementById('drive-modal').classList.add('show');
   checkDriveModalStatus();
 }
 function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); }
+
+async function checkDriveModalStatus() {
+  try {
+    const res = await fetch(API + '/oauth/google/status');
+    const data = await res.json();
+    const connected = document.getElementById('drive-connected');
+    const notConnected = document.getElementById('drive-not-connected');
+    const connectBtn = document.getElementById('drive-connect-btn');
+    const disconnectBtn = document.getElementById('drive-disconnect-btn');
+
+    if (data.is_authenticated) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = data.has_credentials ? 'block' : 'none';
+      connectBtn.style.display = 'block';
+      disconnectBtn.style.display = 'none';
+      if (!data.has_credentials) {
+        connectBtn.disabled = true;
+        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured</span>';
+      }
+    }
+  } catch (e) { console.error('Error checking Drive status:', e); }
+}
+
+// ─── DevsAI ──────────────────────────────────────────────────────────
 
 function showDevsaiSetup() {
   document.getElementById('devsai-modal').classList.add('show');
@@ -2048,7 +2128,7 @@ async function checkDevsaiStatus() {
     if (data.authenticated) {
       statusEl.textContent = 'Connected';
       if (modalStatus) {
-        const userLabel = data.userEmail ? `Logged in as ${data.userEmail}` : 'Logged in';
+        const userLabel = data.userEmail ? 'Logged in as ' + data.userEmail : 'Logged in';
         modalStatus.textContent = userLabel;
       }
       itemEl.classList.add('configured');
@@ -2069,7 +2149,7 @@ async function checkDevsaiStatus() {
     }
 
     if (configPathEl && data.configPath) {
-      configPathEl.textContent = `Config: ${data.configPath}`;
+      configPathEl.textContent = 'Config: ' + data.configPath;
     }
   } catch (e) {
     statusEl.textContent = 'Unavailable';
@@ -2082,307 +2162,10 @@ async function checkDevsaiStatus() {
   }
 }
 
-// Gmail MCP status (uses custom read-only Gmail MCP)
-async function checkGmailModalStatus() {
-  try {
-    const res = await fetch(SEARCH_SERVICE + '/gmail/status');
-    const data = await res.json();
-    const connected = document.getElementById('gmail-connected');
-    const notConnected = document.getElementById('gmail-not-connected');
-    const connectBtn = document.getElementById('gmail-connect-btn');
-    const disconnectBtn = document.getElementById('gmail-disconnect-btn');
+// ─── GitHub ──────────────────────────────────────────────────────────
 
-    if (data.authenticated && data.isReadOnly) {
-      connected.style.display = 'block';
-      notConnected.style.display = 'none';
-      connectBtn.style.display = 'none';
-      disconnectBtn.style.display = 'block';
-    } else if (data.authenticated && !data.isReadOnly) {
-      // Has credentials but not read-only - needs re-auth
-      connected.style.display = 'none';
-      notConnected.style.display = 'block';
-      notConnected.querySelector('strong').textContent = 'Re-authentication required';
-      notConnected.querySelector('p').textContent = 'Gmail needs to be re-authenticated with read-only access for security.';
-      connectBtn.style.display = 'block';
-      disconnectBtn.style.display = 'none';
-    } else {
-      connected.style.display = 'none';
-      notConnected.style.display = data.hasOAuthKeys ? 'block' : 'none';
-      connectBtn.style.display = 'block';
-      disconnectBtn.style.display = 'none';
-      if (!data.hasOAuthKeys) {
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth keys not configured</span>';
-      } else if (!data.mcpAvailable) {
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Gmail MCP not available</span>';
-      }
-    }
-  } catch (e) { console.error('Error checking Gmail status:', e); }
-}
+let githubOAuthPollTimer = null;
 
-// Start Gmail MCP OAuth flow (read-only)
-async function connectGmailMcp() {
-  const btn = document.getElementById('gmail-connect-btn');
-  const originalContent = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span style="color:var(--text-muted);">Opening browser...</span>';
-  
-  try {
-    const res = await fetch(SEARCH_SERVICE + '/gmail/auth', { method: 'POST' });
-    const data = await res.json();
-    
-    if (data.alreadyAuthenticated) {
-      checkGmailModalStatus();
-      checkIntegrations();
-      return;
-    }
-    
-    if (data.launched) {
-      btn.innerHTML = '<span style="color:var(--text-muted);">Complete login in browser...</span>';
-      // Poll for completion
-      let attempts = 0;
-      const checkAuth = setInterval(async () => {
-        attempts++;
-        const statusRes = await fetch(SEARCH_SERVICE + '/gmail/status');
-        const status = await statusRes.json();
-        if (status.authenticated) {
-          clearInterval(checkAuth);
-          checkGmailModalStatus();
-          checkIntegrations();
-          // Reconnect Gmail MCP
-          await fetch(SEARCH_SERVICE + '/reconnect?mcp=gmail');
-        } else if (attempts > 60) { // 5 min timeout
-          clearInterval(checkAuth);
-          btn.innerHTML = originalContent;
-          btn.disabled = false;
-        }
-      }, 5000);
-    }
-  } catch (e) {
-    console.error('Gmail auth error:', e);
-    btn.innerHTML = originalContent;
-    btn.disabled = false;
-  }
-}
-
-// Disconnect Gmail MCP (remove credentials)
-async function disconnectGmailMcp() {
-  if (!confirm('This will remove your Gmail credentials. You will need to re-authenticate to use Gmail search.')) {
-    return;
-  }
-  // Note: We can't delete files from the browser, but we can notify the user
-  alert('To fully disconnect Gmail, delete the file:\n~/.gmail-mcp/credentials.json\n\nThen restart the search service.');
-  checkGmailModalStatus();
-  checkIntegrations();
-}
-
-async function checkDriveModalStatus() {
-  try {
-    const res = await fetch(API + '/oauth/google/status');
-    const data = await res.json();
-    const connected = document.getElementById('drive-connected');
-    const notConnected = document.getElementById('drive-not-connected');
-    const connectBtn = document.getElementById('drive-connect-btn');
-    const disconnectBtn = document.getElementById('drive-disconnect-btn');
-
-    if (data.is_authenticated) {
-      connected.style.display = 'block';
-      notConnected.style.display = 'none';
-      connectBtn.style.display = 'none';
-      disconnectBtn.style.display = 'block';
-    } else {
-      connected.style.display = 'none';
-      notConnected.style.display = data.has_credentials ? 'block' : 'none';
-      connectBtn.style.display = 'block';
-      disconnectBtn.style.display = 'none';
-      if (!data.has_credentials) {
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured</span>';
-      }
-    }
-  } catch (e) { console.error('Error checking Drive status:', e); }
-}
-
-async function checkAtlassianModalStatus() {
-  try {
-    const res = await fetch(API + '/oauth/atlassian/status');
-    const data = await res.json();
-    const connected = document.getElementById('atlassian-connected');
-    const notConnected = document.getElementById('atlassian-not-connected');
-    const connectBtn = document.getElementById('atlassian-connect-btn');
-    const disconnectBtn = document.getElementById('atlassian-disconnect-btn');
-
-    if (data.authenticated) {
-      connected.style.display = 'block';
-      notConnected.style.display = 'none';
-      connectBtn.style.display = 'none';
-      disconnectBtn.style.display = 'block';
-    } else {
-      connected.style.display = 'none';
-      notConnected.style.display = 'block';
-      connectBtn.style.display = 'block';
-      disconnectBtn.style.display = 'none';
-    }
-  } catch (e) { console.error('Error checking Atlassian status:', e); }
-}
-
-async function connectAtlassian() {
-  try {
-    const res = await fetch(API + '/oauth/atlassian/start');
-    const data = await res.json();
-    if (data.success) {
-      alert('Atlassian OAuth started. A browser window should open to sign in. After signing in, click "Check Status" to verify.');
-    } else {
-      alert(data.error || 'Failed to start Atlassian OAuth. Try the manual method below.');
-    }
-  } catch (e) {
-    alert('Failed to connect: ' + e.message);
-  }
-}
-
-async function disconnectAtlassian() {
-  if (!confirm('Disconnect Atlassian? You will need to reconnect to use Jira and Confluence.')) return;
-  try {
-    const res = await fetch(API + '/oauth/atlassian/disconnect');
-    const data = await res.json();
-    if (data.success) {
-      checkAtlassianModalStatus();
-      checkIntegrations();
-    } else {
-      alert(data.message || 'Failed to disconnect');
-    }
-  } catch (e) {
-    alert('Failed to disconnect: ' + e.message);
-  }
-}
-
-function selectBrowser(browser) {
-  // Update tabs
-  document.querySelectorAll('.browser-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.browser === browser);
-  });
-  // Update content
-  document.querySelectorAll('.browser-content').forEach(content => {
-    content.style.display = 'none';
-  });
-  document.getElementById('browser-' + browser).style.display = 'block';
-}
-
-function openSafariSettings() {
-  // This will try to open Safari preferences - may not work from browser
-  window.location.href = 'x-apple.systempreferences:com.apple.Safari';
-}
-
-function detectBrowser() {
-  const ua = navigator.userAgent;
-  if (ua.includes('Chrome') && !ua.includes('Edg')) return 'chrome';
-  if (ua.includes('Firefox')) return 'firefox';
-  if (ua.includes('Safari') && !ua.includes('Chrome')) return 'safari';
-  return 'chrome'; // default
-}
-
-// Auto-select browser on page load
-document.addEventListener('DOMContentLoaded', () => {
-  selectBrowser(detectBrowser());
-});
-
-async function saveSlackTokens() {
-  const xoxc = document.getElementById('modal-slack-xoxc').value.trim();
-  const xoxd = document.getElementById('modal-slack-xoxd').value.trim();
-  const result = document.getElementById('slack-modal-result');
-  
-  if (!xoxc || !xoxd) {
-    result.innerHTML = '<div class="modal-result error">Please enter both tokens</div>';
-    return;
-  }
-  
-  result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Saving...</div>';
-  
-  try {
-    const res = await fetch(API + '/setup/slack', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ xoxc, xoxd })
-    });
-    const data = await res.json();
-    
-    if (data.success) {
-      result.innerHTML = '<div class="modal-result success">Connected successfully</div>';
-      setTimeout(() => { closeSlackModal(); checkIntegrations(); }, 1000);
-    } else {
-      result.innerHTML = `<div class="modal-result error">${data.error || 'Failed to connect'}</div>`;
-    }
-  } catch (e) {
-    result.innerHTML = '<div class="modal-result error">Connection failed</div>';
-  }
-}
-
-async function checkCalendarStatus() {
-  try {
-    const res = await fetch(API + '/hub/status');
-    const data = await res.json();
-    if (data.calendar?.authenticated) {
-      alert('Google Calendar is connected');
-      closeCalendarModal();
-      checkIntegrations();
-    } else {
-      alert('Calendar not yet connected. Complete the authentication steps first.');
-    }
-  } catch (e) {
-    alert('Could not check status');
-  }
-}
-
-async function checkGmailStatus() {
-  try {
-    const res = await fetch(API + '/hub/status');
-    const data = await res.json();
-    if (data.gmail?.authenticated) {
-      alert('Gmail is connected');
-      closeGmailModal();
-      checkIntegrations();
-    } else {
-      alert('Gmail not yet connected. Complete the authentication steps first.');
-    }
-  } catch (e) {
-    alert('Could not check status');
-  }
-}
-
-async function checkAtlassianStatus() {
-  try {
-    const res = await fetch(API + '/hub/status');
-    const data = await res.json();
-    if (data.atlassian?.authenticated) {
-      alert('Atlassian is connected');
-      closeAtlassianModal();
-      checkIntegrations();
-    } else {
-      alert('Atlassian not yet connected. Run the authentication command first.');
-    }
-  } catch (e) {
-    alert('Could not check status');
-  }
-}
-
-async function checkDriveStatus() {
-  try {
-    const res = await fetch(API + '/hub/status');
-    const data = await res.json();
-    if (data.drive?.authenticated) {
-      alert('Google Drive is connected');
-      closeDriveModal();
-      checkIntegrations();
-    } else {
-      alert('Drive not yet connected. Run the authentication command first.');
-    }
-  } catch (e) {
-    alert('Could not check status');
-  }
-}
-
-// GitHub status check (via search service)
 async function checkGithubStatus() {
   try {
     const res = await fetch(SEARCH_SERVICE + '/status');
@@ -2396,9 +2179,6 @@ async function checkGithubStatus() {
     }
   } catch (e) { /* ignore */ }
 }
-
-// GitHub setup
-let githubOAuthPollTimer = null;
 
 function showGithubSetup() {
   document.getElementById('github-modal').classList.add('show');
@@ -2423,7 +2203,6 @@ async function checkGithubModalStatus() {
     if (ghServer && ghServer.status === 'connected') {
       connected.style.display = 'block';
       notConnected.style.display = 'none';
-      // Hide the OAuth start button, show connected state
       document.getElementById('github-oauth-start').style.display = 'none';
       document.getElementById('github-oauth-code').style.display = 'none';
     } else {
@@ -2491,8 +2270,8 @@ async function startGithubOAuth() {
     // Auto-open GitHub in browser
     window.open(data.verification_uri, '_blank');
     
-    // Start polling for authorization using recursive setTimeout (adaptive interval)
-    let pollInterval = Math.max((data.interval || 5) + 1, 6) * 1000; // Add 1s buffer to avoid slow_down
+    // Start polling for authorization
+    let pollInterval = Math.max((data.interval || 5) + 1, 6) * 1000;
     const expiresAt = Date.now() + (data.expires_in || 900) * 1000;
     
     if (githubOAuthPollTimer) { clearTimeout(githubOAuthPollTimer); githubOAuthPollTimer = null; }
@@ -2518,13 +2297,11 @@ async function startGithubOAuth() {
         if (pollData.success && pollData.status === 'complete') {
           githubOAuthPollTimer = null;
           
-          // Token saved! Now trigger search service restart and poll for connection
           codeSection.style.display = 'none';
           result.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Authorized! Connecting to GitHub MCP server...</div>';
           
           try { await fetch(SEARCH_SERVICE + '/reconnect?mcp=github'); } catch(e) {}
           
-          // Poll for MCP connection
           let connAttempts = 0;
           const connPoll = setInterval(async () => {
             connAttempts++;
@@ -2551,12 +2328,11 @@ async function startGithubOAuth() {
               }
             }
           }, 2000);
-          return; // Stop polling
+          return;
           
         } else if (pollData.success && pollData.status === 'pending') {
           document.getElementById('github-oauth-status').textContent = 'Waiting for authorization...';
         } else if (pollData.success && pollData.status === 'slow_down') {
-          // Increase interval as GitHub requested
           pollInterval = Math.max((pollData.interval || 10) + 1, pollInterval + 5000);
           document.getElementById('github-oauth-status').textContent = 'Waiting for authorization...';
         } else if (!pollData.success) {
@@ -2565,17 +2341,15 @@ async function startGithubOAuth() {
           btn.disabled = false;
           btn.textContent = 'Connect with GitHub';
           result.innerHTML = '<div class="modal-result error">' + (pollData.error || 'Authorization failed') + '</div>';
-          return; // Stop polling
+          return;
         }
       } catch (e) {
         // Network error, keep trying
       }
       
-      // Schedule next poll with current interval
       githubOAuthPollTimer = setTimeout(pollOAuth, pollInterval);
     }
     
-    // Start first poll after the interval
     githubOAuthPollTimer = setTimeout(pollOAuth, pollInterval);
     
   } catch (e) {
@@ -2652,7 +2426,77 @@ async function saveGithubPat() {
   }
 }
 
+// ─── Legacy status check functions (used by modals) ──────────────────
+
+async function checkCalendarStatus() {
+  try {
+    const res = await fetch(API + '/hub/status');
+    const data = await res.json();
+    if (data.calendar?.authenticated) {
+      alert('Google Calendar is connected');
+      closeCalendarModal();
+      checkIntegrations();
+    } else {
+      alert('Calendar not yet connected. Complete the authentication steps first.');
+    }
+  } catch (e) {
+    alert('Could not check status');
+  }
+}
+
+async function checkGmailStatus() {
+  try {
+    const res = await fetch(API + '/hub/status');
+    const data = await res.json();
+    if (data.gmail?.authenticated) {
+      alert('Gmail is connected');
+      closeGmailModal();
+      checkIntegrations();
+    } else {
+      alert('Gmail not yet connected. Complete the authentication steps first.');
+    }
+  } catch (e) {
+    alert('Could not check status');
+  }
+}
+
+async function checkAtlassianStatus() {
+  try {
+    const res = await fetch(API + '/hub/status');
+    const data = await res.json();
+    if (data.atlassian?.authenticated) {
+      alert('Atlassian is connected');
+      closeAtlassianModal();
+      checkIntegrations();
+    } else {
+      alert('Atlassian not yet connected. Run the authentication command first.');
+    }
+  } catch (e) {
+    alert('Could not check status');
+  }
+}
+
+async function checkDriveStatus() {
+  try {
+    const res = await fetch(API + '/hub/status');
+    const data = await res.json();
+    if (data.drive?.authenticated) {
+      alert('Google Drive is connected');
+      closeDriveModal();
+      checkIntegrations();
+    } else {
+      alert('Drive not yet connected. Run the authentication command first.');
+    }
+  } catch (e) {
+    alert('Could not check status');
+  }
+}
+
+// ─── Initialize ──────────────────────────────────────────────────────
+
 updateUI();
+// Load system info on first step
+setTimeout(loadSystemInfo, 600);
 </script>
 </body>
 </html>

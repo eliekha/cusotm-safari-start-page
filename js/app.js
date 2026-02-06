@@ -96,7 +96,7 @@ var eventsEl=document.getElementById('cal-events');
 // Check for auth error and show banner
 if(data.auth_error){
 container.classList.add('show');
-eventsEl.innerHTML='<div class="cal-auth-error" onclick="window.open(\'http://127.0.0.1:18765/installer.html\',\'_blank\')"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#f59e0b;margin-right:8px;flex-shrink:0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><span>Calendar auth expired. <u>Click to re-authenticate</u></span></div>';
+eventsEl.innerHTML='<div class="cal-auth-error" onclick="window.open(\'http://127.0.0.1:8765/installer.html\',\'_blank\')"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#f59e0b;margin-right:8px;flex-shrink:0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><span>Calendar auth expired. <u>Click to re-authenticate</u></span></div>';
 return;
 }
 if(data.error&&!data.events){container.classList.remove('show');return;}
@@ -224,6 +224,14 @@ document.getElementById('hub-slack').checked=sources.slack!==false;
 document.getElementById('hub-gmail').checked=sources.gmail!==false;
 document.getElementById('hub-drive').checked=sources.drive!==false;
 document.getElementById('hub-github').checked=sources.github!==false;
+var safariEl=document.getElementById('safari-history-enabled');
+if(safariEl){
+safariEl.checked=!!settings.safariEnabled;
+var fdaInstr=document.getElementById('safari-fda-instructions');
+if(fdaInstr) fdaInstr.style.display=settings.safariEnabled?'block':'none';
+var fdaStatus=document.getElementById('safari-fda-status');
+if(fdaStatus) fdaStatus.textContent=settings.safariEnabled?'Enabled':'Disabled';
+}
 document.getElementById('hub-model').value=settings.hubModel||'gpt-4o';
 toggleHubSettings();
 fetchHubAuthStatus();

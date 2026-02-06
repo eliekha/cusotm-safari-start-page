@@ -1,6 +1,7 @@
 #!/bin/bash
 # BriefDesk Post-Install Script
-# This runs as root after pkg installation, but we need to set up user-space components
+# This runs as root after pkg installation, sets up all user-space components silently.
+# Goal: User should have a FULLY working system after this script — no manual dependency installs.
 
 set -e
 
@@ -22,15 +23,17 @@ echo "Setting up BriefDesk for user: $INSTALL_USER"
 sudo -u "$INSTALL_USER" mkdir -p "$INSTALL_DIR"
 sudo -u "$INSTALL_USER" mkdir -p "$DEVSAI_DIR"
 sudo -u "$INSTALL_USER" mkdir -p "$LAUNCHAGENTS_DIR"
+sudo -u "$INSTALL_USER" mkdir -p "$USER_HOME/.local/bin"
 
 # Copy application files
 cp -R "$PKG_SOURCE/"* "$INSTALL_DIR/"
 chown -R "$INSTALL_USER" "$INSTALL_DIR"
 
-# Find Python (with extensive fallbacks for different installation methods)
+# ============================================================
+# 1. PYTHON — detect or trigger install
+# ============================================================
 SYSTEM_PYTHON=""
 
-# Helper function to check if Python works and is recent enough (3.9+)
 check_python() {
     local py="$1"
     if [ -x "$py" ] && "$py" -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
@@ -39,69 +42,55 @@ check_python() {
     return 1
 }
 
-# 1. Check Homebrew on Apple Silicon
-if [ -z "$SYSTEM_PYTHON" ] && [ -f "/opt/homebrew/bin/python3" ]; then
-    check_python "/opt/homebrew/bin/python3" && SYSTEM_PYTHON="/opt/homebrew/bin/python3"
-fi
+# Check all common Python locations (prefer Homebrew, then Framework, then system)
+for py in \
+    /opt/homebrew/bin/python3 \
+    /opt/homebrew/bin/python3.{14,13,12,11,10,9} \
+    /Library/Frameworks/Python.framework/Versions/{3.14,3.13,3.12,3.11,3.10,3.9}/bin/python3 \
+    /usr/local/bin/python3 \
+    /usr/local/bin/python3.{14,13,12,11,10,9} \
+    "$USER_HOME/.pyenv/shims/python3" \
+    /usr/bin/python3; do
+    if [ -z "$SYSTEM_PYTHON" ] && [ -f "$py" ] && check_python "$py"; then
+        SYSTEM_PYTHON="$py"
+        break
+    fi
+done
 
-# 2. Check versioned Homebrew Python on Apple Silicon (prefer newer versions)
+# Last resort: which
 if [ -z "$SYSTEM_PYTHON" ]; then
-    for ver in 3.14 3.13 3.12 3.11 3.10 3.9; do
-        if [ -f "/opt/homebrew/bin/python$ver" ]; then
-            check_python "/opt/homebrew/bin/python$ver" && SYSTEM_PYTHON="/opt/homebrew/bin/python$ver" && break
-        fi
-    done
-fi
-
-# 3. Check Python.org installer (Framework install)
-if [ -z "$SYSTEM_PYTHON" ]; then
-    for ver in 3.14 3.13 3.12 3.11 3.10 3.9; do
-        if [ -f "/Library/Frameworks/Python.framework/Versions/$ver/bin/python3" ]; then
-            check_python "/Library/Frameworks/Python.framework/Versions/$ver/bin/python3" && \
-                SYSTEM_PYTHON="/Library/Frameworks/Python.framework/Versions/$ver/bin/python3" && break
-        fi
-    done
-fi
-
-# 4. Check Homebrew on Intel Macs
-if [ -z "$SYSTEM_PYTHON" ] && [ -f "/usr/local/bin/python3" ]; then
-    check_python "/usr/local/bin/python3" && SYSTEM_PYTHON="/usr/local/bin/python3"
-fi
-
-# 5. Check versioned Homebrew Python on Intel Macs
-if [ -z "$SYSTEM_PYTHON" ]; then
-    for ver in 3.14 3.13 3.12 3.11 3.10 3.9; do
-        if [ -f "/usr/local/bin/python$ver" ]; then
-            check_python "/usr/local/bin/python$ver" && SYSTEM_PYTHON="/usr/local/bin/python$ver" && break
-        fi
-    done
-fi
-
-# 6. Check pyenv (common for developers)
-if [ -z "$SYSTEM_PYTHON" ] && [ -f "$HOME/.pyenv/shims/python3" ]; then
-    check_python "$HOME/.pyenv/shims/python3" && SYSTEM_PYTHON="$HOME/.pyenv/shims/python3"
-fi
-
-# 7. Check system Python (macOS Sonoma+ has Python 3.9+)
-if [ -z "$SYSTEM_PYTHON" ] && [ -f "/usr/bin/python3" ]; then
-    check_python "/usr/bin/python3" && SYSTEM_PYTHON="/usr/bin/python3"
-fi
-
-# 8. Last resort: use which
-if [ -z "$SYSTEM_PYTHON" ]; then
-    FOUND_PYTHON=$(which python3 2>/dev/null)
+    FOUND_PYTHON=$(which python3 2>/dev/null || true)
     if [ -n "$FOUND_PYTHON" ] && check_python "$FOUND_PYTHON"; then
         SYSTEM_PYTHON="$FOUND_PYTHON"
     fi
 fi
 
-# Final fallback (may not work but we try)
+# If still not found, trigger Xcode CLI Tools install (includes Python 3)
 if [ -z "$SYSTEM_PYTHON" ]; then
-    echo "WARNING: Could not find a suitable Python 3.9+ installation"
+    echo "Python 3.9+ not found. Triggering Xcode Command Line Tools install..."
+    # This shows a system dialog asking the user to install
+    sudo -u "$INSTALL_USER" xcode-select --install 2>/dev/null || true
+    # Wait up to 5 minutes for Python to appear (user needs to click Install)
+    for i in $(seq 1 60); do
+        sleep 5
+        if [ -f "/usr/bin/python3" ] && check_python "/usr/bin/python3"; then
+            SYSTEM_PYTHON="/usr/bin/python3"
+            echo "Python installed via Xcode CLI Tools"
+            break
+        fi
+    done
+fi
+
+# Final fallback
+if [ -z "$SYSTEM_PYTHON" ]; then
+    echo "WARNING: Could not find Python 3.9+. History search may not work."
     SYSTEM_PYTHON="/usr/bin/python3"
 fi
 
-echo "Using Python: $SYSTEM_PYTHON ($($SYSTEM_PYTHON --version 2>&1))"
+# Resolve symlinks to get the real binary path (needed for FDA)
+PYTHON_REAL_PATH=$("$SYSTEM_PYTHON" -c "import os, sys; print(os.path.realpath(sys.executable))" 2>/dev/null || echo "$SYSTEM_PYTHON")
+PYTHON_VERSION=$("$SYSTEM_PYTHON" --version 2>&1 || echo "unknown")
+echo "Using Python: $SYSTEM_PYTHON → $PYTHON_REAL_PATH ($PYTHON_VERSION)"
 
 # Create Python wrapper
 cat > "$INSTALL_DIR/python3" << PYEOF
@@ -111,36 +100,71 @@ PYEOF
 chmod +x "$INSTALL_DIR/python3"
 chown "$INSTALL_USER" "$INSTALL_DIR/python3"
 
-# Ensure pip is available (bootstrap if needed)
-echo "Checking pip availability..."
+# Install Python dependencies (silently)
+echo "Installing Python dependencies..."
 if ! sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip --version >/dev/null 2>&1; then
-    echo "pip not found, bootstrapping..."
     sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m ensurepip --user 2>/dev/null || true
 fi
+sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --user --quiet google-auth-oauthlib google-api-python-client 2>/dev/null || \
+    sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --break-system-packages --user --quiet google-auth-oauthlib google-api-python-client 2>/dev/null || \
+    echo "WARNING: Could not install Google API libraries."
 
-# Install Google API libraries for OAuth
-echo "Installing Google API libraries..."
-# Try multiple pip install methods (some systems need --break-system-packages, some don't)
-if sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --user google-auth-oauthlib google-api-python-client 2>&1; then
-    echo "Google API libraries installed successfully"
-elif sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --break-system-packages --user google-auth-oauthlib google-api-python-client 2>&1; then
-    echo "Google API libraries installed successfully (with --break-system-packages)"
-else
-    echo "WARNING: Could not install Google API libraries. You may need to run manually:"
-    echo "  pip3 install --user google-auth-oauthlib google-api-python-client"
-fi
-
-# Find Node.js
+# ============================================================
+# 2. NODE.JS — detect or auto-download
+# ============================================================
 NODE_PATH=""
-if [ -f "/usr/local/bin/node" ]; then
-    NODE_PATH="/usr/local/bin/node"
-elif [ -f "/opt/homebrew/bin/node" ]; then
-    NODE_PATH="/opt/homebrew/bin/node"
-elif [ -f "/opt/homebrew/opt/node/bin/node" ]; then
-    NODE_PATH="/opt/homebrew/opt/node/bin/node"
+NODE_SOURCE="system"
+
+# Check system Node installations
+for np in /opt/homebrew/bin/node /usr/local/bin/node /opt/homebrew/opt/node/bin/node; do
+    if [ -z "$NODE_PATH" ] && [ -f "$np" ]; then
+        NODE_PATH="$np"
+        break
+    fi
+done
+
+# If not found, auto-download Node.js LTS
+if [ -z "$NODE_PATH" ]; then
+    echo "Node.js not found. Downloading Node.js LTS..."
+    NODE_SOURCE="downloaded"
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "arm64" ]; then
+        NODE_ARCH="arm64"
+    else
+        NODE_ARCH="x64"
+    fi
+    NODE_DL_URL="https://nodejs.org/dist/v22.13.1/node-v22.13.1-darwin-${NODE_ARCH}.tar.gz"
+    NODE_TMP="/tmp/briefdesk-node-install"
+    mkdir -p "$NODE_TMP"
+    if curl -fsSL "$NODE_DL_URL" -o "$NODE_TMP/node.tar.gz" 2>/dev/null; then
+        tar -xzf "$NODE_TMP/node.tar.gz" -C "$NODE_TMP" --strip-components=1 2>/dev/null
+        if [ -f "$NODE_TMP/bin/node" ]; then
+            NODE_PATH="$NODE_TMP/bin/node"
+            # Copy full Node installation to persistent location
+            # so npm works for MCP builds and beyond the install session
+            cp "$NODE_TMP/bin/node" "$DEVSAI_DIR/node" 2>/dev/null || true
+            if [ -d "$NODE_TMP/lib/node_modules/npm" ]; then
+                # Copy npm's lib so npm-cli.js can resolve its require() paths
+                cp -r "$NODE_TMP/lib" "$DEVSAI_DIR/" 2>/dev/null || true
+                # Create an npm wrapper that uses our node binary + correct npm-cli.js path
+                cat > "$DEVSAI_DIR/npm" << NPMEOF
+#!/bin/bash
+exec "$DEVSAI_DIR/node" "$DEVSAI_DIR/lib/node_modules/npm/bin/npm-cli.js" "\$@"
+NPMEOF
+            fi
+            chmod +x "$DEVSAI_DIR/node" "$DEVSAI_DIR/npm" 2>/dev/null || true
+            chown -R "$INSTALL_USER" "$DEVSAI_DIR" 2>/dev/null || true
+            # Point NODE_PATH to the persistent copy (temp dir is cleaned up below)
+            NODE_PATH="$DEVSAI_DIR/node"
+            echo "  Node.js downloaded successfully"
+        fi
+    else
+        echo "WARNING: Failed to download Node.js (no internet?)"
+    fi
+    rm -rf "$NODE_TMP"
 fi
 
-# Find npm (for devsai install)
+# Find npm
 NPM_PATH=""
 if [ -f "/usr/local/bin/npm" ]; then
     NPM_PATH="/usr/local/bin/npm"
@@ -148,44 +172,56 @@ elif [ -f "/opt/homebrew/bin/npm" ]; then
     NPM_PATH="/opt/homebrew/bin/npm"
 elif [ -n "$NODE_PATH" ] && [ -f "$(dirname "$NODE_PATH")/npm" ]; then
     NPM_PATH="$(dirname "$NODE_PATH")/npm"
+elif [ -f "$DEVSAI_DIR/npm" ]; then
+    # Use the npm we downloaded/copied alongside node
+    NPM_PATH="$DEVSAI_DIR/npm"
 else
     NPM_PATH="$(command -v npm 2>/dev/null || true)"
 fi
 
-# Set up Node for devsai if found
-if [ -n "$NODE_PATH" ]; then
+if [ -n "$NPM_PATH" ]; then
+    echo "Using npm: $NPM_PATH"
+else
+    echo "WARNING: npm not found — MCP server builds will be skipped."
+fi
+
+# Copy Node binary to persistent location (skip if already copied during download)
+if [ -n "$NODE_PATH" ] && [ ! -f "$DEVSAI_DIR/node" ]; then
     cp "$NODE_PATH" "$DEVSAI_DIR/node"
     chmod +x "$DEVSAI_DIR/node"
     chown "$INSTALL_USER" "$DEVSAI_DIR/node"
 fi
+if [ -f "$DEVSAI_DIR/node" ]; then
+    NODE_VERSION=$("$DEVSAI_DIR/node" --version 2>/dev/null || echo "unknown")
+    echo "Using Node: $NODE_PATH ($NODE_VERSION, source: $NODE_SOURCE)"
+fi
 
-# Install devsai CLI from bundled tarball (if available)
+# ============================================================
+# 3. DEVSAI CLI — install from bundled tarball
+# ============================================================
 DEVSAI_TARBALL="$INSTALL_DIR/devsai/devsai.tgz"
 if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
-    echo "Installing devsai CLI from bundled tarball..."
+    echo "Installing devsai CLI..."
     sudo -u "$INSTALL_USER" "$NPM_PATH" install --prefix "$DEVSAI_DIR" "$DEVSAI_TARBALL" --silent 2>/dev/null || \
-        echo "WARNING: devsai install failed. You may need to reinstall devsai manually."
+        echo "WARNING: devsai install failed."
 
-    if [ ! -f "$DEVSAI_DIR/node_modules/devsai/dist/index.js" ]; then
-        echo "WARNING: devsai install incomplete (missing dist/index.js). Verify npm install and rerun."
-    fi
-
-    # Create devsai wrapper (user-local)
+    # Create wrapper
     cat > "$DEVSAI_DIR/devsai.sh" << 'EOF'
 #!/bin/bash
 exec "$HOME/.local/share/devsai/node" "$HOME/.local/share/devsai/node_modules/devsai/dist/index.js" "$@"
 EOF
     chmod +x "$DEVSAI_DIR/devsai.sh"
     chown "$INSTALL_USER" "$DEVSAI_DIR/devsai.sh"
-
-    # Add a convenient executable in ~/.local/bin
-    sudo -u "$INSTALL_USER" mkdir -p "$USER_HOME/.local/bin"
     sudo -u "$INSTALL_USER" ln -sf "$DEVSAI_DIR/devsai.sh" "$USER_HOME/.local/bin/devsai"
-else
-    echo "WARNING: devsai tarball or npm not found. devsai CLI will not be installed."
 fi
 
-# Create LaunchAgent for static server
+# ============================================================
+# 4. LAUNCH AGENTS
+# ============================================================
+PYTHON_VER=$("$SYSTEM_PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "3.11")
+USER_SITE_PACKAGES="$USER_HOME/.local/lib/python$PYTHON_VER/site-packages"
+
+# Static file server
 cat > "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -217,11 +253,7 @@ cat > "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" << EOF
 EOF
 chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist"
 
-# Get Python version for user site-packages path
-PYTHON_VERSION=$("$SYSTEM_PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "3.11")
-USER_SITE_PACKAGES="$USER_HOME/.local/lib/python$PYTHON_VERSION/site-packages"
-
-# Create LaunchAgent for search server
+# API server
 cat > "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -254,7 +286,7 @@ cat > "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" << EOF
 EOF
 chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist"
 
-# Create LaunchAgent for search service (if node available)
+# Search service (Node.js)
 if [ -n "$NODE_PATH" ]; then
     cat > "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -295,108 +327,119 @@ EOF
     chown "$INSTALL_USER" "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist"
 fi
 
-# Download GitHub MCP server binary (if not already present)
+# ============================================================
+# 5. GITHUB MCP SERVER — download binary
+# ============================================================
 GITHUB_MCP_BIN="$INSTALL_DIR/github-mcp-server"
 if [ ! -f "$GITHUB_MCP_BIN" ]; then
     echo "Downloading GitHub MCP server..."
     ARCH=$(uname -m)
-    if [ "$ARCH" = "arm64" ]; then
-        GH_MCP_ASSET="github-mcp-server_Darwin_arm64.tar.gz"
-    else
-        GH_MCP_ASSET="github-mcp-server_Darwin_x86_64.tar.gz"
-    fi
-    GH_MCP_URL="https://github.com/github/github-mcp-server/releases/latest/download/$GH_MCP_ASSET"
-    if curl -fsSL "$GH_MCP_URL" -o "/tmp/$GH_MCP_ASSET" 2>/dev/null; then
+    GH_MCP_ASSET="github-mcp-server_Darwin_${ARCH}.tar.gz"
+    [ "$ARCH" != "arm64" ] && GH_MCP_ASSET="github-mcp-server_Darwin_x86_64.tar.gz"
+    if curl -fsSL "https://github.com/github/github-mcp-server/releases/latest/download/$GH_MCP_ASSET" -o "/tmp/$GH_MCP_ASSET" 2>/dev/null; then
         tar -xzf "/tmp/$GH_MCP_ASSET" -C /tmp github-mcp-server 2>/dev/null
         if [ -f "/tmp/github-mcp-server" ]; then
             mv "/tmp/github-mcp-server" "$GITHUB_MCP_BIN"
             chmod +x "$GITHUB_MCP_BIN"
             chown "$INSTALL_USER" "$GITHUB_MCP_BIN"
-            echo "  GitHub MCP server installed"
-        else
-            echo "  WARNING: Failed to extract GitHub MCP server"
         fi
         rm -f "/tmp/$GH_MCP_ASSET"
-    else
-        echo "  WARNING: Failed to download GitHub MCP server (no internet?)"
     fi
-else
-    echo "GitHub MCP server already installed"
 fi
 
-# Build gdrive-mcp if present
-if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NODE_PATH" ]; then
+# ============================================================
+# 6. BUILD MCP SERVERS (gdrive, gmail)
+# ============================================================
+if [ -d "$INSTALL_DIR/gdrive-mcp" ] && [ -n "$NPM_PATH" ]; then
     echo "Building gdrive-mcp..."
     cd "$INSTALL_DIR/gdrive-mcp"
-    sudo -u "$INSTALL_USER" npm install --silent 2>/dev/null || true
-    sudo -u "$INSTALL_USER" npm run build --silent 2>/dev/null || true
+    sudo -u "$INSTALL_USER" "$NPM_PATH" install --silent 2>/dev/null || true
+    sudo -u "$INSTALL_USER" "$NPM_PATH" run build --silent 2>/dev/null || true
 fi
 
-# Build gmail-mcp (custom read-only Gmail MCP)
-if [ -d "$INSTALL_DIR/gmail-mcp" ] && [ -n "$NODE_PATH" ]; then
-    echo "Building gmail-mcp (read-only)..."
+if [ -d "$INSTALL_DIR/gmail-mcp" ] && [ -n "$NPM_PATH" ]; then
+    echo "Building gmail-mcp..."
     cd "$INSTALL_DIR/gmail-mcp"
-    sudo -u "$INSTALL_USER" npm install --silent 2>/dev/null || true
-    sudo -u "$INSTALL_USER" npm run build --silent 2>/dev/null || true
-    
-    # Verify build succeeded
-    if [ -f "$INSTALL_DIR/gmail-mcp/dist/index.js" ]; then
-        echo "  gmail-mcp built successfully"
-    else
-        echo "  WARNING: gmail-mcp build may have failed"
-    fi
+    sudo -u "$INSTALL_USER" "$NPM_PATH" install --silent 2>/dev/null || true
+    sudo -u "$INSTALL_USER" "$NPM_PATH" run build --silent 2>/dev/null || true
 fi
 
-# Remove any existing Gmail credentials with modify scope (security: re-auth with readonly)
+# Remove old Gmail credentials with modify scope (security)
 if [ -f "$USER_HOME/.gmail-mcp/credentials.json" ]; then
-    if grep -q "gmail.modify" "$USER_HOME/.gmail-mcp/credentials.json" 2>/dev/null; then
+    grep -q "gmail.modify" "$USER_HOME/.gmail-mcp/credentials.json" 2>/dev/null && \
         rm -f "$USER_HOME/.gmail-mcp/credentials.json"
-        echo "Removed Gmail credentials with modify scope - user will need to re-authenticate with read-only access"
-    fi
 fi
 
-# Update .devsai.json to use the custom gmail-mcp (if config exists)
+# Update .devsai.json gmail config if needed
 DEVSAI_CONFIG="$INSTALL_DIR/.devsai.json"
 if [ -f "$DEVSAI_CONFIG" ] && [ -f "$INSTALL_DIR/gmail-mcp/dist/index.js" ]; then
-    echo "Updating .devsai.json to use custom gmail-mcp..."
-    # Use Python to safely update JSON (jq may not be available)
     sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" - "$DEVSAI_CONFIG" "$INSTALL_DIR" << 'PYEOF'
-import json
-import sys
-
-config_path = sys.argv[1]
-install_dir = sys.argv[2]
-
+import json, sys
+config_path, install_dir = sys.argv[1], sys.argv[2]
 try:
-    with open(config_path, 'r') as f:
-        config = json.load(f)
-    
-    # Update gmail MCP to use the custom one
+    with open(config_path, 'r') as f: config = json.load(f)
     if 'mcpServers' in config and 'gmail' in config['mcpServers']:
-        config['mcpServers']['gmail'] = {
-            "command": "node",
-            "args": [f"{install_dir}/gmail-mcp/dist/index.js"]
-        }
-        
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=2)
-        print("  Updated gmail MCP config")
-except Exception as e:
-    print(f"  WARNING: Could not update .devsai.json: {e}")
+        config['mcpServers']['gmail'] = {"command": "node", "args": [f"{install_dir}/gmail-mcp/dist/index.js"]}
+        with open(config_path, 'w') as f: json.dump(config, f, indent=2)
+except: pass
 PYEOF
 fi
 
-# Start services as the user
+# ============================================================
+# 7. FIREFOX EXTENSION AUTO-INSTALL
+# ============================================================
+FIREFOX_EXT_SRC="$INSTALL_DIR/browser-extension/firefox"
+if [ -d "$FIREFOX_EXT_SRC" ]; then
+    # Find Firefox profile directory
+    FIREFOX_PROFILES="$USER_HOME/Library/Application Support/Firefox/Profiles"
+    if [ -d "$FIREFOX_PROFILES" ]; then
+        for profile_dir in "$FIREFOX_PROFILES"/*.default-release "$FIREFOX_PROFILES"/*.default; do
+            if [ -d "$profile_dir" ]; then
+                EXT_DIR="$profile_dir/extensions"
+                sudo -u "$INSTALL_USER" mkdir -p "$EXT_DIR"
+                # Copy as XPI (zip) or use pointer file
+                # Firefox reads a file named with the extension ID containing the path
+                echo "$FIREFOX_EXT_SRC" > "$EXT_DIR/newtab@briefdesk.local"
+                chown "$INSTALL_USER" "$EXT_DIR/newtab@briefdesk.local"
+                echo "  Firefox extension linked in $(basename "$profile_dir")"
+            fi
+        done
+    fi
+fi
+
+# ============================================================
+# 8. SAVE SYSTEM METADATA (for installer.html to read)
+# ============================================================
+cat > "$INSTALL_DIR/.install-meta.json" << METAEOF
+{
+  "python_path": "$SYSTEM_PYTHON",
+  "python_real_path": "$PYTHON_REAL_PATH",
+  "python_version": "$PYTHON_VERSION",
+  "node_path": "${NODE_PATH:-}",
+  "node_version": "${NODE_VERSION:-}",
+  "node_source": "$NODE_SOURCE",
+  "node_fda_path": "$DEVSAI_DIR/node",
+  "install_dir": "$INSTALL_DIR",
+  "devsai_dir": "$DEVSAI_DIR",
+  "github_mcp": "$([ -f "$GITHUB_MCP_BIN" ] && echo 'installed' || echo 'missing')",
+  "devsai_cli": "$([ -f "$DEVSAI_DIR/devsai.sh" ] && echo 'installed' || echo 'missing')",
+  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+METAEOF
+chown "$INSTALL_USER" "$INSTALL_DIR/.install-meta.json"
+
+# ============================================================
+# 9. START SERVICES
+# ============================================================
 USER_ID=$(id -u "$INSTALL_USER")
 
-# Unload any existing services first
+# Unload existing
 sudo -u "$INSTALL_USER" launchctl bootout "gui/$USER_ID/com.briefdesk.static" 2>/dev/null || true
 sudo -u "$INSTALL_USER" launchctl bootout "gui/$USER_ID/com.briefdesk.server" 2>/dev/null || true
 sudo -u "$INSTALL_USER" launchctl bootout "gui/$USER_ID/com.briefdesk.search-service" 2>/dev/null || true
-
 sleep 1
 
-# Load services
+# Load new
 sudo -u "$INSTALL_USER" launchctl bootstrap "gui/$USER_ID" "$LAUNCHAGENTS_DIR/com.briefdesk.static.plist" 2>/dev/null || true
 sudo -u "$INSTALL_USER" launchctl bootstrap "gui/$USER_ID" "$LAUNCHAGENTS_DIR/com.briefdesk.server.plist" 2>/dev/null || true
 if [ -f "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" ]; then
@@ -404,6 +447,4 @@ if [ -f "$LAUNCHAGENTS_DIR/com.briefdesk.search-service.plist" ]; then
 fi
 
 echo "BriefDesk installation complete!"
-echo "Services are starting in the background..."
-
 exit 0

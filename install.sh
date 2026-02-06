@@ -21,6 +21,7 @@ cp "$SCRIPT_DIR/start.html" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/setup.html" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/installer.html" "$INSTALL_DIR/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/icons" "$INSTALL_DIR/" 2>/dev/null || true
+cp -r "$SCRIPT_DIR/browser-extension" "$INSTALL_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/search-server.py" "$INSTALL_DIR/"
 
 # Copy lib modules
@@ -238,6 +239,22 @@ elif command -v node &> /dev/null; then
     NODE_PATH=$(which node)
 fi
 
+if [ -z "$NODE_PATH" ]; then
+    echo "   Node.js not found. Downloading Node.js LTS..."
+    ARCH=$(uname -m)
+    [ "$ARCH" = "arm64" ] && NODE_ARCH="arm64" || NODE_ARCH="x64"
+    NODE_DL_URL="https://nodejs.org/dist/v22.13.1/node-v22.13.1-darwin-${NODE_ARCH}.tar.gz"
+    NODE_TMP="/tmp/briefdesk-node-install"
+    mkdir -p "$NODE_TMP"
+    if curl -fsSL "$NODE_DL_URL" -o "$NODE_TMP/node.tar.gz" 2>/dev/null; then
+        tar -xzf "$NODE_TMP/node.tar.gz" -C "$NODE_TMP" --strip-components=1 2>/dev/null
+        [ -f "$NODE_TMP/bin/node" ] && NODE_PATH="$NODE_TMP/bin/node" && echo "   ✓ Node.js downloaded"
+        rm -f "$NODE_TMP/node.tar.gz"
+    else
+        echo "   ⚠️  Failed to download Node.js (no internet?)"
+    fi
+fi
+
 if [ -n "$NODE_PATH" ]; then
     NODE_VERSION=$("$NODE_PATH" --version)
     echo "   Found Node.js $NODE_VERSION at $NODE_PATH"
@@ -428,25 +445,6 @@ echo ""
 echo "✅ Installation complete!"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📋 REQUIRED: Grant Full Disk Access"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "Open: System Settings → Privacy & Security → Full Disk Access"
-echo ""
-echo "Add these binaries (use Cmd+Shift+G to paste paths):"
-echo ""
-echo "  1. $SYSTEM_PYTHON"
-echo "     (Required for Safari history search)"
-echo ""
-if [ -f "$DEVSAI_DIR/node" ]; then
-echo "  2. $DEVSAI_DIR/node"
-echo "     (Required for Google Drive search in Hub)"
-echo ""
-fi
-echo "After adding, restart the services:"
-echo "  launchctl kickstart -k gui/\$(id -u)/com.briefdesk.server"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📋 Set Browser Homepage"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -481,6 +479,27 @@ echo "  cp -r \$(npm root -g)/devsai/dist ~/.local/share/devsai/"
 echo ""
 echo "Or re-run this install script."
 echo ""
+# Save system metadata for installer.html
+PYTHON_REAL=$("$SYSTEM_PYTHON" -c "import os, sys; print(os.path.realpath(sys.executable))" 2>/dev/null || echo "$SYSTEM_PYTHON")
+PYTHON_VER=$("$SYSTEM_PYTHON" --version 2>&1 || echo "unknown")
+NODE_VER=$("$DEVSAI_DIR/node" --version 2>/dev/null || echo "")
+cat > "$INSTALL_DIR/.install-meta.json" << METAEOF
+{
+  "python_path": "$SYSTEM_PYTHON",
+  "python_real_path": "$PYTHON_REAL",
+  "python_version": "$PYTHON_VER",
+  "node_path": "${NODE_PATH:-}",
+  "node_version": "$NODE_VER",
+  "node_source": "system",
+  "node_fda_path": "$DEVSAI_DIR/node",
+  "install_dir": "$INSTALL_DIR",
+  "devsai_dir": "$DEVSAI_DIR",
+  "github_mcp": "$([ -f "$INSTALL_DIR/github-mcp-server" ] && echo 'installed' || echo 'missing')",
+  "devsai_cli": "$([ -f "$DEVSAI_DIR/devsai.sh" ] && echo 'installed' || echo 'missing')",
+  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+METAEOF
+
 echo "🔗 Opening BriefDesk Installer..."
 echo ""
 

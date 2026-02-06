@@ -49,6 +49,7 @@ cp -r "$SCRIPT_DIR/js" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || tru
 cp -r "$SCRIPT_DIR/lib" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/assets" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 cp -r "$SCRIPT_DIR/icons" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
+cp -r "$SCRIPT_DIR/browser-extension" "$PKG_ROOT/usr/local/share/briefdesk/" 2>/dev/null || true
 # Copy gdrive-mcp excluding node_modules and dist (built during postinstall)
 if [ -d "$SCRIPT_DIR/gdrive-mcp" ]; then
     mkdir -p "$PKG_ROOT/usr/local/share/briefdesk/gdrive-mcp"
@@ -148,7 +149,7 @@ cat > "$BUILD_DIR/welcome.html" << 'EOF'
     <div class="feature">Google Drive full-text search</div>
     
     <p style="margin-top: 20px; font-size: 12px; color: #808080;">
-        Requires: Python 3, Node.js (optional for AI features)
+        All dependencies are installed automatically. No Homebrew or Terminal required.
     </p>
 </body>
 </html>
@@ -166,33 +167,27 @@ cat > "$BUILD_DIR/conclusion.html" << 'EOF'
         p { line-height: 1.6; margin: 8px 0; }
         .subtitle { color: #a0a0a0; font-size: 14px; margin-bottom: 16px; }
         a { color: #4f8cff; }
-        .features { margin: 16px 0; font-size: 13px; color: #a0a0a0; }
-        .features li { margin: 4px 0; }
-        .tip { margin-top: 16px; padding: 10px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 12px; color: #808080; }
-        .tip code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; }
+        .check { color: #34d399; margin-right: 6px; }
+        .done-list { margin: 16px 0; font-size: 13px; color: #c0c0c0; list-style: none; padding: 0; }
+        .done-list li { margin: 6px 0; }
+        .next { margin-top: 20px; padding: 14px 16px; background: rgba(79,140,255,0.1); border: 1px solid rgba(79,140,255,0.3); border-radius: 8px; }
+        .next strong { color: #4f8cff; }
     </style>
 </head>
 <body>
     <h1>Installation Complete</h1>
-    <p class="subtitle">BriefDesk is installed and running in the background.</p>
+    <p class="subtitle">BriefDesk is installed and running. Python, Node.js, and all services were set up automatically.</p>
     
-    <p><strong>One more step:</strong> Open the setup wizard to configure permissions and connect your accounts.</p>
+    <ul class="done-list">
+        <li><span class="check">&#10003;</span> Python detected and configured</li>
+        <li><span class="check">&#10003;</span> Node.js ready (downloaded automatically if needed)</li>
+        <li><span class="check">&#10003;</span> Background services started</li>
+        <li><span class="check">&#10003;</span> AI search engine installed</li>
+    </ul>
     
-    <p style="margin: 16px 0;">
-        <a href="http://localhost:8765/installer.html" target="_blank" style="font-weight: 600; font-size: 14px;">Open Setup Wizard</a>
-    </p>
-    
-    <div class="features">
-        <strong>The wizard will help you:</strong>
-        <ul>
-            <li>Grant Full Disk Access for Safari history search</li>
-            <li>Connect Slack, Gmail, Calendar, and Drive</li>
-            <li>Enable AI-powered semantic search</li>
-        </ul>
-    </div>
-    
-    <div class="tip">
-        <strong>Tip:</strong> After setup, set your browser homepage to <code>http://127.0.0.1:8765/start.html</code>
+    <div class="next">
+        <strong>Next:</strong> Open the setup wizard to connect your accounts.<br><br>
+        <a href="http://127.0.0.1:8765/installer.html" target="_blank" style="font-weight: 600; font-size: 15px;">Open Setup Wizard &rarr;</a>
     </div>
 </body>
 </html>

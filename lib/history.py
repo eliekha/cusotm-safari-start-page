@@ -343,13 +343,14 @@ def search_safari_history(query):
 # Combined Search
 # =============================================================================
 
-def search_history(query, limit=10):
+def search_history(query, limit=10, safari_enabled=False):
     """
     Search all browser history and bookmarks.
     
     Args:
         query: Search query string (case-insensitive)
         limit: Maximum number of results to return (default: 10)
+        safari_enabled: Whether to include Safari history/bookmarks (requires FDA)
     
     Returns:
         List of result dicts with keys: title, url, type, visit_count (for history)
@@ -367,17 +368,17 @@ def search_history(query, limit=10):
     
     results = []
     
-    # Search all sources
+    # Search all sources (Safari only if explicitly enabled -- requires FDA)
     search_functions = [
         search_chrome_bookmarks,
         search_helium_bookmarks,
         search_dia_bookmarks,
-        search_safari_bookmarks,
         search_chrome_history,
         search_helium_history,
         search_dia_history,
-        search_safari_history,
     ]
+    if safari_enabled:
+        search_functions.extend([search_safari_bookmarks, search_safari_history])
     
     for search_fn in search_functions:
         try:
@@ -413,13 +414,14 @@ def search_history(query, limit=10):
     return unique[:limit]
 
 
-def search_bookmarks(query, limit=10):
+def search_bookmarks(query, limit=10, safari_enabled=False):
     """
     Search only bookmarks (not history).
     
     Args:
         query: Search query string (case-insensitive)
         limit: Maximum number of results to return (default: 10)
+        safari_enabled: Whether to include Safari bookmarks (requires FDA)
     
     Returns:
         List of bookmark result dicts with keys: title, url, type
@@ -439,8 +441,9 @@ def search_bookmarks(query, limit=10):
         search_chrome_bookmarks,
         search_helium_bookmarks,
         search_dia_bookmarks,
-        search_safari_bookmarks,
     ]
+    if safari_enabled:
+        search_functions.append(search_safari_bookmarks)
     
     for search_fn in search_functions:
         try:
@@ -469,13 +472,14 @@ def search_bookmarks(query, limit=10):
     return unique[:limit]
 
 
-def search_browser_history(query, limit=10):
+def search_browser_history(query, limit=10, safari_enabled=False):
     """
     Search only browser history (not bookmarks).
     
     Args:
         query: Search query string (case-insensitive)
         limit: Maximum number of results to return (default: 10)
+        safari_enabled: Whether to include Safari history (requires FDA)
     
     Returns:
         List of history result dicts with keys: title, url, type, visit_count
@@ -495,8 +499,9 @@ def search_browser_history(query, limit=10):
         search_chrome_history,
         search_helium_history,
         search_dia_history,
-        search_safari_history,
     ]
+    if safari_enabled:
+        search_functions.append(search_safari_history)
     
     for search_fn in search_functions:
         try:

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 2,
+  "name": "BriefDesk New Tab",
+  "version": "1.0.0",
+  "description": "Opens BriefDesk as your new tab page",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "newtab@briefdesk.local"
+    }
+  }
+}

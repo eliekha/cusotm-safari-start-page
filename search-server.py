@@ -178,6 +178,8 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_installer_page()
         elif path == "/installer/check":
             self.handle_installer_check(params)
+        elif path == "/installer/system-info":
+            self.handle_installer_system_info()
         elif path == "/installer/check-fda":
             self.handle_installer_check_fda()
         elif path == "/slack/auto-detect":
@@ -218,6 +220,9 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_github_oauth_start(data)
         elif path == "/setup/github/oauth/poll":
             self.handle_github_oauth_poll(data)
+        # Settings endpoints
+        elif path == "/settings/safari":
+            self.handle_settings_safari(data)
         # Installer endpoints
         elif path == "/installer/install":
             self.handle_installer_install(data)
@@ -234,6 +239,59 @@ class SearchHandler(BaseHTTPRequestHandler):
             logger.info(f"[Settings] Model updated to: {model}")
         
         self.send_json({"success": True, "model": get_hub_model()})
+    
+    def _is_safari_enabled(self):
+        """Check if Safari history search is enabled in config."""
+        config_path = os.path.join(CONFIG_DIR, 'config.json')
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                return config.get('safari_enabled', False)
+        except Exception:
+            pass
+        return False
+    
+    def handle_settings_safari(self, data):
+        """Handle Safari history toggle -- saves to config and checks FDA."""
+        enabled = data.get('enabled', False)
+        config_path = os.path.join(CONFIG_DIR, 'config.json')
+        
+        # Read existing config
+        config = {}
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+        except Exception:
+            pass
+        
+        config['safari_enabled'] = enabled
+        
+        # Save config
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save safari setting: {e}")
+            self.send_json({"error": str(e)})
+            return
+        
+        # Check FDA status if enabling
+        fda_granted = False
+        if enabled:
+            try:
+                import sqlite3
+                safari_db = os.path.expanduser("~/Library/Safari/History.db")
+                conn = sqlite3.connect(f"file:{safari_db}?mode=ro", uri=True)
+                conn.execute("SELECT COUNT(*) FROM history_items LIMIT 1")
+                conn.close()
+                fda_granted = True
+            except Exception:
+                fda_granted = False
+        
+        logger.info(f"[Settings] Safari history {'enabled' if enabled else 'disabled'}, FDA: {fda_granted}")
+        self.send_json({"success": True, "enabled": enabled, "fda_granted": fda_granted})
     
     def handle_ai_search(self, data):
         """Handle AI-powered search across multiple sources."""
@@ -440,7 +498,8 @@ Add a **Sources** section at the end listing all referenced links."""
             return
         
         limit = int(params.get("limit", ["10"])[0])
-        results = search_history(query, limit=limit)
+        safari_enabled = self._is_safari_enabled()
+        results = search_history(query, limit=limit, safari_enabled=safari_enabled)
         self.send_json(results)
     
     # =========================================================================
@@ -1356,6 +1415,49 @@ Add a **Sources** section at the end listing all referenced links."""
             self.send_json({"ok": False, "error": "Not installed"})
         except Exception as e:
             self.send_json({"ok": False, "error": str(e)})
+    
+    def handle_installer_system_info(self):
+        """Return system metadata saved by the postinstall script."""
+        import sys
+        install_dir = os.path.dirname(os.path.abspath(__file__))
+        meta_path = os.path.join(install_dir, '.install-meta.json')
+        meta = {}
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path, 'r') as f:
+                    meta = json.load(f)
+            except: pass
+        
+        # Augment with live checks
+        import subprocess
+        python_path = meta.get('python_real_path', os.path.realpath(sys.executable))
+        node_path = os.path.expanduser('~/.local/share/devsai/node')
+        devsai_cli = os.path.expanduser('~/.local/share/devsai/devsai.sh')
+        github_mcp = os.path.join(install_dir, 'github-mcp-server')
+        
+        # Get live node version if meta doesn't have it (or has placeholder)
+        node_version = meta.get('node_version', '')
+        if (not node_version or node_version == 'unknown') and os.path.exists(node_path):
+            try:
+                result = subprocess.run([node_path, '--version'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    node_version = result.stdout.strip()
+            except: pass
+        
+        self.send_json({
+            "python_path": meta.get('python_path', sys.executable),
+            "python_real_path": python_path,
+            "python_version": meta.get('python_version', '') or f"Python {sys.version.split()[0]}",
+            "node_path": meta.get('node_path', ''),
+            "node_fda_path": node_path,
+            "node_version": node_version,
+            "node_installed": os.path.exists(node_path),
+            "node_source": meta.get('node_source', 'unknown'),
+            "devsai_installed": os.path.exists(devsai_cli),
+            "github_mcp_installed": os.path.exists(github_mcp),
+            "install_dir": install_dir,
+            "installed_at": meta.get('installed_at', '')
+        })
     
     def handle_installer_install(self, data):
         """Run the installation process."""

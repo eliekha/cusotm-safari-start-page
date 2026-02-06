@@ -1407,6 +1407,8 @@ drive:document.getElementById('hub-drive').checked,
 github:document.getElementById('hub-github').checked,
 aiBrief:document.getElementById('hub-ai-brief').checked
 };
+var safariEl=document.getElementById('safari-history-enabled');
+if(safariEl) settings.safariEnabled=safariEl.checked;
 saveToStorage(settings);
 renderLinks();
 u();
@@ -1433,4 +1435,31 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function toggleSafariHistory(enabled){
+var instructions=document.getElementById('safari-fda-instructions');
+var status=document.getElementById('safari-fda-status');
+if(instructions) instructions.style.display=enabled?'block':'none';
+if(status) status.textContent=enabled?'Checking...':'Disabled';
+settings.safariEnabled=enabled;
+saveToStorage(settings);
+// Notify backend
+fetch(S+'/settings/safari',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled})}).then(function(r){return r.json()}).then(function(d){
+if(status){
+if(enabled&&d.fda_granted) status.textContent='Active';
+else if(enabled) status.textContent='FDA not granted';
+else status.textContent='Disabled';
+}
+}).catch(function(){
+if(status&&enabled) status.textContent='Enabled (restart to apply)';
+});
+// Load Python path for FDA instructions
+if(enabled){
+fetch(S+'/installer/system-info').then(function(r){return r.json()}).then(function(d){
+var el=document.getElementById('safari-python-path');
+if(el&&d.python_real_path) el.textContent=d.python_real_path;
+else if(el&&d.python_path) el.textContent=d.python_path;
+}).catch(function(){});
+}
 }

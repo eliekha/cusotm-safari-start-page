@@ -261,6 +261,31 @@
 </div>
 </div>
 <div class="hub-setup-hint" id="hub-setup-hint" style="display:none"></div>
+<div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin:20px 0 8px 0">Browser History</div>
+<div class="hub-sources">
+<div class="hub-source">
+<input type="checkbox" id="safari-history-enabled" onchange="toggleSafariHistory(this.checked)">
+<div class="hub-source-info">
+<span class="hub-source-name">Safari History Search</span>
+<span style="font-size:11px;color:rgba(255,255,255,.35);display:block;margin-top:2px">Requires Full Disk Access permission</span>
+</div>
+<span class="hub-source-status" id="safari-fda-status">Disabled</span>
+</div>
+</div>
+<div id="safari-fda-instructions" style="display:none;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;color:rgba(255,255,255,.7);">
+<strong style="color:rgba(255,255,255,.9);">Grant Full Disk Access to Python:</strong><br><br>
+1. Open <strong>System Settings</strong> &rarr; <strong>Privacy &amp; Security</strong> &rarr; <strong>Full Disk Access</strong><br>
+2. Click <strong>+</strong> to add an app<br>
+3. Press <strong>Cmd+Shift+G</strong>, paste the path below, then press <strong>Return</strong><br>
+4. Toggle it <strong>ON</strong>, then restart BriefDesk services<br><br>
+<div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.3);padding:8px 12px;border-radius:6px;font-family:monospace;font-size:11px;">
+<code id="safari-python-path" style="flex:1;color:rgba(255,255,255,.8);">Loading...</code>
+<button onclick="navigator.clipboard.writeText(document.getElementById('safari-python-path').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy'},1500)})" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;">Copy</button>
+</div>
+<div style="margin-top:10px;">
+<button onclick="window.open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles')" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;">Open System Settings</button>
+</div>
+</div>
 <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin:20px 0 8px 0">AI Model</div>
 <div style="display:flex;align-items:center;gap:12px">
 <select id="hub-model" onchange="updateHubModel()" style="flex:1;padding:10px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:13px;cursor:pointer">
