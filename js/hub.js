@@ -457,7 +457,22 @@ html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+':
 });
 }
 }
-// GDrive MCP is now shown as part of the MCP list (briefdesk-gdrive-mcp)
+// Show GDrive MCP status (managed separately from MCP servers)
+if(svc.gdriveMcp&&svc.gdriveMcp.available){
+var gdriveLabel='gdrive(3)';
+if(allWorking&&allWorking.length>0){
+// Append to the existing MCP line by rewriting it
+var totalCount=allWorking.length+1;
+var allNames=allWorking.map(function(s){return s.name+'('+s.tools+')'}).concat([gdriveLabel]).join(', ');
+// Find and replace the MCP line we just added
+var mcpLineRegex=/MCP: \d+ connected - [^<]+/;
+html=html.replace(mcpLineRegex,'MCP: '+totalCount+' connected - '+allNames);
+}else{
+html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: 1 connected - '+gdriveLabel+'</div>';
+}
+}else if(svc.gdriveMcp&&!svc.gdriveMcp.available){
+html+='<div style="font-size:10px;color:#fbbf24;margin-top:2px">⚠ gdrive: not configured</div>';
+}
 if(svc.error){
 html+='<div style="font-size:10px;color:#f87171;margin-top:2px">'+svc.error+'</div>';
 }
