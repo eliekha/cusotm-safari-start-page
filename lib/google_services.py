@@ -178,11 +178,12 @@ def _export_credentials_for_gdrive_mcp(creds):
     This allows the GDrive MCP (used by devsai) to use the same OAuth tokens
     as BriefDesk, avoiding a separate authentication step.
     The GDrive MCP reads its token from google_drive_token.json and its
-    client keys from google_credentials.json (which already exists).
+    client keys from google_credentials.json.
     """
     import json
     
     gdrive_token_path = os.path.join(CONFIG_DIR, "google_drive_token.json")
+    gdrive_creds_path = os.path.join(CONFIG_DIR, "google_credentials.json")
     
     try:
         # Export OAuth tokens in the format GDrive MCP expects
@@ -201,6 +202,24 @@ def _export_credentials_for_gdrive_mcp(creds):
             json.dump(creds_json, f, indent=2)
         
         logger.info(f"Exported credentials for GDrive MCP to {gdrive_token_path}")
+        
+        # Also export OAuth client keys (client_id/secret) for GDrive MCP.
+        # The MCP reads these from google_credentials.json in "installed" format.
+        if not os.path.exists(gdrive_creds_path):
+            oauth_config = get_oauth_credentials_config()
+            if oauth_config and oauth_config.get('client_id') and oauth_config.get('client_secret'):
+                oauth_keys = {
+                    "installed": {
+                        "client_id": oauth_config['client_id'],
+                        "client_secret": oauth_config['client_secret'],
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "redirect_uris": ["http://localhost:3000/oauth2callback"]
+                    }
+                }
+                with open(gdrive_creds_path, 'w') as f:
+                    json.dump(oauth_keys, f, indent=2)
+                logger.info(f"Exported OAuth client keys for GDrive MCP to {gdrive_creds_path}")
             
     except Exception as e:
         # Don't fail the main OAuth flow if MCP export fails
