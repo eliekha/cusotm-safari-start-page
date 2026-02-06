@@ -42,9 +42,11 @@ const HOME = os.homedir();
  */
 function findDevsaiLibPath() {
   const candidates = [
-    // 1. Standard install location (set up by install.sh with node_modules symlink)
+    // 1. Tarball install via npm (pkg installer: npm install --prefix ~/.local/share/devsai devsai.tgz)
+    path.join(HOME, '.local/share/devsai/node_modules/devsai/dist/lib'),
+    // 2. Direct dist copy (set up by install.sh with node_modules symlink)
     path.join(HOME, '.local/share/devsai/dist/lib'),
-    // 2. Dev repo (has its own node_modules with all deps)
+    // 3. Dev repo (has its own node_modules with all deps)
     path.join(HOME, 'Documents/GitHub/devs-ai-cli/dist/lib'),
   ];
   

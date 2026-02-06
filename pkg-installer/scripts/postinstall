@@ -200,12 +200,26 @@ fi
 # 3. DEVSAI CLI — install from bundled tarball
 # ============================================================
 DEVSAI_TARBALL="$INSTALL_DIR/devsai/devsai.tgz"
-if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
-    echo "Installing devsai CLI..."
-    sudo -u "$INSTALL_USER" "$NPM_PATH" install --prefix "$DEVSAI_DIR" "$DEVSAI_TARBALL" --silent 2>/dev/null || \
-        echo "WARNING: devsai install failed."
+DEVSAI_INSTALLED=false
 
-    # Create wrapper
+if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
+    echo "Installing devsai CLI from tarball..."
+    # HOME must be set for npm to find its cache/config when running via sudo from root
+    sudo -u "$INSTALL_USER" HOME="$USER_HOME" "$NPM_PATH" install --prefix "$DEVSAI_DIR" "$DEVSAI_TARBALL" 2>&1 | tail -5 || \
+        echo "WARNING: devsai tarball install failed."
+    if [ -f "$DEVSAI_DIR/node_modules/devsai/dist/index.js" ]; then
+        DEVSAI_INSTALLED=true
+        echo "   ✓ Installed devsai from tarball"
+    else
+        echo "   ⚠ devsai tarball install did not produce expected files"
+    fi
+else
+    [ ! -f "$DEVSAI_TARBALL" ] && echo "   ⚠ devsai tarball not found at $DEVSAI_TARBALL"
+    [ -z "$NPM_PATH" ] && echo "   ⚠ npm not available — cannot install devsai"
+fi
+
+# Create wrapper script
+if [ "$DEVSAI_INSTALLED" = true ]; then
     cat > "$DEVSAI_DIR/devsai.sh" << 'EOF'
 #!/bin/bash
 exec "$HOME/.local/share/devsai/node" "$HOME/.local/share/devsai/node_modules/devsai/dist/index.js" "$@"
@@ -305,7 +319,7 @@ if [ -n "$NODE_PATH" ]; then
     <key>EnvironmentVariables</key>
     <dict>
         <key>DEVSAI_LIB_PATH</key>
-        <string>$DEVSAI_DIR</string>
+        <string>$DEVSAI_DIR/node_modules/devsai</string>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
