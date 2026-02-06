@@ -230,7 +230,8 @@ safariEl.checked=!!settings.safariEnabled;
 var fdaInstr=document.getElementById('safari-fda-instructions');
 if(fdaInstr) fdaInstr.style.display=settings.safariEnabled?'block':'none';
 var fdaStatus=document.getElementById('safari-fda-status');
-if(fdaStatus) fdaStatus.textContent=settings.safariEnabled?'Enabled':'Disabled';
+if(fdaStatus){fdaStatus.textContent=settings.safariEnabled?'Enabled':'Disabled';fdaStatus.className=settings.safariEnabled?'hub-source-status connected':'hub-source-status disabled';}
+if(settings.safariEnabled){fetch(S+'/installer/system-info').then(function(r){return r.json()}).then(function(d){var el=document.getElementById('safari-python-path');if(el&&d.python_real_path)el.textContent=d.python_real_path;else if(el&&d.python_path)el.textContent=d.python_path;}).catch(function(){});}
 }
 document.getElementById('hub-model').value=settings.hubModel||'gpt-4o';
 toggleHubSettings();
@@ -283,7 +284,7 @@ if(!gmail.authenticated)needsSetup.push('gmail');
 // Drive uses same Google OAuth as Gmail
 updateSourceStatus('hub-drive-status',gmail.authenticated,gmail.configured);
 // GitHub status from hub auth response
-var gh=d.github||{};
+var gh=status.github||{};
 updateSourceStatus('hub-github-status',gh.authenticated,gh.configured);
 showSetupHints(needsSetup);
 })

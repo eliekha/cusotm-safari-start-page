@@ -997,10 +997,26 @@ Add a **Sources** section at the end listing all referenced links."""
                     "args": [gmail_dist]
                 })
 
+        # Auto-export GDrive token if main Google token exists but GDrive token doesn't
+        # This handles the upgrade case (existing installs getting new code)
+        gdrive_token_path = os.path.join(CONFIG_DIR, 'google_drive_token.json')
+        if drive_authenticated and not os.path.exists(gdrive_token_path):
+            try:
+                from lib.google_services import get_google_credentials, _export_credentials_for_gdrive_mcp
+                creds = get_google_credentials()
+                if creds:
+                    _export_credentials_for_gdrive_mcp(creds)
+                    logger.info("[Hub] Auto-exported GDrive token from existing Google credentials")
+            except Exception as e:
+                logger.warning(f"[Hub] Failed to auto-export GDrive token: {e}")
+
         # Google is configured if we have a credentials file, a valid token, or embedded creds
         from lib.config import get_oauth_credentials_config
         google_token_exists = os.path.exists(TOKEN_PATH)
         google_configured = calendar_configured or google_token_exists or (get_oauth_credentials_config() is not None)
+
+        # Add github to the auth status dict (check_services_auth doesn't include it)
+        auth_status['github'] = github_authenticated
 
         # Format auth status for frontend (expects objects with .configured/.authenticated properties)
         self.send_json({

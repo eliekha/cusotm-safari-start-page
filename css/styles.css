@@ -98,6 +98,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .hub-source-status.connected{background:rgba(34,197,94,.15);color:#22c55e}
 .hub-source-status.warning{background:rgba(251,191,36,.15);color:#fbbf24}
 .hub-source-status.available{background:rgba(99,102,241,.15);color:#a5b4fc}
+.hub-source-status.disabled{background:rgba(255,255,255,.08);color:rgba(255,255,255,.35)}
 .hub-sources-disabled{opacity:.4;pointer-events:none}
 .hub-setup-hint{margin-top:12px;padding:10px 12px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:8px;font-size:11px;color:rgba(255,255,255,.7);line-height:1.5}
 .hub-setup-hint a{color:#fbbf24;text-decoration:none}

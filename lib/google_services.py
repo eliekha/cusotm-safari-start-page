@@ -103,8 +103,9 @@ def handle_oauth_callback(code, redirect_uri='http://localhost:18765/oauth/callb
         with open(TOKEN_PATH, 'wb') as token:
             pickle.dump(creds, token)
 
-        # Also export credentials for Gmail MCP to share authentication
+        # Export credentials for Gmail and GDrive MCPs to share authentication
         _export_credentials_for_gmail_mcp(creds)
+        _export_credentials_for_gdrive_mcp(creds)
 
         logger.info("OAuth credentials saved successfully")
         return True, "Success"
@@ -171,6 +172,41 @@ def _export_credentials_for_gmail_mcp(creds):
         logger.warning(f"Failed to export credentials for Gmail MCP: {e}")
 
 
+def _export_credentials_for_gdrive_mcp(creds):
+    """Export credentials to GDrive MCP format for shared authentication.
+    
+    This allows the GDrive MCP (used by devsai) to use the same OAuth tokens
+    as BriefDesk, avoiding a separate authentication step.
+    The GDrive MCP reads its token from google_drive_token.json and its
+    client keys from google_credentials.json (which already exists).
+    """
+    import json
+    
+    gdrive_token_path = os.path.join(CONFIG_DIR, "google_drive_token.json")
+    
+    try:
+        # Export OAuth tokens in the format GDrive MCP expects
+        creds_json = {
+            "access_token": creds.token,
+            "refresh_token": creds.refresh_token,
+            "scope": " ".join(creds.scopes) if creds.scopes else "",
+            "token_type": "Bearer",
+        }
+        
+        # Add expiry if available (GDrive MCP expects expiry_date as Unix timestamp in ms)
+        if creds.expiry:
+            creds_json["expiry_date"] = int(creds.expiry.timestamp() * 1000)
+        
+        with open(gdrive_token_path, 'w') as f:
+            json.dump(creds_json, f, indent=2)
+        
+        logger.info(f"Exported credentials for GDrive MCP to {gdrive_token_path}")
+            
+    except Exception as e:
+        # Don't fail the main OAuth flow if MCP export fails
+        logger.warning(f"Failed to export credentials for GDrive MCP: {e}")
+
+
 def get_google_credentials():
     """Get valid Google credentials, refreshing if needed."""
     if not GOOGLE_API_AVAILABLE:
@@ -229,7 +265,7 @@ def get_granted_scopes():
 
 
 def disconnect_google():
-    """Remove Google authentication (both BriefDesk and Gmail MCP credentials)."""
+    """Remove Google authentication (BriefDesk, Gmail MCP, and GDrive MCP credentials)."""
     success = False
     try:
         # Remove BriefDesk token
@@ -243,6 +279,13 @@ def disconnect_google():
         if os.path.exists(gmail_mcp_creds):
             os.remove(gmail_mcp_creds)
             logger.info("Gmail MCP credentials removed")
+            success = True
+        
+        # Also remove GDrive MCP token (shared auth)
+        gdrive_token_path = os.path.join(CONFIG_DIR, "google_drive_token.json")
+        if os.path.exists(gdrive_token_path):
+            os.remove(gdrive_token_path)
+            logger.info("GDrive MCP credentials removed")
             success = True
             
         return success

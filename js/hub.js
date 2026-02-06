@@ -285,7 +285,7 @@ content.innerHTML=html;
 }
 
 // Meeting prep state for progressive loading
-var prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],summary:null,loading:{jira:true,confluence:true,drive:true,slack:true,gmail:true,summary:true}};
+var prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],github:[],summary:null,loading:{jira:true,confluence:true,drive:true,slack:true,gmail:true,github:true,summary:true}};
 // Meeting navigation state
 var allMeetings=[];
 var currentMeetingIndex=0;
@@ -424,10 +424,21 @@ html+='<div style="font-size:13px;color:rgba(255,255,255,.9)">'+svc.name+' <span
 html+='<div style="font-size:11px;color:rgba(255,255,255,.4)">'+svc.description+'</div>';
 if(svc.mcp){
 var connectedServers=svc.mcp.servers.filter(function(s){return s.status==='connected';});
-var errorServers=svc.mcp.servers.filter(function(s){return s.status==='error';});
-if(connectedServers.length>0){
-var mcpNames=connectedServers.map(function(s){return s.name+'('+s.tools+')'}).join(', ');
-html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: '+connectedServers.length+' connected - '+mcpNames+'</div>';
+// Servers with errors but still have tools loaded = runtime warnings (not truly broken)
+var warningServers=svc.mcp.servers.filter(function(s){return s.status==='error'&&s.tools>0;});
+var errorServers=svc.mcp.servers.filter(function(s){return s.status==='error'&&(!s.tools||s.tools===0);});
+// Show connected + warning servers together
+var allWorking=connectedServers.concat(warningServers);
+if(allWorking.length>0){
+var mcpNames=allWorking.map(function(s){return s.name+'('+s.tools+')'}).join(', ');
+html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: '+allWorking.length+' connected - '+mcpNames+'</div>';
+}
+// Show warnings (connected but with runtime errors) as amber, not red
+if(warningServers.length>0){
+warningServers.forEach(function(ws){
+var warnMsg=(ws.error||'').substring(0,60);
+html+='<div style="font-size:10px;color:#fbbf24;margin-top:2px">⚠ '+ws.name+': '+warnMsg+'</div>';
+});
 }
 if(errorServers.length>0){
 hasFailedMCP=true;
@@ -510,7 +521,7 @@ triggerMcpReauth('drive');
 }
 
 function showSlackReauth(){
-alert('Slack tokens have expired.\n\nTo re-authenticate:\n1. Open app.slack.com in your browser\n2. Open DevTools (Cmd+Option+I)\n3. Go to Application → Cookies → copy the "d" cookie (XOXD)\n4. In Console, run the snippet to get XOXC token\n5. Update tokens in Settings or .devsai.json');
+window.open('http://127.0.0.1:8765/installer.html','_blank');
 }
 
 function triggerMcpReauth(mcp){
@@ -943,6 +954,25 @@ html+='<div class="hub-section-empty"><span>No related emails found</span><butto
 html+='</div>';
 }
 
+// GitHub section (related PRs and issues)
+if(sources.github!==false){
+html+='<div class="hub-prep-section">'+sectionTitle('GitHub','github',prepState.loading.github);
+var githubAuth=hubAuthStatus.github||{};
+if(!githubAuth.authenticated){
+html+='<div class="hub-section-empty">Not configured — <a href="http://127.0.0.1:8765/installer.html" target="_blank" style="color:#60a5fa">set up GitHub</a></div>';
+}else if(prepState.loading.github){
+html+=renderSkeletonItems(2);
+}else if(prepState.github.length>0){
+html+='<div class="hub-items">';
+prepState.github.forEach(function(item){html+=renderHubItem(item,'github');});
+html+='</div>';
+totalItems+=prepState.github.length;
+}else{
+html+='<div class="hub-section-empty"><span>No related PRs or issues found</span><button class="hub-retry-btn" onclick="retrySource(\'github\')">Try again</button></div>';
+}
+html+='</div>';
+}
+
 badge.textContent=totalItems>0?totalItems:'';
 // Update collapsed badge
 var collapsedBadge=document.getElementById('hub-prep-collapsed-badge');
@@ -966,12 +996,13 @@ var content=document.getElementById('hub-prep-content');
 var sources=settings.hubSources||{};
 
 // Reset state - set loading based on which sources are enabled
-prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],summary:null,loading:{
+prepState={meeting:null,jira:[],confluence:[],google_drive:[],slack:[],gmail:[],github:[],summary:null,loading:{
 jira:sources.jira!==false,
 confluence:sources.confluence!==false,
 drive:sources.drive!==false,
 slack:sources.slack!==false,
 gmail:sources.gmail!==false,
+github:sources.github!==false,
 summary:sources.aiBrief!==false
 }};
 
@@ -1020,6 +1051,7 @@ if(sources.confluence!==false){prepState.confluence=cached.confluence||[];prepSt
 if(sources.drive!==false){prepState.google_drive=cached.drive||[];prepState.loading.drive=false;}
 if(sources.slack!==false){prepState.slack=cached.slack||[];prepState.loading.slack=false;}
 if(sources.gmail!==false){prepState.gmail=cached.gmail||[];prepState.loading.gmail=false;}
+if(sources.github!==false){prepState.github=cached.github||[];prepState.loading.github=false;}
 if(sources.aiBrief!==false){prepState.summary=cached.summary||null;prepState.loading.summary=false;}
 renderMeetingPrepProgressive();
 }else{
@@ -1043,6 +1075,10 @@ else{fetch(S+'/hub/prep/slack'+midParam).then(function(r){return r.json();}).the
 if(sources.gmail!==false){
 if(cached.gmail!==null){prepState.gmail=cached.gmail;prepState.loading.gmail=false;renderMeetingPrepProgressive();}
 else{fetch(S+'/hub/prep/gmail'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.gmail=false;renderMeetingPrepProgressive();});}
+}
+if(sources.github!==false){
+if(cached.github!==null){prepState.github=cached.github;prepState.loading.github=false;renderMeetingPrepProgressive();}
+else{fetch(S+'/hub/prep/github'+midParam).then(function(r){return r.json();}).then(function(d){if(!isStillCurrentMeeting())return;prepState.github=Array.isArray(d)?d:[];prepState.loading.github=false;renderMeetingPrepProgressive();}).catch(function(){if(!isStillCurrentMeeting())return;prepState.loading.github=false;renderMeetingPrepProgressive();});}
 }
 if(sources.aiBrief!==false){
 if(cached.summary!==null){prepState.summary=cached.summary;prepState.loading.summary=false;renderMeetingPrepProgressive();}
@@ -1074,6 +1110,7 @@ if(sources.confluence!==false){fetch(S+'/hub/prep/confluence'+midParam).then(fun
 if(sources.drive!==false){fetch(S+'/hub/prep/drive'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.google_drive=Array.isArray(d)?d:[];prepState.loading.drive=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.drive=false;renderMeetingPrepProgressive();});}
 if(sources.slack!==false){fetch(S+'/hub/prep/slack'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.slack=Array.isArray(d)?d:[];prepState.loading.slack=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.slack=false;renderMeetingPrepProgressive();});}
 if(sources.gmail!==false){fetch(S+'/hub/prep/gmail'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.gmail=Array.isArray(d)?d:[];prepState.loading.gmail=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.gmail=false;renderMeetingPrepProgressive();});}
+if(sources.github!==false){fetch(S+'/hub/prep/github'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.github=Array.isArray(d)?d:[];prepState.loading.github=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.github=false;renderMeetingPrepProgressive();});}
 if(sources.aiBrief!==false){fetch(S+'/hub/prep/summary'+midParam).then(function(r){return r.json();}).then(function(d){if(!check())return;prepState.summary=d.summary||null;prepState.loading.summary=false;renderMeetingPrepProgressive();}).catch(function(){if(!check())return;prepState.loading.summary=false;renderMeetingPrepProgressive();});}
 }
 
@@ -1101,6 +1138,7 @@ var sourceMap={
 'drive':{key:'google_drive',endpoint:'/hub/prep/drive'},
 'slack':{key:'slack',endpoint:'/hub/prep/slack'},
 'gmail':{key:'gmail',endpoint:'/hub/prep/gmail'},
+'github':{key:'github',endpoint:'/hub/prep/github'},
 'summary':{key:'summary',endpoint:'/hub/prep/summary'}
 };
 var cfg=sourceMap[source];
@@ -1149,7 +1187,7 @@ renderMeetingPrepProgressive();
 });
 }
 
-var hubAuthStatus={slack:{},atlassian:{}};
+var hubAuthStatus={slack:{},atlassian:{},github:{}};
 
 function initHub(){
 // Check if hub is enabled in settings
@@ -1179,6 +1217,7 @@ fetch(S+'/hub/status')
 console.log('Hub status:',status);
 hubAuthStatus.slack=status.slack||{};
 hubAuthStatus.atlassian=status.atlassian||{};
+hubAuthStatus.github=status.github||{};
 // Re-render to show any auth errors
 if(prepState.meeting)renderMeetingPrepProgressive();
 })
@@ -1447,9 +1486,9 @@ saveToStorage(settings);
 // Notify backend
 fetch(S+'/settings/safari',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled})}).then(function(r){return r.json()}).then(function(d){
 if(status){
-if(enabled&&d.fda_granted) status.textContent='Active';
-else if(enabled) status.textContent='FDA not granted';
-else status.textContent='Disabled';
+if(enabled&&d.fda_granted){status.textContent='Active';status.className='hub-source-status connected';}
+else if(enabled){status.textContent='FDA not granted';status.className='hub-source-status warning';}
+else{status.textContent='Disabled';status.className='hub-source-status disabled';}
 }
 }).catch(function(){
 if(status&&enabled) status.textContent='Enabled (restart to apply)';

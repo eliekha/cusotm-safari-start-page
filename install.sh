@@ -344,6 +344,23 @@ EOF
     fi
     
     # ============================================
+    # Setup Gmail MCP
+    # ============================================
+    if [ -d "$INSTALL_DIR/gmail-mcp" ]; then
+        echo ""
+        echo "📧 Setting up Gmail MCP..."
+        cd "$INSTALL_DIR/gmail-mcp"
+        npm install --silent 2>/dev/null
+        npm run build --silent 2>/dev/null
+        if [ -f "$INSTALL_DIR/gmail-mcp/dist/index.js" ]; then
+            echo "   ✓ Gmail MCP ready"
+        else
+            echo "   ⚠️  Gmail MCP build failed (will retry on next restart)"
+        fi
+        cd "$INSTALL_DIR"
+    fi
+    
+    # ============================================
     # Patch Gmail MCP for Read-Only (Security)
     # ============================================
     echo ""
