@@ -17,7 +17,7 @@ INSTALL_DIR="$USER_HOME/.local/share/briefdesk"
 DEVSAI_DIR="$USER_HOME/.local/share/devsai"
 LAUNCHAGENTS_DIR="$USER_HOME/Library/LaunchAgents"
 
-echo "Setting up BriefDesk for user: $INSTALL_USER"
+echo "Setting up BriefDesk for user: $INSTALL_USER (~2 minutes remaining)"
 
 # Create directories
 sudo -u "$INSTALL_USER" mkdir -p "$INSTALL_DIR"
@@ -32,6 +32,7 @@ chown -R "$INSTALL_USER" "$INSTALL_DIR"
 # ============================================================
 # 1. PYTHON — detect or trigger install
 # ============================================================
+echo "Step 1/6: Detecting Python... (~2 minutes remaining)"
 SYSTEM_PYTHON=""
 
 check_python() {
@@ -101,7 +102,7 @@ chmod +x "$INSTALL_DIR/python3"
 chown "$INSTALL_USER" "$INSTALL_DIR/python3"
 
 # Install Python dependencies (silently)
-echo "Installing Python dependencies..."
+echo "Step 1/6: Installing Python dependencies... (~2 minutes remaining)"
 if ! sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip --version >/dev/null 2>&1; then
     sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m ensurepip --user 2>/dev/null || true
 fi
@@ -112,6 +113,7 @@ sudo -u "$INSTALL_USER" "$SYSTEM_PYTHON" -m pip install --user --quiet google-au
 # ============================================================
 # 2. NODE.JS — detect or auto-download
 # ============================================================
+echo "Step 2/6: Setting up Node.js... (~90 seconds remaining)"
 NODE_PATH=""
 NODE_SOURCE="system"
 
@@ -208,6 +210,7 @@ SUDO_PATH="${NODE_BIN_DIR:+$NODE_BIN_DIR:}/opt/homebrew/bin:/usr/local/bin:/usr/
 # ============================================================
 # 3. DEVSAI CLI — install from bundled tarball
 # ============================================================
+echo "Step 3/6: Installing search engine... (~75 seconds remaining)"
 DEVSAI_TARBALL="$INSTALL_DIR/devsai/devsai.tgz"
 DEVSAI_INSTALLED=false
 
@@ -241,6 +244,7 @@ fi
 # ============================================================
 # 4. LAUNCH AGENTS
 # ============================================================
+echo "Step 4/6: Configuring services... (~60 seconds remaining)"
 PYTHON_VER=$("$SYSTEM_PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "3.11")
 USER_SITE_PACKAGES="$USER_HOME/.local/lib/python$PYTHON_VER/site-packages"
 
@@ -353,9 +357,9 @@ fi
 # ============================================================
 # 5. GITHUB MCP SERVER — download binary
 # ============================================================
+echo "Step 5/6: Downloading integrations... (~45 seconds remaining)"
 GITHUB_MCP_BIN="$INSTALL_DIR/github-mcp-server"
 if [ ! -f "$GITHUB_MCP_BIN" ]; then
-    echo "Downloading GitHub MCP server..."
     ARCH=$(uname -m)
     GH_MCP_ASSET="github-mcp-server_Darwin_${ARCH}.tar.gz"
     [ "$ARCH" != "arm64" ] && GH_MCP_ASSET="github-mcp-server_Darwin_x86_64.tar.gz"
@@ -373,9 +377,9 @@ fi
 # ============================================================
 # 6. BUILD MCP SERVERS (gdrive, gmail)
 # ============================================================
+echo "Step 6/6: Building integrations... (~30 seconds remaining)"
 for MCP_NAME in gdrive-mcp gmail-mcp; do
     if [ -d "$INSTALL_DIR/$MCP_NAME" ] && [ -n "$NPM_PATH" ]; then
-        echo "Building $MCP_NAME..."
         cd "$INSTALL_DIR/$MCP_NAME"
         # HOME for npm cache/config; PATH for npm's #!/usr/bin/env node shebang; --include=dev for tsc
         sudo -u "$INSTALL_USER" HOME="$USER_HOME" PATH="$SUDO_PATH" "$NPM_PATH" install --include=dev 2>&1 | tail -3 || echo "WARNING: $MCP_NAME npm install failed"
@@ -455,6 +459,7 @@ chown "$INSTALL_USER" "$INSTALL_DIR/.install-meta.json"
 # ============================================================
 # 9. START SERVICES
 # ============================================================
+echo "Starting services... (almost done)"
 USER_ID=$(id -u "$INSTALL_USER")
 
 # Unload existing

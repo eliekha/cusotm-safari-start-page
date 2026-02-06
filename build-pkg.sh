@@ -158,8 +158,8 @@ cat > "$BUILD_DIR/welcome.html" << 'EOF'
     <div class="feature">Slack, Gmail, Jira, and Confluence integration</div>
     <div class="feature">Google Drive full-text search</div>
     
-    <p style="margin-top: 20px; font-size: 12px; color: #808080;">
-        All dependencies are installed automatically. No Homebrew or Terminal required.
+    <p style="margin-top: 20px; font-size: 13px; color: #a0a0a0;">
+        Installation takes about 2 minutes.
     </p>
 </body>
 </html>
