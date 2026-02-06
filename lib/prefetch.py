@@ -12,7 +12,7 @@ from .cache import (
     set_meeting_info,
     _meeting_prep_cache, _meeting_prep_cache_lock
 )
-from .google_services import get_calendar_events_standalone
+from .google_services import get_calendar_events_standalone, is_google_authenticated
 from .atlassian import load_mcp_config
 from .utils import is_night_hours
 
@@ -379,6 +379,16 @@ def background_prefetch_loop():
                 print(f"[Prefetch] Calendar error: {cal_err}", flush=True)
                 events = []
             
+            if not events and not is_google_authenticated():
+                # Auth not ready yet (common on fresh install — prefetch starts
+                # before the user completes Google OAuth).  Retry quickly.
+                print("[Prefetch] Google auth not ready yet, retrying in 30s...", flush=True)
+                for _ in range(30):
+                    if not _prefetch_running:
+                        break
+                    time.sleep(1)
+                continue
+
             if events:
                 print(f"[Prefetch] Found {len(events)} upcoming meetings to prefetch", flush=True)
                 add_prefetch_activity('cycle_start', f'Found {len(events)} meetings [{mode}]', status='info')
