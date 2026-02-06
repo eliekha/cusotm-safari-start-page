@@ -168,7 +168,7 @@ def check_services_auth():
                 local_config = json.load(f).get('mcpServers', {})
                 slack_config = local_config.get('slack', {})
                 env = slack_config.get('env', {})
-                if env.get('SLACK_MCP_XOXC_TOKEN') or env.get('SLACK_BOT_TOKEN') or env.get('SLACK_TOKEN'):
+                if env.get('SLACK_MCP_XOXP_TOKEN') or env.get('SLACK_MCP_XOXC_TOKEN') or env.get('SLACK_BOT_TOKEN') or env.get('SLACK_TOKEN'):
                     auth_status['slack'] = True
     except Exception:
         pass
@@ -179,7 +179,7 @@ def check_services_auth():
         if config and 'slack' in config:
             slack_config = config['slack']
             env = slack_config.get('env', {})
-            if env.get('SLACK_MCP_XOXC_TOKEN') or env.get('SLACK_BOT_TOKEN') or env.get('SLACK_TOKEN'):
+            if env.get('SLACK_MCP_XOXP_TOKEN') or env.get('SLACK_MCP_XOXC_TOKEN') or env.get('SLACK_BOT_TOKEN') or env.get('SLACK_TOKEN'):
                 auth_status['slack'] = True
     
     # Check Gmail auth - look for both credentials and tokens

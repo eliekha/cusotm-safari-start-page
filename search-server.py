@@ -1596,9 +1596,11 @@ Add a **Sources** section at the end listing all referenced links."""
     def handle_oauth_google_status(self):
         """Check Google OAuth status."""
         granted = get_granted_scopes()
+        authed = is_google_authenticated()
         self.send_json({
             "has_credentials": has_oauth_credentials(),
-            "is_authenticated": is_google_authenticated(),
+            "authenticated": authed,
+            "is_authenticated": authed,  # backwards compat
             "token_exists": os.path.exists(TOKEN_PATH),
             "scopes": granted  # {'calendar': bool, 'drive': bool, 'gmail': bool}
         })
@@ -1666,34 +1668,42 @@ Add a **Sources** section at the end listing all referenced links."""
         import glob
 
         mcp_auth_dir = os.path.expanduser("~/.mcp-auth")
-        atlassian_tokens = glob.glob(os.path.join(mcp_auth_dir, "*atlassian*"))
+        has_tokens = False
 
-        # Also check for any tokens in the mcp-auth directory
-        has_tokens = len(atlassian_tokens) > 0
-
-        # If no specific atlassian tokens, check for any mcp-remote tokens
-        if not has_tokens and os.path.exists(mcp_auth_dir):
-            all_tokens = os.listdir(mcp_auth_dir)
-            has_tokens = len(all_tokens) > 0
+        # Check for mcp-remote token files inside subdirectories
+        if os.path.exists(mcp_auth_dir):
+            for subdir in os.listdir(mcp_auth_dir):
+                subdir_path = os.path.join(mcp_auth_dir, subdir)
+                if os.path.isdir(subdir_path):
+                    token_files = glob.glob(os.path.join(subdir_path, "*_tokens.json"))
+                    for tf in token_files:
+                        try:
+                            with open(tf, 'r') as f:
+                                data = json.load(f)
+                                if data.get('access_token'):
+                                    has_tokens = True
+                                    break
+                        except Exception:
+                            pass
+                if has_tokens:
+                    break
 
         self.send_json({
-            "is_authenticated": has_tokens,
+            "authenticated": has_tokens,
             "token_path": mcp_auth_dir
         })
 
     def handle_oauth_atlassian_disconnect(self):
         """Disconnect Atlassian account."""
-        import glob
         import shutil
 
         mcp_auth_dir = os.path.expanduser("~/.mcp-auth")
 
         try:
-            # Remove Atlassian-specific tokens
-            atlassian_tokens = glob.glob(os.path.join(mcp_auth_dir, "*atlassian*"))
-            for token_file in atlassian_tokens:
-                os.remove(token_file)
-                logger.info(f"Removed Atlassian token: {token_file}")
+            # Remove the entire mcp-auth directory (tokens are in subdirectories)
+            if os.path.exists(mcp_auth_dir):
+                shutil.rmtree(mcp_auth_dir)
+                logger.info(f"Removed Atlassian tokens directory: {mcp_auth_dir}")
 
             self.send_json({
                 "success": True,

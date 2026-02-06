@@ -1737,7 +1737,7 @@ function showSlackSetup() {
   document.getElementById('slack-modal').classList.add('show');
   checkSlackModalStatus();
 }
-function closeSlackModal() { document.getElementById('slack-modal').classList.remove('show'); }
+function closeSlackModal() { document.getElementById('slack-modal').classList.remove('show'); checkIntegrations(); }
 
 async function checkSlackModalStatus() {
   try {
@@ -1936,7 +1936,7 @@ function showCalendarSetup() {
   document.getElementById('calendar-modal').classList.add('show');
   checkGoogleStatus();
 }
-function closeCalendarModal() { document.getElementById('calendar-modal').classList.remove('show'); }
+function closeCalendarModal() { document.getElementById('calendar-modal').classList.remove('show'); checkIntegrations(); }
 
 async function checkGoogleStatus() {
   try {
@@ -2048,7 +2048,7 @@ function showGmailSetup() {
   document.getElementById('gmail-modal').classList.add('show');
   checkGmailModalStatus();
 }
-function closeGmailModal() { document.getElementById('gmail-modal').classList.remove('show'); }
+function closeGmailModal() { document.getElementById('gmail-modal').classList.remove('show'); checkIntegrations(); }
 
 async function checkGmailModalStatus() {
   try {
@@ -2144,7 +2144,7 @@ function showAtlassianSetup() {
   document.getElementById('atlassian-modal').classList.add('show');
   checkAtlassianModalStatus();
 }
-function closeAtlassianModal() { document.getElementById('atlassian-modal').classList.remove('show'); }
+function closeAtlassianModal() { document.getElementById('atlassian-modal').classList.remove('show'); checkIntegrations(); }
 
 async function checkAtlassianModalStatus() {
   try {
@@ -2238,7 +2238,7 @@ function showDriveSetup() {
   document.getElementById('drive-modal').classList.add('show');
   checkDriveModalStatus();
 }
-function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); }
+function closeDriveModal() { document.getElementById('drive-modal').classList.remove('show'); checkIntegrations(); }
 
 async function checkDriveModalStatus() {
   try {
@@ -2273,7 +2273,7 @@ function showDevsaiSetup() {
   document.getElementById('devsai-modal').classList.add('show');
   checkDevsaiStatus();
 }
-function closeDevsaiModal() { document.getElementById('devsai-modal').classList.remove('show'); }
+function closeDevsaiModal() { document.getElementById('devsai-modal').classList.remove('show'); checkIntegrations(); }
 
 async function startDevsaiLogin() {
   const loginResult = document.getElementById('devsai-login-result');
@@ -2394,6 +2394,8 @@ function showGithubSetup() {
 function closeGithubModal() {
   document.getElementById('github-modal').classList.remove('show');
   if (githubOAuthPollTimer) { clearTimeout(githubOAuthPollTimer); githubOAuthPollTimer = null; }
+  checkIntegrations();
+  checkGithubStatus();
 }
 
 async function checkGithubModalStatus() {
