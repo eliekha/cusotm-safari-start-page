@@ -2120,12 +2120,18 @@ async function disconnectGmailMcp() {
   const btn = document.getElementById('gmail-disconnect-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting...'; }
   try {
-    // Remove Gmail credentials
-    await fetch(SEARCH_SERVICE + '/gmail/disconnect', { method: 'POST' }).catch(() => {});
-  } catch (e) { /* ignore */ }
+    // Gmail shares the same Google OAuth token as Calendar/Drive
+    const res = await fetch(API + '/oauth/google/disconnect');
+    const data = await res.json();
+    if (!data.success) {
+      console.error('Gmail disconnect failed:', data.message || data.error);
+    }
+  } catch (e) {
+    console.error('Failed to disconnect Gmail:', e.message);
+  }
   checkGmailModalStatus();
   checkIntegrations();
-  if (btn) { btn.disabled = false; btn.textContent = 'Disconnect'; }
+  if (btn) { btn.disabled = false; btn.textContent = 'Disconnect Gmail'; }
 }
 
 // ─── Atlassian ───────────────────────────────────────────────────────
