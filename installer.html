@@ -2163,13 +2163,13 @@ async function connectAtlassian() {
   const btn = document.getElementById('atlassian-connect-btn');
   const originalHTML = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<div class="gsi-material-button-content-wrapper"><span class="gsi-material-button-contents">Opening browser...</span></div>';
+  btn.innerHTML = '<div class="gsi-material-button-content-wrapper"><span class="gsi-material-button-contents">Connecting...</span></div>';
 
   try {
     const res = await fetch(API + '/oauth/atlassian/start');
     const data = await res.json();
     if (data.success) {
-      btn.innerHTML = '<div class="gsi-material-button-content-wrapper"><span class="gsi-material-button-contents">Complete login in browser...</span></div>';
+      btn.innerHTML = '<div class="gsi-material-button-content-wrapper"><span class="gsi-material-button-contents">Waiting for sign in...</span></div>';
       // Poll for authentication completion
       let attempts = 0;
       const pollAuth = setInterval(async () => {
