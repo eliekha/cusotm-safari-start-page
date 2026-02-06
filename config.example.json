@@ -1,4 +1,6 @@
 {
   "slack_workspace": "your-workspace",
-  "atlassian_domain": "your-domain.atlassian.net"
+  "atlassian_domain": "your-domain.atlassian.net",
+  "slack_client_id": "",
+  "slack_client_secret": ""
 }

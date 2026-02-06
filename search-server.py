@@ -167,6 +167,14 @@ class SearchHandler(BaseHTTPRequestHandler):
             self.handle_oauth_google_status()
         elif path == "/oauth/google/disconnect":
             self.handle_oauth_google_disconnect()
+        elif path == "/oauth/slack/start":
+            self.handle_oauth_slack_start()
+        elif path.startswith("/oauth/slack/callback"):
+            self.handle_oauth_slack_callback(params)
+        elif path == "/oauth/slack/status":
+            self.handle_oauth_slack_status()
+        elif path == "/oauth/slack/disconnect":
+            self.handle_oauth_slack_disconnect()
         elif path == "/oauth/atlassian/start":
             self.handle_oauth_atlassian_start()
         elif path == "/oauth/atlassian/status":
@@ -1009,7 +1017,7 @@ Add a **Sources** section at the end listing all referenced links."""
             self.send_json({"error": "Setup page not found"})
     
     def handle_setup_slack(self, data):
-        """Save Slack tokens to MCP config."""
+        """Save Slack tokens to MCP config (legacy xoxc/xoxd mode)."""
         xoxc = data.get('xoxc', '').strip()
         xoxd = data.get('xoxd', '').strip()
         
@@ -1033,7 +1041,7 @@ Add a **Sources** section at the end listing all referenced links."""
             if 'mcpServers' not in config:
                 config['mcpServers'] = {}
             
-            # Add/update Slack config
+            # Add/update Slack config with legacy tokens
             config['mcpServers']['slack'] = {
                 "command": "npx",
                 "args": ["-y", "slack-mcp-server"],
@@ -1047,10 +1055,13 @@ Add a **Sources** section at the end listing all referenced links."""
             with open(mcp_config_path, 'w') as f:
                 json.dump(config, f, indent=2)
             
-            logger.info("[Setup] Slack tokens saved to MCP config")
+            logger.info("[Setup] Slack legacy tokens saved to MCP config")
             
-            # Test the connection by trying to load the tokens
-            from lib.slack import slack_api_call
+            # Reset cached tokens so they're reloaded
+            from lib.slack import reset_slack_tokens, slack_api_call
+            reset_slack_tokens()
+            
+            # Test the connection
             result = slack_api_call('auth.test', xoxc_token=xoxc, xoxd_token=xoxd)
             
             if result and result.get('ok'):
@@ -1062,6 +1073,14 @@ Add a **Sources** section at the end listing all referenced links."""
             logger.error(f"[Setup] Slack setup error: {e}")
             self.send_json({"success": False, "error": str(e)})
     
+    # --- Slack OAuth ---
+    # Client ID and Secret for the BriefDesk Slack App (safe for desktop/localhost apps)
+    # Users can override these with their own Slack App credentials in config.json
+    SLACK_OAUTH_CLIENT_ID = os.environ.get('SLACK_CLIENT_ID', '')
+    SLACK_OAUTH_CLIENT_SECRET = os.environ.get('SLACK_CLIENT_SECRET', '')
+    SLACK_OAUTH_USER_SCOPES = 'search:read,channels:read,channels:history,groups:read,groups:history,im:read,im:history,mpim:read,mpim:history,users:read,chat:write'
+    SLACK_OAUTH_REDIRECT_URI = 'https://briefdesk-slack-auth.vercel.app'
+
     # --- GitHub OAuth Device Flow ---
     # Client ID from the registered BriefDesk OAuth App (public, safe to distribute)
     GITHUB_OAUTH_CLIENT_ID = "Ov23liUPcSjgioWxcxB4"
@@ -1682,6 +1701,264 @@ Add a **Sources** section at the end listing all referenced links."""
             })
         except Exception as e:
             logger.error(f"Atlassian disconnect error: {e}")
+            self.send_json({
+                "success": False,
+                "error": str(e)
+            })
+
+    # ==========================================================================
+    # Slack OAuth Endpoints
+    # ==========================================================================
+
+    def _get_slack_oauth_creds(self):
+        """Get Slack OAuth credentials from environment or config.json."""
+        client_id = self.SLACK_OAUTH_CLIENT_ID
+        client_secret = self.SLACK_OAUTH_CLIENT_SECRET
+        
+        # Allow override from config.json (for custom Slack Apps)
+        config_path = os.path.join(CONFIG_DIR, 'config.json')
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                if config.get('slack_client_id'):
+                    client_id = config['slack_client_id']
+                if config.get('slack_client_secret'):
+                    client_secret = config['slack_client_secret']
+        except Exception:
+            pass
+        
+        return client_id, client_secret
+
+    def handle_oauth_slack_start(self):
+        """Start Slack OAuth flow -- generates authorize URL and opens browser."""
+        import secrets
+        import webbrowser
+        
+        client_id, _ = self._get_slack_oauth_creds()
+        
+        if not client_id:
+            self.send_json({
+                "success": False,
+                "error": "Slack OAuth not configured. Set SLACK_CLIENT_ID environment variable or add slack_client_id to config.json."
+            })
+            return
+        
+        # Generate CSRF state token
+        state = secrets.token_urlsafe(32)
+        # Store state on server instance for validation in callback
+        self.server._slack_oauth_state = state
+        
+        # Build the Slack OAuth authorize URL with user_scope (not scope, which is for bot tokens)
+        auth_url = (
+            f"https://slack.com/oauth/v2/authorize"
+            f"?client_id={client_id}"
+            f"&user_scope={self.SLACK_OAUTH_USER_SCOPES}"
+            f"&redirect_uri={self.SLACK_OAUTH_REDIRECT_URI}"
+            f"&state={state}"
+        )
+        
+        # Open the authorization URL in the user's browser
+        try:
+            webbrowser.open(auth_url)
+        except Exception as e:
+            logger.warning(f"[Slack OAuth] Could not open browser: {e}")
+        
+        self.send_json({
+            "success": True,
+            "auth_url": auth_url,
+            "message": "Opening Slack authorization in browser..."
+        })
+
+    def handle_oauth_slack_callback(self, params):
+        """Handle Slack OAuth callback -- exchange code for xoxp- token."""
+        import urllib.request
+        import urllib.parse
+        
+        code = params.get('code', [None])[0]
+        state = params.get('state', [None])[0]
+        error = params.get('error', [None])[0]
+        
+        STATIC_BASE = 'http://127.0.0.1:8765'
+        
+        if error:
+            logger.error(f"[Slack OAuth] Error from Slack: {error}")
+            self.send_response(302)
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_{error}')
+            self.end_headers()
+            return
+        
+        if not code:
+            self.send_response(302)
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_no_code')
+            self.end_headers()
+            return
+        
+        # Validate state parameter (CSRF protection)
+        expected_state = getattr(self.server, '_slack_oauth_state', None)
+        if not expected_state or state != expected_state:
+            logger.error("[Slack OAuth] State mismatch -- possible CSRF attack")
+            self.send_response(302)
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_state_mismatch')
+            self.end_headers()
+            return
+        
+        # Clear the used state
+        self.server._slack_oauth_state = None
+        
+        # Exchange authorization code for token
+        client_id, client_secret = self._get_slack_oauth_creds()
+        
+        if not client_id or not client_secret:
+            self.send_response(302)
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_no_credentials')
+            self.end_headers()
+            return
+        
+        try:
+            token_data = urllib.parse.urlencode({
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'code': code,
+                'redirect_uri': self.SLACK_OAUTH_REDIRECT_URI,
+            }).encode()
+            
+            req = urllib.request.Request(
+                'https://slack.com/api/oauth.v2.access',
+                data=token_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode())
+            
+            if not result.get('ok'):
+                error_msg = result.get('error', 'unknown_error')
+                logger.error(f"[Slack OAuth] Token exchange failed: {error_msg}")
+                self.send_response(302)
+                self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_{error_msg}')
+                self.end_headers()
+                return
+            
+            # Extract the user token (authed_user.access_token for user_scope flow)
+            authed_user = result.get('authed_user', {})
+            xoxp_token = authed_user.get('access_token', '')
+            team_name = result.get('team', {}).get('name', 'Unknown')
+            
+            if not xoxp_token or not xoxp_token.startswith('xoxp-'):
+                logger.error(f"[Slack OAuth] Unexpected token format: {xoxp_token[:20] if xoxp_token else 'empty'}")
+                self.send_response(302)
+                self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_invalid_token')
+                self.end_headers()
+                return
+            
+            # Save the token to MCP config
+            self._save_slack_oauth_token(xoxp_token)
+            
+            logger.info(f"[Slack OAuth] Successfully authenticated with workspace: {team_name}")
+            
+            # Redirect back to installer with success
+            self.send_response(302)
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_success=slack')
+            self.end_headers()
+            
+        except Exception as e:
+            logger.error(f"[Slack OAuth] Token exchange error: {e}")
+            self.send_response(302)
+            self.send_header('Location', f'{STATIC_BASE}/installer.html?oauth_error=slack_exchange_failed')
+            self.end_headers()
+
+    def _save_slack_oauth_token(self, xoxp_token):
+        """Save Slack OAuth xoxp- token to MCP config."""
+        mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+        config = {}
+        if os.path.exists(mcp_config_path):
+            with open(mcp_config_path, 'r') as f:
+                config = json.load(f)
+        
+        if 'mcpServers' not in config:
+            config['mcpServers'] = {}
+        
+        # Store with SLACK_MCP_XOXP_TOKEN (compatible with korotovsky/slack-mcp-server)
+        config['mcpServers']['slack'] = {
+            "command": "npx",
+            "args": ["-y", "slack-mcp-server"],
+            "env": {
+                "SLACK_MCP_XOXP_TOKEN": xoxp_token
+            }
+        }
+        
+        with open(mcp_config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        # Reset cached tokens in the slack module so they're reloaded
+        from lib.slack import reset_slack_tokens
+        reset_slack_tokens()
+        
+        logger.info("[Slack OAuth] Token saved to MCP config")
+
+    def handle_oauth_slack_status(self):
+        """Check Slack OAuth status -- whether a valid token is stored."""
+        mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+        
+        has_oauth_token = False
+        has_legacy_token = False
+        token_type = None
+        
+        try:
+            if os.path.exists(mcp_config_path):
+                with open(mcp_config_path, 'r') as f:
+                    config = json.load(f)
+                
+                slack_env = config.get('mcpServers', {}).get('slack', {}).get('env', {})
+                
+                if slack_env.get('SLACK_MCP_XOXP_TOKEN', '').startswith('xoxp-'):
+                    has_oauth_token = True
+                    token_type = 'oauth'
+                elif slack_env.get('SLACK_MCP_XOXC_TOKEN', '').startswith('xoxc-'):
+                    has_legacy_token = True
+                    token_type = 'legacy'
+        except Exception as e:
+            logger.error(f"[Slack OAuth] Status check error: {e}")
+        
+        # Also check if OAuth is configured (client_id available)
+        client_id, client_secret = self._get_slack_oauth_creds()
+        
+        self.send_json({
+            "authenticated": has_oauth_token or has_legacy_token,
+            "token_type": token_type,
+            "oauth_configured": bool(client_id),
+            "has_client_secret": bool(client_secret),
+        })
+
+    def handle_oauth_slack_disconnect(self):
+        """Disconnect Slack -- remove stored tokens."""
+        mcp_config_path = os.path.join(CONFIG_DIR, '.devsai.json')
+        
+        try:
+            if os.path.exists(mcp_config_path):
+                with open(mcp_config_path, 'r') as f:
+                    config = json.load(f)
+                
+                # Remove the slack entry from mcpServers
+                if 'mcpServers' in config and 'slack' in config['mcpServers']:
+                    del config['mcpServers']['slack']
+                    
+                    with open(mcp_config_path, 'w') as f:
+                        json.dump(config, f, indent=2)
+                
+                # Reset cached tokens
+                from lib.slack import reset_slack_tokens
+                reset_slack_tokens()
+                
+                logger.info("[Slack OAuth] Disconnected -- tokens removed")
+            
+            self.send_json({
+                "success": True,
+                "message": "Disconnected from Slack"
+            })
+        except Exception as e:
+            logger.error(f"[Slack OAuth] Disconnect error: {e}")
             self.send_json({
                 "success": False,
                 "error": str(e)

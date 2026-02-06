@@ -85,6 +85,16 @@ else
     echo "⚠️  No GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET set - OAuth connect button will be disabled"
 fi
 
+# Embed Slack OAuth credentials if provided
+if [[ -n "${SLACK_CLIENT_ID:-}" && -n "${SLACK_CLIENT_SECRET:-}" ]]; then
+    echo "🔑 Embedding Slack OAuth credentials..."
+    SERVER_FILE="$PKG_ROOT/usr/local/share/briefdesk/search-server.py"
+    sed -i '' "s|SLACK_OAUTH_CLIENT_ID = os.environ.get('SLACK_CLIENT_ID', '')|SLACK_OAUTH_CLIENT_ID = os.environ.get('SLACK_CLIENT_ID', '${SLACK_CLIENT_ID}')|" "$SERVER_FILE"
+    sed -i '' "s|SLACK_OAUTH_CLIENT_SECRET = os.environ.get('SLACK_CLIENT_SECRET', '')|SLACK_OAUTH_CLIENT_SECRET = os.environ.get('SLACK_CLIENT_SECRET', '${SLACK_CLIENT_SECRET}')|" "$SERVER_FILE"
+else
+    echo "⚠️  No SLACK_CLIENT_ID/SLACK_CLIENT_SECRET set - Slack OAuth button will show as not configured"
+fi
+
 # Make postinstall executable
 chmod +x "$PKG_SCRIPTS/postinstall"
 

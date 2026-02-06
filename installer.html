@@ -974,52 +974,89 @@ h2 {
       <h3>Connect Slack</h3>
       <button class="modal-close" onclick="closeSlackModal()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
     </div>
-    
-      <div class="help-box" style="margin-bottom:16px;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);">
-      <strong>Quick Setup</strong><br>
-      If you're logged into Slack in Chrome or Safari, we can try to auto-detect your credentials.<br><br>
-      <button class="btn btn-primary" onclick="autoDetectSlack()" id="slack-auto-detect-btn" style="width:100%;">
-        Auto-Detect from Browser
-      </button>
-      <div id="slack-auto-detect-result" style="margin-top:8px;font-size:12px;"></div>
+
+    <!-- Status section -->
+    <div id="slack-status-section" style="margin-bottom:16px;">
+      <div id="slack-connected" style="display:none;padding:12px;background:rgba(52,211,153,0.1);border-radius:8px;border:1px solid rgba(52,211,153,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#34d399;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          <strong>Connected to Slack</strong>
+        </div>
+        <p id="slack-token-type-info" style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Slack is ready to use.</p>
+      </div>
+      <div id="slack-not-connected" style="display:none;padding:12px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);">
+        <div style="display:flex;align-items:center;gap:8px;color:#fbbf24;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <strong>Not connected</strong>
+        </div>
+      </div>
     </div>
-    
-    <details style="margin-bottom:16px;">
-      <summary style="cursor:pointer;color:var(--text-muted);font-size:13px;">Manual Setup Instructions</summary>
-      <ol class="setup-steps" style="margin-top:12px;">
-        <li>
-          Open <a href="https://app.slack.com" target="_blank" style="color:var(--accent-blue)">app.slack.com</a> in your browser and sign in
-        </li>
-        <li>
-          Open DevTools with <strong>Cmd+Option+I</strong>
-        </li>
-        <li>
-          Go to Application → Cookies → copy the <strong>d</strong> cookie value (XOXD token)
-        </li>
-        <li>
-          In Console tab, paste this to get the XOXC token:
-          <div class="copyable">
-            <code>JSON.parse(localStorage.getItem('localConfig_v2'))?.teams?.[Object.keys(JSON.parse(localStorage.getItem('localConfig_v2'))?.teams||{})[0]]?.token</code>
-            <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
-          </div>
-        </li>
-      </ol>
-    </details>
-    
-    <div class="input-group">
-      <label>XOXC Token</label>
-      <input type="text" id="modal-slack-xoxc" placeholder="xoxc-...">
+
+    <!-- Primary: OAuth Connect -->
+    <div id="slack-oauth-section">
+      <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+        Connect your Slack workspace with one click. This uses secure OAuth to grant read access for search, messages, and channels.
+      </p>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
+        <button id="slack-oauth-btn" class="btn btn-primary" onclick="connectSlackOAuth()" style="width:100%;padding:12px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <img src="icons/slack.png" alt="" width="20" height="20"> Connect with Slack
+        </button>
+        <button id="slack-disconnect-btn" class="btn btn-secondary" onclick="disconnectSlack()" style="display:none;">
+          Disconnect Slack
+        </button>
+      </div>
     </div>
-    <div class="input-group">
-      <label>XOXD Token</label>
-      <input type="text" id="modal-slack-xoxd" placeholder="xoxd-...">
-    </div>
-    
+
     <div id="slack-modal-result"></div>
-    
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeSlackModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSlackTokens()">Save</button>
+
+    <!-- Advanced: Legacy token extraction (collapsible) -->
+    <details style="margin-top:8px;">
+      <summary style="cursor:pointer;color:var(--text-muted);font-size:12px;">Advanced: Use browser tokens (xoxc/xoxd)</summary>
+      <div style="margin-top:12px;padding:12px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border);">
+        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+          For advanced users or if OAuth is not available. Extract session tokens directly from your browser.
+        </p>
+
+        <div class="help-box" style="margin-bottom:12px;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);">
+          <strong>Quick Setup</strong><br>
+          If you're logged into Slack in Chrome or Safari, we can try to auto-detect your credentials.<br><br>
+          <button class="btn btn-primary" onclick="autoDetectSlack()" id="slack-auto-detect-btn" style="width:100%;font-size:12px;padding:8px;">
+            Auto-Detect from Browser
+          </button>
+          <div id="slack-auto-detect-result" style="margin-top:8px;font-size:11px;"></div>
+        </div>
+
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer;color:var(--text-muted);font-size:12px;">Manual extraction instructions</summary>
+          <ol class="setup-steps" style="margin-top:8px;font-size:12px;">
+            <li>Open <a href="https://app.slack.com" target="_blank" style="color:var(--accent-blue)">app.slack.com</a> and sign in</li>
+            <li>Open DevTools (<strong>Cmd+Option+I</strong>)</li>
+            <li>Application → Cookies → copy the <strong>d</strong> cookie (XOXD token)</li>
+            <li>Console → paste this for XOXC:
+              <div class="copyable" style="margin-top:4px;">
+                <code style="font-size:10px;">JSON.parse(localStorage.getItem('localConfig_v2'))?.teams?.[Object.keys(JSON.parse(localStorage.getItem('localConfig_v2'))?.teams||{})[0]]?.token</code>
+                <button class="copy-btn" onclick="copyText(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>Copy</button>
+              </div>
+            </li>
+          </ol>
+        </details>
+
+        <div class="input-group" style="margin-bottom:8px;">
+          <label style="font-size:12px;">XOXC Token</label>
+          <input type="text" id="modal-slack-xoxc" placeholder="xoxc-..." style="font-size:12px;padding:6px 10px;">
+        </div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;">XOXD Token</label>
+          <input type="text" id="modal-slack-xoxd" placeholder="xoxd-..." style="font-size:12px;padding:6px 10px;">
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSlackTokens()" style="width:100%;font-size:12px;padding:8px;">Save Tokens</button>
+      </div>
+    </details>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeSlackModal()">Close</button>
     </div>
   </div>
 </div>
@@ -1696,8 +1733,121 @@ function openSafariSettings() {
 
 // ─── Slack ───────────────────────────────────────────────────────────
 
-function showSlackSetup() { document.getElementById('slack-modal').classList.add('show'); }
+function showSlackSetup() {
+  document.getElementById('slack-modal').classList.add('show');
+  checkSlackModalStatus();
+}
 function closeSlackModal() { document.getElementById('slack-modal').classList.remove('show'); }
+
+async function checkSlackModalStatus() {
+  try {
+    const res = await fetch(API + '/oauth/slack/status');
+    const data = await res.json();
+    const connected = document.getElementById('slack-connected');
+    const notConnected = document.getElementById('slack-not-connected');
+    const oauthBtn = document.getElementById('slack-oauth-btn');
+    const disconnectBtn = document.getElementById('slack-disconnect-btn');
+    const tokenInfo = document.getElementById('slack-token-type-info');
+
+    if (data.authenticated) {
+      connected.style.display = 'block';
+      notConnected.style.display = 'none';
+      oauthBtn.style.display = 'none';
+      disconnectBtn.style.display = 'block';
+      tokenInfo.textContent = data.token_type === 'oauth'
+        ? 'Connected via OAuth (recommended)'
+        : 'Connected via browser tokens (legacy)';
+    } else {
+      connected.style.display = 'none';
+      notConnected.style.display = 'block';
+      oauthBtn.style.display = 'flex';
+      disconnectBtn.style.display = 'none';
+
+      // Check if OAuth is configured
+      if (!data.oauth_configured) {
+        oauthBtn.disabled = true;
+        oauthBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured (use advanced option below)</span>';
+        oauthBtn.title = 'Set SLACK_CLIENT_ID and SLACK_CLIENT_SECRET environment variables, or use advanced browser token method below';
+      } else {
+        oauthBtn.disabled = false;
+        oauthBtn.innerHTML = '<img src="icons/slack.png" alt="" width="20" height="20"> Connect with Slack';
+      }
+    }
+  } catch (e) {
+    console.error('Error checking Slack status:', e);
+  }
+}
+
+async function connectSlackOAuth() {
+  const btn = document.getElementById('slack-oauth-btn');
+  const resultEl = document.getElementById('slack-modal-result');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span>Opening Slack authorization...</span>';
+
+  try {
+    const res = await fetch(API + '/oauth/slack/start');
+    const data = await res.json();
+    if (data.success) {
+      btn.innerHTML = '<span>Complete login in browser...</span>';
+      resultEl.innerHTML = '<div class="modal-result" style="background:rgba(79,140,255,.1);color:var(--accent-blue)">Waiting for Slack authorization...</div>';
+
+      // Poll for authentication completion
+      let attempts = 0;
+      const pollAuth = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(API + '/oauth/slack/status');
+          const statusData = await statusRes.json();
+          if (statusData.authenticated) {
+            clearInterval(pollAuth);
+            resultEl.innerHTML = '';
+            checkSlackModalStatus();
+            checkIntegrations();
+          } else if (attempts >= 60) {
+            clearInterval(pollAuth);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            resultEl.innerHTML = '<div class="modal-result error">Authorization timed out. Please try again.</div>';
+          }
+        } catch (e) {
+          if (attempts >= 60) {
+            clearInterval(pollAuth);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            resultEl.innerHTML = '<div class="modal-result error">Authorization timed out.</div>';
+          }
+        }
+      }, 5000);
+    } else {
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+      resultEl.innerHTML = '<div class="modal-result error">' + (data.error || 'Failed to start OAuth') + '</div>';
+    }
+  } catch (e) {
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
+    resultEl.innerHTML = '<div class="modal-result error">Failed to connect: ' + e.message + '</div>';
+  }
+}
+
+async function disconnectSlack() {
+  const resultEl = document.getElementById('slack-modal-result');
+  try {
+    const res = await fetch(API + '/oauth/slack/disconnect');
+    const data = await res.json();
+    if (data.success) {
+      checkSlackModalStatus();
+      checkIntegrations();
+      resultEl.innerHTML = '<div class="modal-result" style="background:rgba(52,211,153,.1);color:var(--accent-green)">Disconnected from Slack</div>';
+      setTimeout(() => { resultEl.innerHTML = ''; }, 2000);
+    } else {
+      resultEl.innerHTML = '<div class="modal-result error">' + (data.error || 'Failed to disconnect') + '</div>';
+    }
+  } catch (e) {
+    resultEl.innerHTML = '<div class="modal-result error">Failed to disconnect: ' + e.message + '</div>';
+  }
+}
 
 async function autoDetectSlack() {
   const btn = document.getElementById('slack-auto-detect-btn');
@@ -1732,15 +1882,15 @@ async function autoDetectSlack() {
             '3. Find the key containing "xoxc-"<br>' +
             '4. Copy the value and paste in the field below';
         }
-        resultEl.innerHTML = '<span style="color:var(--accent-yellow)">⚠️ ' + data.message + '</span>' + instructions;
+        resultEl.innerHTML = '<span style="color:var(--accent-yellow)">Partial: ' + data.message + '</span>' + instructions;
       } else {
-        resultEl.innerHTML = '<span style="color:var(--accent-green)">✓ ' + data.message + '</span>';
+        resultEl.innerHTML = '<span style="color:var(--accent-green)">Found: ' + data.message + '</span>';
       }
     } else {
-      resultEl.innerHTML = '<span style="color:var(--accent-red)">✗ ' + data.error + '</span>';
+      resultEl.innerHTML = '<span style="color:var(--accent-red)">Not found: ' + data.error + '</span>';
     }
   } catch (e) {
-    resultEl.innerHTML = '<span style="color:var(--accent-red)">✗ Failed to detect: ' + e.message + '</span>';
+    resultEl.innerHTML = '<span style="color:var(--accent-red)">Failed: ' + e.message + '</span>';
   }
   
   btn.disabled = false;
@@ -1768,8 +1918,10 @@ async function saveSlackTokens() {
     const data = await res.json();
     
     if (data.success) {
-      result.innerHTML = '<div class="modal-result success">Connected successfully</div>';
-      setTimeout(() => { closeSlackModal(); checkIntegrations(); }, 1000);
+      result.innerHTML = '<div class="modal-result success">Connected successfully' + (data.team ? ' to ' + data.team : '') + '</div>';
+      checkSlackModalStatus();
+      checkIntegrations();
+      setTimeout(() => { result.innerHTML = ''; }, 3000);
     } else {
       result.innerHTML = '<div class="modal-result error">' + (data.error || 'Failed to connect') + '</div>';
     }
@@ -1869,9 +2021,21 @@ function handleOAuthCallback() {
       goToStep(2);
       checkIntegrations();
     }, 100);
+  } else if (oauthSuccess === 'slack') {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // Go to step 2 (Connect Services), refresh integrations, and update Slack modal
+    setTimeout(() => {
+      goToStep(2);
+      checkIntegrations();
+      checkSlackModalStatus();
+    }, 100);
   } else if (oauthError) {
     window.history.replaceState({}, document.title, window.location.pathname);
-    alert('Google OAuth failed: ' + oauthError);
+    if (oauthError.startsWith('slack_')) {
+      alert('Slack OAuth failed: ' + oauthError.replace('slack_', ''));
+    } else {
+      alert('Google OAuth failed: ' + oauthError);
+    }
   }
 }
 
@@ -2006,15 +2170,48 @@ async function checkAtlassianModalStatus() {
 }
 
 async function connectAtlassian() {
+  const btn = document.getElementById('atlassian-connect-btn');
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="gsi-material-button-content-wrapper"><span class="gsi-material-button-contents">Opening browser...</span></div>';
+
   try {
     const res = await fetch(API + '/oauth/atlassian/start');
     const data = await res.json();
     if (data.success) {
-      alert('Atlassian OAuth started. A browser window should open to sign in. After signing in, click "Check Status" to verify.');
+      btn.innerHTML = '<div class="gsi-material-button-content-wrapper"><span class="gsi-material-button-contents">Complete login in browser...</span></div>';
+      // Poll for authentication completion
+      let attempts = 0;
+      const pollAuth = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(API + '/oauth/atlassian/status');
+          const statusData = await statusRes.json();
+          if (statusData.authenticated) {
+            clearInterval(pollAuth);
+            checkAtlassianModalStatus();
+            checkIntegrations();
+          } else if (attempts >= 60) {
+            clearInterval(pollAuth);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+          }
+        } catch (e) {
+          if (attempts >= 60) {
+            clearInterval(pollAuth);
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+          }
+        }
+      }, 5000);
     } else {
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
       alert(data.error || 'Failed to start Atlassian OAuth. Try the manual method below.');
     }
   } catch (e) {
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
     alert('Failed to connect: ' + e.message);
   }
 }

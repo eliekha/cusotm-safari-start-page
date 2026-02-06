@@ -125,7 +125,16 @@ _slack_users_cache = {'data': None, 'timestamp': 0}
 # =============================================================================
 
 def get_slack_tokens():
-    """Load Slack tokens from MCP config."""
+    """Load Slack tokens from MCP config.
+    
+    Supports two authentication modes:
+    - OAuth mode: Single xoxp- user token (preferred, via Slack OAuth)
+    - Advanced/legacy mode: xoxc- + xoxd- browser session tokens
+    
+    Returns dict with either:
+        {'xoxp': 'xoxp-...'} for OAuth mode, or
+        {'xoxc': 'xoxc-...', 'xoxd': 'xoxd-...'} for legacy mode
+    """
     global _slack_tokens
     if _slack_tokens:
         return _slack_tokens
@@ -135,10 +144,16 @@ def get_slack_tokens():
     slack_config = config.get('slack', {})
     env_vars = slack_config.get('env', {})
     
-    _slack_tokens = {
-        'xoxc': env_vars.get('SLACK_MCP_XOXC_TOKEN', ''),
-        'xoxd': env_vars.get('SLACK_MCP_XOXD_TOKEN', '')
-    }
+    # Prefer OAuth xoxp- token if available
+    xoxp = env_vars.get('SLACK_MCP_XOXP_TOKEN', '')
+    if xoxp:
+        _slack_tokens = {'xoxp': xoxp}
+    else:
+        # Fall back to legacy xoxc/xoxd tokens
+        _slack_tokens = {
+            'xoxc': env_vars.get('SLACK_MCP_XOXC_TOKEN', ''),
+            'xoxd': env_vars.get('SLACK_MCP_XOXD_TOKEN', '')
+        }
     return _slack_tokens
 
 
@@ -151,13 +166,17 @@ def reset_slack_tokens():
 # API Calls
 # =============================================================================
 
-def slack_api_call(method, params=None, post_data=None):
+def slack_api_call(method, params=None, post_data=None, xoxc_token=None, xoxd_token=None):
     """Make a direct Slack API call using requests library.
+    
+    Supports both OAuth (xoxp-) and legacy (xoxc/xoxd) authentication.
     
     Args:
         method: API method (e.g., 'conversations.list')
         params: Query parameters dict
         post_data: POST body dict (will use POST if provided)
+        xoxc_token: Optional override xoxc token (for testing)
+        xoxd_token: Optional override xoxd token (for testing)
     
     Returns:
         Parsed JSON response or error dict
@@ -165,17 +184,33 @@ def slack_api_call(method, params=None, post_data=None):
     if not slack_requests:
         return {'ok': False, 'error': 'requests library not installed'}
     
-    tokens = get_slack_tokens()
-    if not tokens.get('xoxc'):
-        return {'ok': False, 'error': 'No Slack token configured'}
+    # Use override tokens if provided, otherwise load from config
+    if xoxc_token and xoxd_token:
+        headers = {
+            'Authorization': f'Bearer {xoxc_token}',
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cookie': f'd={xoxd_token}'
+        }
+    else:
+        tokens = get_slack_tokens()
+        
+        if tokens.get('xoxp'):
+            # OAuth mode: single xoxp- user token
+            headers = {
+                'Authorization': f'Bearer {tokens["xoxp"]}',
+                'Content-Type': 'application/json; charset=utf-8',
+            }
+        elif tokens.get('xoxc'):
+            # Legacy mode: xoxc + xoxd session tokens
+            headers = {
+                'Authorization': f'Bearer {tokens["xoxc"]}',
+                'Content-Type': 'application/json; charset=utf-8',
+                'Cookie': f'd={tokens["xoxd"]}'
+            }
+        else:
+            return {'ok': False, 'error': 'No Slack token configured'}
     
     url = f'https://slack.com/api/{method}'
-    
-    headers = {
-        'Authorization': f'Bearer {tokens["xoxc"]}',
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cookie': f'd={tokens["xoxd"]}'
-    }
     
     try:
         if post_data:
@@ -191,6 +226,15 @@ def slack_api_call(method, params=None, post_data=None):
         return {'ok': False, 'error': f'Request error: {str(e)}'}
     except Exception as e:
         return {'ok': False, 'error': str(e)}
+
+
+def is_using_oauth_token():
+    """Check if we're using an OAuth (xoxp-) token vs legacy session tokens.
+    
+    Useful for gracefully degrading features that only work with session tokens.
+    """
+    tokens = get_slack_tokens()
+    return bool(tokens.get('xoxp'))
 
 # =============================================================================
 # Users
@@ -242,12 +286,21 @@ def slack_get_users():
 def slack_get_unread_counts():
     """Get unread counts using client.counts API (internal Slack API).
     
+    Note: client.counts is an undocumented internal API that only works with
+    session tokens (xoxc/xoxd). When using OAuth (xoxp) tokens, this returns
+    empty data and the UI gracefully degrades (no unread badges).
+    
     Returns dict with:
         - ims: list of {id, has_unreads, mention_count}
         - channels: list of {id, has_unreads, mention_count}
         - mpims: list of group DMs
         - threads: {has_unreads, mention_count}
     """
+    # client.counts only works with session tokens, not OAuth
+    if is_using_oauth_token():
+        logger.debug("[Slack] Skipping client.counts (not available with OAuth tokens)")
+        return {'ims': [], 'channels': [], 'mpims': [], 'threads': {}}
+    
     result = slack_api_call('client.counts', post_data={})
     
     if not result.get('ok'):
@@ -575,9 +628,18 @@ def slack_get_conversation_history_direct(channel_id, limit=30):
 def slack_get_threads(limit=20):
     """Get subscribed thread replies.
     
+    Note: subscriptions.thread.getView is an undocumented internal API that
+    only works with session tokens (xoxc/xoxd). When using OAuth (xoxp) tokens,
+    this returns an empty list.
+    
     Returns:
         List of thread items with replies
     """
+    # subscriptions.thread.getView only works with session tokens
+    if is_using_oauth_token():
+        logger.debug("[Slack] Skipping subscriptions.thread.getView (not available with OAuth tokens)")
+        return []
+    
     users = slack_get_users()
     
     # Get subscribed threads 
