@@ -196,6 +196,15 @@ if [ -f "$DEVSAI_DIR/node" ]; then
     echo "Using Node: $NODE_PATH ($NODE_VERSION, source: $NODE_SOURCE)"
 fi
 
+# Build a PATH that includes the node binary's directory.
+# npm's shebang is #!/usr/bin/env node — when running via sudo, the PATH is sanitized
+# and may not include /opt/homebrew/bin, causing "env: node: No such file or directory".
+NODE_BIN_DIR=""
+if [ -n "$NODE_PATH" ]; then
+    NODE_BIN_DIR="$(dirname "$NODE_PATH")"
+fi
+SUDO_PATH="${NODE_BIN_DIR:+$NODE_BIN_DIR:}/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
 # ============================================================
 # 3. DEVSAI CLI — install from bundled tarball
 # ============================================================
@@ -204,8 +213,8 @@ DEVSAI_INSTALLED=false
 
 if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
     echo "Installing devsai CLI from tarball..."
-    # HOME must be set for npm to find its cache/config when running via sudo from root
-    sudo -u "$INSTALL_USER" HOME="$USER_HOME" "$NPM_PATH" install --prefix "$DEVSAI_DIR" "$DEVSAI_TARBALL" 2>&1 | tail -5 || \
+    # HOME must be set for npm cache/config; PATH must include node binary dir for npm's shebang
+    sudo -u "$INSTALL_USER" HOME="$USER_HOME" PATH="$SUDO_PATH" "$NPM_PATH" install --prefix "$DEVSAI_DIR" "$DEVSAI_TARBALL" 2>&1 | tail -5 || \
         echo "WARNING: devsai tarball install failed."
     if [ -f "$DEVSAI_DIR/node_modules/devsai/dist/index.js" ]; then
         DEVSAI_INSTALLED=true
@@ -368,10 +377,9 @@ for MCP_NAME in gdrive-mcp gmail-mcp; do
     if [ -d "$INSTALL_DIR/$MCP_NAME" ] && [ -n "$NPM_PATH" ]; then
         echo "Building $MCP_NAME..."
         cd "$INSTALL_DIR/$MCP_NAME"
-        # HOME must be set explicitly for npm to find cache/config when running via sudo
-        # --include=dev ensures TypeScript compiler is installed (it's a devDependency)
-        sudo -u "$INSTALL_USER" HOME="$USER_HOME" "$NPM_PATH" install --include=dev 2>&1 | tail -3 || echo "WARNING: $MCP_NAME npm install failed"
-        sudo -u "$INSTALL_USER" HOME="$USER_HOME" "$NPM_PATH" run build 2>&1 | tail -3 || echo "WARNING: $MCP_NAME build failed"
+        # HOME for npm cache/config; PATH for npm's #!/usr/bin/env node shebang; --include=dev for tsc
+        sudo -u "$INSTALL_USER" HOME="$USER_HOME" PATH="$SUDO_PATH" "$NPM_PATH" install --include=dev 2>&1 | tail -3 || echo "WARNING: $MCP_NAME npm install failed"
+        sudo -u "$INSTALL_USER" HOME="$USER_HOME" PATH="$SUDO_PATH" "$NPM_PATH" run build 2>&1 | tail -3 || echo "WARNING: $MCP_NAME build failed"
         if [ -f "$INSTALL_DIR/$MCP_NAME/dist/index.js" ]; then
             echo "   ✓ $MCP_NAME built successfully"
         else
