@@ -53,7 +53,7 @@ return {name:'',links:defaultLinks,bg:gradients[0].value,theme:'dark',logo:'',ca
 function saveToStorage(settings){localStorage.setItem('startpage',JSON.stringify(settings));}
 
 var settings=getSettings();
-var g=document.getElementById('g'),t=document.getElementById('t'),d=document.getElementById('d'),s=document.getElementById('s'),r=document.getElementById('r'),ql=document.getElementById('ql'),S='http://127.0.0.1:18765',D,I=-1,W=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var g=document.getElementById('g'),t=document.getElementById('t'),d=document.getElementById('d'),s=document.getElementById('s'),r=document.getElementById('r'),ql=document.getElementById('ql'),S='http://127.0.0.1:18765',SEARCH_SERVICE='http://127.0.0.1:19765',D,I=-1,W=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],M=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function applyTheme(){
 var theme=settings.theme==='light'?lightTheme:darkTheme;
@@ -271,6 +271,7 @@ fetch(S+'/hub/status',{signal:AbortSignal.timeout(5000)})
 var atlassian=status.atlassian||{};
 var slack=status.slack||{};
 var gmail=status.gmail||{};
+var drive=status.drive||{};
 var needsSetup=[];
 updateSourceStatus('hub-jira-status',atlassian.authenticated,atlassian.configured);
 updateSourceStatus('hub-confluence-status',atlassian.authenticated,atlassian.configured);
@@ -279,10 +280,10 @@ else if(!atlassian.configured)needsSetup.push('atlassian-config');
 updateSourceStatus('hub-slack-status',slack.authenticated,slack.configured);
 if(!slack.authenticated&&slack.configured)needsSetup.push('slack');
 else if(!slack.configured)needsSetup.push('slack-config');
-updateSourceStatus('hub-gmail-status',gmail.authenticated,gmail.configured);
+updateSourceStatus('hub-gmail-status',gmail.authenticated,gmail.configured,gmail.error);
 if(!gmail.authenticated)needsSetup.push('gmail');
-// Drive uses same Google OAuth as Gmail
-updateSourceStatus('hub-drive-status',gmail.authenticated,gmail.configured);
+updateSourceStatus('hub-drive-status',drive.authenticated,drive.configured,drive.error);
+if(!drive.authenticated)needsSetup.push('drive');
 // GitHub status from hub auth response
 var gh=status.github||{};
 updateSourceStatus('hub-github-status',gh.authenticated,gh.configured);
@@ -295,12 +296,28 @@ if(el){el.textContent='Unknown';el.className='hub-source-status warning';}
 });
 });
 }
-function updateSourceStatus(id,authenticated,configured){
+function updateSourceStatus(id,authenticated,configured,error){
 var el=document.getElementById(id);
 if(!el)return;
 if(authenticated){
 el.textContent='Connected';
 el.className='hub-source-status connected';
+}else if(error){
+var msg=error;
+if(typeof msg==='string'){
+if(msg.indexOf('Not authenticated')!==-1||msg.indexOf('auth_required')!==-1){
+el.textContent='Auth required';
+}else if(msg.indexOf('tool not found')!==-1){
+el.textContent='Not configured';
+}else if(msg.indexOf('search_service_unreachable')!==-1){
+el.textContent='Unavailable';
+}else{
+el.textContent='Error';
+}
+}else{
+el.textContent='Error';
+}
+el.className='hub-source-status warning';
 }else if(configured){
 el.textContent='Setup needed';
 el.className='hub-source-status warning';
@@ -315,7 +332,10 @@ if(!hint)return;
 if(needsSetup.length===0){hint.style.display='none';return;}
 var html='<strong>Setup Instructions:</strong><br>';
 if(needsSetup.indexOf('gmail')>=0){
-html+='<br><strong>Gmail:</strong> Add gmail MCP to <code>.devsai.json</code> and run <code>mcp-gmail auth</code> to authenticate with Google.';
+html+='<br><strong>Gmail:</strong> Open the installer and click <em>Connect Gmail</em>.';
+}
+if(needsSetup.indexOf('drive')>=0){
+html+='<br><strong>Google Drive:</strong> Open the installer and click <em>Connect Drive</em>.';
 }
 if(needsSetup.indexOf('atlassian')>=0||needsSetup.indexOf('atlassian-config')>=0){
 html+='<br><strong>Atlassian (Jira/Confluence):</strong> Add <code>mcp-remote https://mcp.atlassian.com/v1/sse</code> to <code>.devsai.json</code>. OAuth will prompt on first use.';
@@ -525,7 +545,11 @@ setTimeout(function(){
 showAIResponse(data.response,getActiveSources());
 },300);
 }else if(eventType==='error'){
+if(data&&data.error==='auth_required'&&data.tool){
+showAIError('Authentication required for '+data.tool.toUpperCase()+'.',data.tool);
+}else{
 showAIError(data.error||'Search failed');
+}
 }
 }
 
@@ -877,14 +901,31 @@ return '\n'+html+'\n';
 });
 }
 
-function showAIError(message){
+function showAIError(message,tool){
 stopAILoading();
 var results=document.getElementById('ai-search-results');
+var actionHtml='<button class="ai-error-retry" onclick="submitAISearch()">Try again</button>';
+if(tool==='gmail'||tool==='drive'){
+var label=tool==='gmail'?'Connect Gmail':'Connect Drive';
+actionHtml='<button class="ai-error-retry" onclick="startAISourceAuth(\''+tool+'\')">'+label+'</button>';
+}
 results.innerHTML='<div class="ai-search-error">'+
 '<div class="ai-error-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>'+
 '<div class="ai-error-text">'+message+'</div>'+
-'<button class="ai-error-retry" onclick="submitAISearch()">Try again</button>'+
+actionHtml+
 '</div>';
+}
+
+function startAISourceAuth(tool){
+var endpoint=tool==='gmail'?'/gmail/auth':'/drive/auth';
+fetch(SEARCH_SERVICE+endpoint,{method:'POST'})
+.then(function(r){return r.json();})
+.then(function(data){
+if(data&&data.authUrl){
+window.open(data.authUrl,'_blank');
+}
+})
+.catch(function(e){console.error('Auth error:',e);});
 }
 
 function showAIEmpty(){

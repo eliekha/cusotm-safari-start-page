@@ -217,6 +217,14 @@ SUDO_PATH="${NODE_BIN_DIR:+$NODE_BIN_DIR:}/opt/homebrew/bin:/usr/local/bin:/usr/
 echo "Step 3/6: Installing search engine... (~75 seconds remaining)"
 DEVSAI_TARBALL="$INSTALL_DIR/devsai/devsai.tgz"
 DEVSAI_INSTALLED=false
+DEVSAI_VERSION_FILE="$INSTALL_DIR/.devsai-version.json"
+
+# If someone ran `npm link devsai` on this machine, node_modules/devsai becomes a symlink
+# and will point at a different build. Remove it so we always install the pinned sandbox.
+if [ -L "$DEVSAI_DIR/node_modules/devsai" ]; then
+    echo "Removing linked devsai (npm link) to enforce BriefDesk sandbox..."
+    sudo -u "$INSTALL_USER" rm -rf "$DEVSAI_DIR/node_modules/devsai"
+fi
 
 if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
     echo "Installing devsai CLI from tarball..."
@@ -226,6 +234,17 @@ if [ -f "$DEVSAI_TARBALL" ] && [ -n "$NPM_PATH" ]; then
     if [ -f "$DEVSAI_DIR/node_modules/devsai/dist/index.js" ]; then
         DEVSAI_INSTALLED=true
         echo "   ✓ Installed devsai from tarball"
+        # Record pinned version metadata for debugging
+        DEVSAI_TARBALL_NAME="$(basename "$DEVSAI_TARBALL")"
+        DEVSAI_VERSION="$(echo "$DEVSAI_TARBALL_NAME" | sed -E 's/devsai-([0-9\\.]+)\\.tgz/\1/')" || DEVSAI_VERSION="unknown"
+        cat > "$DEVSAI_VERSION_FILE" << EOF
+{
+  "tarball": "$DEVSAI_TARBALL_NAME",
+  "version": "$DEVSAI_VERSION",
+  "installed_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "sandbox": "$DEVSAI_DIR"
+}
+EOF
     else
         echo "   ⚠ devsai tarball install did not produce expected files"
     fi
@@ -341,6 +360,8 @@ if [ -n "$NODE_PATH" ]; then
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>HOME</key>
         <string>$USER_HOME</string>
+        <key>BRIEFDESK_DEVSAI_HOME</key>
+        <string>$DEVSAI_DIR</string>
         <key>SEARCH_SERVICE_PORT</key>
         <string>19765</string>
     </dict>

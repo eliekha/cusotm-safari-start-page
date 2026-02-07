@@ -1269,10 +1269,10 @@ h2 {
     </p>
 
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:20px;">
-      <button id="drive-connect-btn" class="google-signin-btn" onclick="connectGoogle()">
+      <button id="drive-connect-btn" class="google-signin-btn" onclick="connectDriveMcp()">
         <img src="icons/google-signin.png" alt="Sign in with Google" height="40">
       </button>
-      <button id="drive-disconnect-btn" class="btn btn-secondary" onclick="disconnectGoogle(); closeDriveModal();" style="display:none;">
+      <button id="drive-disconnect-btn" class="btn btn-secondary" onclick="disconnectDriveMcp(); closeDriveModal();" style="display:none;">
         Disconnect Google Account
       </button>
     </div>
@@ -1660,6 +1660,26 @@ async function checkIntegrations() {
     setStatus('int-atlassian', 'atlassian-status', data.atlassian?.authenticated);
     setStatus('int-drive', 'drive-status', data.drive?.authenticated);
     setStatus('int-github', 'github-status', data.github?.authenticated);
+
+    // Override Gmail/Drive status with DevsAI MCP auth when available
+    try {
+      const gmailRes = await fetch(SEARCH_SERVICE + '/gmail/status');
+      if (gmailRes.ok) {
+        const gmailData = await gmailRes.json();
+        setStatus('int-gmail', 'gmail-status', gmailData.authenticated);
+      }
+    } catch (e) {
+      console.warn('Failed to check Gmail MCP status:', e);
+    }
+    try {
+      const driveRes = await fetch(SEARCH_SERVICE + '/drive/status');
+      if (driveRes.ok) {
+        const driveData = await driveRes.json();
+        setStatus('int-drive', 'drive-status', driveData.authenticated);
+      }
+    } catch (e) {
+      console.warn('Failed to check Drive MCP status:', e);
+    }
   } catch (e) {
     console.error('Failed to check integrations:', e);
   }
@@ -2046,30 +2066,18 @@ async function checkGmailModalStatus() {
     const connectBtn = document.getElementById('gmail-connect-btn');
     const disconnectBtn = document.getElementById('gmail-disconnect-btn');
 
-    if (data.authenticated && data.isReadOnly) {
+    if (data.authenticated) {
       connected.style.display = 'block';
       notConnected.style.display = 'none';
       connectBtn.style.display = 'none';
       disconnectBtn.style.display = 'block';
-    } else if (data.authenticated && !data.isReadOnly) {
-      connected.style.display = 'none';
-      notConnected.style.display = 'block';
-      notConnected.querySelector('strong').textContent = 'Re-authentication required';
-      notConnected.querySelector('p').textContent = 'Gmail needs to be re-authenticated with read-only access for security.';
-      connectBtn.style.display = 'block';
-      disconnectBtn.style.display = 'none';
     } else {
       connected.style.display = 'none';
-      notConnected.style.display = data.hasOAuthKeys ? 'block' : 'none';
+      notConnected.style.display = 'block';
+      notConnected.querySelector('strong').textContent = 'Gmail not connected';
+      notConnected.querySelector('p').textContent = data.error || 'Connect Gmail to enable email search via DevsAI.';
       connectBtn.style.display = 'block';
       disconnectBtn.style.display = 'none';
-      if (!data.hasOAuthKeys) {
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth keys not configured</span>';
-      } else if (!data.mcpAvailable) {
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Gmail MCP not available</span>';
-      }
     }
   } catch (e) { console.error('Error checking Gmail status:', e); }
 }
@@ -2090,7 +2098,8 @@ async function connectGmailMcp() {
       return;
     }
     
-    if (data.launched) {
+    if (data.authUrl) {
+      window.open(data.authUrl, '_blank');
       btn.innerHTML = '<span style="color:var(--text-muted);">Complete login in browser...</span>';
       let attempts = 0;
       const checkAuth = setInterval(async () => {
@@ -2120,8 +2129,7 @@ async function disconnectGmailMcp() {
   const btn = document.getElementById('gmail-disconnect-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting...'; }
   try {
-    // Gmail shares the same Google OAuth token as Calendar/Drive
-    const res = await fetch(API + '/oauth/google/disconnect');
+    const res = await fetch(SEARCH_SERVICE + '/gmail/disconnect', { method: 'POST' });
     const data = await res.json();
     if (!data.success) {
       console.error('Gmail disconnect failed:', data.message || data.error);
@@ -2240,29 +2248,86 @@ function closeDriveModal() { document.getElementById('drive-modal').classList.re
 
 async function checkDriveModalStatus() {
   try {
-    const res = await fetch(API + '/oauth/google/status');
+    const res = await fetch(SEARCH_SERVICE + '/drive/status');
     const data = await res.json();
     const connected = document.getElementById('drive-connected');
     const notConnected = document.getElementById('drive-not-connected');
     const connectBtn = document.getElementById('drive-connect-btn');
     const disconnectBtn = document.getElementById('drive-disconnect-btn');
 
-    if (data.is_authenticated) {
+    if (data.authenticated) {
       connected.style.display = 'block';
       notConnected.style.display = 'none';
       connectBtn.style.display = 'none';
       disconnectBtn.style.display = 'block';
     } else {
       connected.style.display = 'none';
-      notConnected.style.display = data.has_credentials ? 'block' : 'none';
+      notConnected.style.display = 'block';
+      notConnected.querySelector('strong').textContent = 'Drive not connected';
+      notConnected.querySelector('p').textContent = data.error || 'Connect Google Drive to enable search via DevsAI.';
       connectBtn.style.display = 'block';
       disconnectBtn.style.display = 'none';
-      if (!data.has_credentials) {
-        connectBtn.disabled = true;
-        connectBtn.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">OAuth not configured</span>';
-      }
     }
   } catch (e) { console.error('Error checking Drive status:', e); }
+}
+
+async function connectDriveMcp() {
+  const btn = document.getElementById('drive-connect-btn');
+  const originalContent = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span style="color:var(--text-muted);">Opening browser...</span>';
+
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/drive/auth', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.alreadyAuthenticated) {
+      checkDriveModalStatus();
+      checkIntegrations();
+      return;
+    }
+
+    if (data.authUrl) {
+      window.open(data.authUrl, '_blank');
+      btn.innerHTML = '<span style="color:var(--text-muted);">Complete login in browser...</span>';
+      let attempts = 0;
+      const checkAuth = setInterval(async () => {
+        attempts++;
+        const statusRes = await fetch(SEARCH_SERVICE + '/drive/status');
+        const status = await statusRes.json();
+        if (status.authenticated) {
+          clearInterval(checkAuth);
+          checkDriveModalStatus();
+          checkIntegrations();
+        } else if (attempts > 60) {
+          clearInterval(checkAuth);
+          btn.innerHTML = originalContent;
+          btn.disabled = false;
+        }
+      }, 5000);
+    }
+  } catch (e) {
+    console.error('Drive auth error:', e);
+    btn.innerHTML = originalContent;
+    btn.disabled = false;
+  }
+}
+
+async function disconnectDriveMcp() {
+  const btn = document.getElementById('drive-disconnect-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Disconnecting...'; }
+  try {
+    const res = await fetch(SEARCH_SERVICE + '/drive/disconnect', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) {
+      console.error('Drive disconnect failed:', data.message || data.error);
+    }
+  } catch (e) {
+    console.error('Failed to disconnect Drive:', e.message);
+  }
+  checkDriveModalStatus();
+  checkIntegrations();
+  if (btn) { btn.disabled = false; btn.textContent = 'Disconnect Drive'; }
 }
 
 // ─── DevsAI ──────────────────────────────────────────────────────────
@@ -2652,9 +2717,9 @@ async function checkCalendarStatus() {
 
 async function checkGmailStatus() {
   try {
-    const res = await fetch(API + '/hub/status');
+    const res = await fetch(SEARCH_SERVICE + '/gmail/status');
     const data = await res.json();
-    if (data.gmail?.authenticated) {
+    if (data.authenticated) {
       alert('Gmail is connected');
       closeGmailModal();
       checkIntegrations();
@@ -2684,9 +2749,9 @@ async function checkAtlassianStatus() {
 
 async function checkDriveStatus() {
   try {
-    const res = await fetch(API + '/hub/status');
+    const res = await fetch(SEARCH_SERVICE + '/drive/status');
     const data = await res.json();
-    if (data.drive?.authenticated) {
+    if (data.authenticated) {
       alert('Google Drive is connected');
       closeDriveModal();
       checkIntegrations();

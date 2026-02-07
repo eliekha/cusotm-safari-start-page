@@ -10,6 +10,9 @@ import re
 import sys
 import time
 import pickle
+import urllib.request
+import urllib.error
+import traceback
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -946,92 +949,107 @@ Add a **Sources** section at the end listing all referenced links."""
     
     def handle_hub_status(self):
         """Get hub/prefetch status."""
-        status = get_prefetch_status()
-        auth_status = check_services_auth()
-        
-        # Actually test calendar credentials by trying to get the service
-        calendar_configured = os.path.exists(CREDENTIALS_PATH)
-        calendar_authenticated = False
-        calendar_error = None
-        
-        if os.path.exists(TOKEN_PATH):
-            try:
-                service, error = self.get_google_calendar_service()
-                if service:
-                    calendar_authenticated = True
-                else:
-                    calendar_error = error or "auth_failed"
-            except Exception as e:
-                calendar_error = str(e)
-
-        # Check which Google scopes were actually granted by the user
-        granted_scopes = get_granted_scopes()
-        gmail_authenticated = granted_scopes.get('gmail', False)
-        drive_authenticated = granted_scopes.get('drive', False)
-        # Override calendar_authenticated with scope check too
-        if calendar_authenticated:
-            calendar_authenticated = granted_scopes.get('calendar', False)
-
-        # Check GitHub MCP status via search service
-        github_configured = False
-        github_authenticated = False
         try:
-            import urllib.request
-            req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                ss_data = json.loads(resp.read().decode())
-                for srv in ss_data.get('servers', []):
-                    if srv.get('name') == 'github':
-                        github_configured = True
-                        github_authenticated = srv.get('status') == 'connected'
-                        break
-        except Exception:
-            pass
+            status = get_prefetch_status()
+            auth_status = check_services_auth()
 
-        # Auto-ensure Gmail MCP config when Gmail is authenticated
-        if gmail_authenticated:
-            gmail_dist = os.path.join(CONFIG_DIR, 'gmail-mcp', 'dist', 'index.js')
-            if os.path.exists(gmail_dist):
-                self._ensure_mcp_server_config("gmail", {
-                    "command": "node",
-                    "args": [gmail_dist]
-                })
+            # Actually test calendar credentials by trying to get the service
+            calendar_configured = os.path.exists(CREDENTIALS_PATH)
+            calendar_authenticated = False
+            calendar_error = None
 
-        # Auto-export GDrive token if main Google token exists but GDrive token doesn't
-        # This handles the upgrade case (existing installs getting new code)
-        gdrive_token_path = os.path.join(CONFIG_DIR, 'google_drive_token.json')
-        if drive_authenticated and not os.path.exists(gdrive_token_path):
+            if os.path.exists(TOKEN_PATH):
+                try:
+                    service, error = self.get_google_calendar_service()
+                    if service:
+                        calendar_authenticated = True
+                    else:
+                        calendar_error = error or "auth_failed"
+                except Exception as e:
+                    calendar_error = str(e)
+
+            # Check which Google scopes were actually granted by the user (calendar only)
+            granted_scopes = get_granted_scopes()
+            # Override calendar_authenticated with scope check too
+            if calendar_authenticated:
+                calendar_authenticated = granted_scopes.get('calendar', False)
+
+            def _fetch_search_service_tool_status(tool_name):
+                """Fetch auth status from search-service for DevsAI MCP tools."""
+                url = f'http://127.0.0.1:19765/{tool_name}/status'
+                try:
+                    req = urllib.request.Request(url, method='GET')
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        data = json.loads(resp.read().decode())
+                        return {
+                            "configured": True,
+                            "authenticated": bool(data.get("authenticated")),
+                            "error": data.get("error"),
+                        }
+                except urllib.error.HTTPError as e:
+                    body = e.read().decode() if hasattr(e, "read") else ""
+                    err = None
+                    try:
+                        parsed = json.loads(body) if body else {}
+                        err = parsed.get("error")
+                    except Exception:
+                        err = None
+                    return {
+                        "configured": e.code != 404,
+                        "authenticated": False,
+                        "error": err or f"status_{e.code}",
+                    }
+                except Exception:
+                    return {
+                        "configured": False,
+                        "authenticated": False,
+                        "error": "search_service_unreachable",
+                    }
+
+            gmail_status = _fetch_search_service_tool_status("gmail")
+            drive_status = _fetch_search_service_tool_status("drive")
+
+            # Check GitHub MCP status via search service
+            github_configured = False
+            github_authenticated = False
             try:
-                from lib.google_services import get_google_credentials, _export_credentials_for_gdrive_mcp
-                creds = get_google_credentials()
-                if creds:
-                    _export_credentials_for_gdrive_mcp(creds)
-                    logger.info("[Hub] Auto-exported GDrive token from existing Google credentials")
-            except Exception as e:
-                logger.warning(f"[Hub] Failed to auto-export GDrive token: {e}")
+                req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    ss_data = json.loads(resp.read().decode())
+                    for srv in ss_data.get('servers', []):
+                        if srv.get('name') == 'github':
+                            github_configured = True
+                            github_authenticated = srv.get('status') == 'connected'
+                            break
+            except Exception:
+                pass
 
-        # Google is configured if we have a credentials file, a valid token, or embedded creds
-        from lib.config import get_oauth_credentials_config
-        google_token_exists = os.path.exists(TOKEN_PATH)
-        google_configured = calendar_configured or google_token_exists or (get_oauth_credentials_config() is not None)
+            # Google is configured if we have a credentials file, a valid token, or embedded creds
+            from lib.config import get_oauth_credentials_config
+            google_token_exists = os.path.exists(TOKEN_PATH)
+            google_configured = calendar_configured or google_token_exists or (get_oauth_credentials_config() is not None)
 
-        # Add github to the auth status dict (check_services_auth doesn't include it)
-        auth_status['github'] = github_authenticated
+            # Add github to the auth status dict (check_services_auth doesn't include it)
+            auth_status['github'] = github_authenticated
 
-        # Format auth status for frontend (expects objects with .configured/.authenticated properties)
-        self.send_json({
-            **status,
-            "auth": auth_status,
-            # Frontend expects these at top level with {configured: bool, authenticated: bool} format
-            "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
-            "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
-            "gmail": {"configured": google_configured, "authenticated": gmail_authenticated},
-            "calendar": {"configured": google_configured,
-                        "authenticated": calendar_authenticated,
-                        "error": calendar_error},
-            "drive": {"configured": google_configured, "authenticated": drive_authenticated},
-            "github": {"configured": github_configured, "authenticated": github_authenticated},
-        })
+            # Format auth status for frontend (expects objects with .configured/.authenticated properties)
+            self.send_json({
+                **status,
+                "auth": auth_status,
+                # Frontend expects these at top level with {configured: bool, authenticated: bool} format
+                "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
+                "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
+                "gmail": gmail_status,
+                "calendar": {"configured": google_configured,
+                            "authenticated": calendar_authenticated,
+                            "error": calendar_error},
+                "drive": drive_status,
+                "github": {"configured": github_configured, "authenticated": github_authenticated},
+            })
+        except Exception as e:
+            logger.error(f"[Hub] status error: {e}")
+            logger.error(traceback.format_exc())
+            self.send_json({"error": "hub_status_failed", "message": str(e)})
     
     def handle_setup_page(self):
         """Serve the setup page."""
@@ -2371,9 +2389,9 @@ Add a **Sources** section at the end listing all referenced links."""
         except Exception as e:
             search_error = str(e)
         
-        # Get MCP server count and GDrive MCP status if available
+        # Get MCP server count and DevsAI tool status if available
         mcp_servers = None
-        gdrive_mcp = None
+        devsai_tools = None
         if search_ok:
             try:
                 req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
@@ -2397,10 +2415,44 @@ Add a **Sources** section at the end listing all referenced links."""
                         'total': len(servers),
                         'servers': all_servers
                     }
-                    # Get GDrive MCP status
-                    gdrive_mcp = status_data.get('gdriveMcp', {})
             except:
                 pass
+
+            def _fetch_search_service_tool_status(tool_name):
+                url = f'http://127.0.0.1:19765/{tool_name}/status'
+                try:
+                    req = urllib.request.Request(url, method='GET')
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        data = json.loads(resp.read().decode())
+                        return {
+                            "configured": True,
+                            "authenticated": bool(data.get("authenticated")),
+                            "error": data.get("error"),
+                        }
+                except urllib.error.HTTPError as e:
+                    body = e.read().decode() if hasattr(e, "read") else ""
+                    err = None
+                    try:
+                        parsed = json.loads(body) if body else {}
+                        err = parsed.get("error")
+                    except Exception:
+                        err = None
+                    return {
+                        "configured": e.code != 404,
+                        "authenticated": False,
+                        "error": err or f"status_{e.code}",
+                    }
+                except Exception:
+                    return {
+                        "configured": False,
+                        "authenticated": False,
+                        "error": "search_service_unreachable",
+                    }
+
+            devsai_tools = {
+                "gmail": _fetch_search_service_tool_status("gmail"),
+                "drive": _fetch_search_service_tool_status("drive"),
+            }
         
         services.append({
             'name': 'Search Service',
@@ -2409,7 +2461,7 @@ Add a **Sources** section at the end listing all referenced links."""
             'error': search_error,
             'description': 'AI queries, MCP connections',
             'mcp': mcp_servers,
-            'gdriveMcp': gdrive_mcp
+            'devsaiTools': devsai_tools
         })
         
         self.send_json({

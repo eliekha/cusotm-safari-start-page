@@ -457,21 +457,24 @@ html+='<div style="font-size:10px;color:#f87171;margin-top:2px">✗ '+es.name+':
 });
 }
 }
-// Show GDrive MCP status (managed separately from MCP servers)
-if(svc.gdriveMcp&&svc.gdriveMcp.available){
-var gdriveLabel='gdrive(3)';
-if(allWorking&&allWorking.length>0){
-// Append to the existing MCP line by rewriting it
-var totalCount=allWorking.length+1;
-var allNames=allWorking.map(function(s){return s.name+'('+s.tools+')'}).concat([gdriveLabel]).join(', ');
-// Find and replace the MCP line we just added
-var mcpLineRegex=/MCP: \d+ connected - [^<]+/;
-html=html.replace(mcpLineRegex,'MCP: '+totalCount+' connected - '+allNames);
+// Show DevsAI Gmail/Drive tool auth status (separate from MCP servers list)
+if(svc.devsaiTools){
+var toolStatuses=[
+{name:'gmail',data:svc.devsaiTools.gmail},
+{name:'drive',data:svc.devsaiTools.drive}
+];
+toolStatuses.forEach(function(ts){
+if(!ts.data)return;
+if(ts.data.authenticated){
+html+='<div style="font-size:10px;color:#4ade80;margin-top:2px">✓ '+ts.name+': connected</div>';
 }else{
-html+='<div style="font-size:10px;color:#60a5fa;margin-top:2px">MCP: 1 connected - '+gdriveLabel+'</div>';
+var msg=ts.data.error||'auth required';
+if(msg.indexOf('Not authenticated')!==-1||msg.indexOf('auth_required')!==-1){
+msg='auth required';
 }
-}else if(svc.gdriveMcp&&!svc.gdriveMcp.available){
-html+='<div style="font-size:10px;color:#fbbf24;margin-top:2px">⚠ gdrive: not configured</div>';
+html+='<div style="font-size:10px;color:#fbbf24;margin-top:2px">⚠ '+ts.name+': '+msg+'</div>';
+}
+});
 }
 if(svc.error){
 html+='<div style="font-size:10px;color:#f87171;margin-top:2px">'+svc.error+'</div>';

@@ -35,40 +35,38 @@ import { execSync } from 'child_process';
 
 const HOME = os.homedir();
 
+function isValidDevsaiLib(dir) {
+  try {
+    if (!fs.existsSync(dir)) return false;
+    // Guard against npm link symlinks that redirect to a different devsai
+    if (fs.lstatSync(dir).isSymbolicLink()) return false;
+    return fs.existsSync(path.join(dir, 'mcp', 'index.js'));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Find the devsai library path by checking multiple locations.
- * The dist files use bare imports (@modelcontextprotocol/sdk etc.)
- * so we need a location where node_modules is resolvable.
+ * We deliberately avoid global npm locations so BriefDesk uses its
+ * sandboxed, FDA-granted devsai even if the user runs npm link.
  */
 function findDevsaiLibPath() {
+  const sandboxBase = process.env.BRIEFDESK_DEVSAI_HOME || path.join(HOME, '.local/share/devsai');
   const candidates = [
-    // 1. Tarball install via npm (pkg installer: npm install --prefix ~/.local/share/devsai devsai.tgz)
-    path.join(HOME, '.local/share/devsai/node_modules/devsai/dist/lib'),
-    // 2. Direct dist copy (set up by install.sh with node_modules symlink)
-    path.join(HOME, '.local/share/devsai/dist/lib'),
-    // 3. Dev repo (has its own node_modules with all deps)
+    path.join(sandboxBase, 'node_modules/devsai/dist/lib'),
+    path.join(sandboxBase, 'dist/lib'),
     path.join(HOME, 'Documents/GitHub/devs-ai-cli/dist/lib'),
   ];
-  
-  // 3. Try global npm install location
-  try {
-    const npmRoot = execSync('npm root -g 2>/dev/null', { encoding: 'utf8', timeout: 5000 }).trim();
-    if (npmRoot) {
-      candidates.push(path.join(npmRoot, 'devsai/dist/lib'));
-    }
-  } catch {
-    // npm not available or timed out, skip
-  }
-  
-  // Return first candidate that has the expected entry point
+
   for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, 'mcp', 'index.js'))) {
+    if (isValidDevsaiLib(dir)) {
       return dir;
     }
   }
-  
+
   // Default fallback (will fail gracefully in loadDevsaiModules)
-  return path.join(HOME, '.local/share/devsai/dist/lib');
+  return path.join(sandboxBase, 'dist/lib');
 }
 
 // Resolve DEVSAI_BASE_PATH: use env var if it points to a valid location,
@@ -76,10 +74,10 @@ function findDevsaiLibPath() {
 function resolveDevsaiBasePath() {
   if (process.env.DEVSAI_LIB_PATH) {
     const envPath = path.join(process.env.DEVSAI_LIB_PATH, 'dist', 'lib');
-    if (fs.existsSync(path.join(envPath, 'mcp', 'index.js'))) {
+    if (isValidDevsaiLib(envPath)) {
       return envPath;
     }
-    console.log(`[SearchService] DEVSAI_LIB_PATH env points to invalid location: ${envPath}`);
+    console.log(`[SearchService] DEVSAI_LIB_PATH env points to invalid or symlinked location: ${envPath}`);
   }
   return findDevsaiLibPath();
 }
@@ -107,166 +105,20 @@ export let mcpManager = null;
 export let apiClient = null;
 export let initialized = false;
 export let initError = null;
-export let gdriveMcpAvailable = false;
 let apiKeyCache = null;
 
 // BriefDesk install directory
 const BRIEFDESK_DIR = `${HOME}/.local/share/briefdesk`;
 
-// GDrive MCP paths
-const GDRIVE_MCP_PATH = path.join(HOME, '.local/share/briefdesk/gdrive-mcp');
-const GDRIVE_TOKEN_PATH = path.join(HOME, '.local/share/briefdesk/google_drive_token.json');
+const DEVSAI_CHAT_TOOL_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEVSAI_TOOL_NAMES = {
+  gmail: 'Gmail',
+  drive: 'Google Drive',
+};
 
-/**
- * Check if gdrive MCP is available (token exists and MCP is built)
- */
-export function checkGdriveMcpAvailability() {
-  const tokenExists = fs.existsSync(GDRIVE_TOKEN_PATH);
-  const mcpExists = fs.existsSync(path.join(GDRIVE_MCP_PATH, 'dist/index.js'));
-  gdriveMcpAvailable = tokenExists && mcpExists;
-  console.log(`[SearchService] GDrive MCP: ${gdriveMcpAvailable ? 'available' : 'not available'} (token: ${tokenExists}, mcp: ${mcpExists})`);
-  return gdriveMcpAvailable;
-}
+let chatToolsCache = null;
+let chatToolsCacheTime = 0;
 
-/**
- * Execute a gdrive MCP tool call
- */
-export async function executeGdriveMcpTool(toolName, args) {
-  return new Promise((resolve, reject) => {
-    const mcpPath = path.join(GDRIVE_MCP_PATH, 'dist/index.js');
-    
-    // Build JSON-RPC request
-    const request = {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: args,
-      },
-    };
-    
-    const proc = spawn('node', [mcpPath], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: GDRIVE_MCP_PATH,
-    });
-    
-    let stdout = '';
-    let stderr = '';
-    
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-    
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-    
-    proc.on('close', (code) => {
-      // Parse JSON-RPC response from stdout
-      try {
-        // Skip the "BriefDesk Google Drive MCP server running" line
-        const lines = stdout.split('\n');
-        const jsonLine = lines.find(l => l.startsWith('{'));
-        if (jsonLine) {
-          const response = JSON.parse(jsonLine);
-          if (response.result?.content?.[0]?.text) {
-            resolve({ message: response.result.content[0].text });
-          } else if (response.error) {
-            reject(new Error(response.error.message || 'MCP error'));
-          } else {
-            resolve({ message: JSON.stringify(response.result) });
-          }
-        } else {
-          reject(new Error(`GDrive MCP returned no JSON: ${stdout.substring(0, 200)}`));
-        }
-      } catch (err) {
-        reject(new Error(`GDrive MCP parse error: ${err.message}`));
-      }
-    });
-    
-    proc.on('error', (err) => {
-      reject(new Error(`GDrive MCP spawn error: ${err.message}`));
-    });
-    
-    // Send the request and close stdin
-    proc.stdin.write(JSON.stringify(request) + '\n');
-    proc.stdin.end();
-    
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      proc.kill();
-      reject(new Error('GDrive MCP timeout'));
-    }, 30000);
-  });
-}
-
-/**
- * Get gdrive MCP tool definitions
- */
-export function getGdriveMcpToolDefinitions() {
-  return [
-    {
-      type: 'function',
-      function: {
-        name: 'gdrive_search',
-        description: 'Search Google Drive for files by name or content. Returns file IDs, names, types, and direct URLs. Use the file ID with gdrive_read to get content.',
-        parameters: {
-          type: 'object',
-          properties: {
-            query: {
-              type: 'string',
-              description: 'Search query (searches file names and content)',
-            },
-            maxResults: {
-              type: 'number',
-              description: 'Maximum number of results to return (default: 20)',
-            },
-          },
-          required: ['query'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'gdrive_read',
-        description: 'Read the content of a Google Drive file. For Google Docs/Sheets/Slides, exports as text/markdown.',
-        parameters: {
-          type: 'object',
-          properties: {
-            fileId: {
-              type: 'string',
-              description: 'The Google Drive file ID (from search results)',
-            },
-          },
-          required: ['fileId'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'gdrive_list',
-        description: 'List files in a Google Drive folder.',
-        parameters: {
-          type: 'object',
-          properties: {
-            folderId: {
-              type: 'string',
-              description: 'Folder ID (optional, defaults to root)',
-            },
-            maxResults: {
-              type: 'number',
-              description: 'Maximum number of results (default: 50)',
-            },
-          },
-          required: [],
-        },
-      },
-    },
-  ];
-}
 
 // Retry configuration for MCP servers
 export const MCP_RETRY_CONFIG = {
@@ -283,13 +135,11 @@ export function _setMcpManager(manager) { mcpManager = manager; }
 export function _setApiClient(client) { apiClient = client; }
 export function _setInitialized(value) { initialized = value; }
 export function _setInitError(error) { initError = error; }
-export function _setGdriveMcpAvailable(value) { gdriveMcpAvailable = value; }
 export function _resetState() {
   mcpManager = null;
   apiClient = null;
   initialized = false;
   initError = null;
-  gdriveMcpAvailable = false;
   apiKeyCache = null;
 }
 
@@ -305,6 +155,57 @@ function refreshApiClient() {
     apiKeyCache = apiKey;
   }
   return true;
+}
+
+async function listChatToolsCached(force = false) {
+  if (!devsaiLoaded) {
+    await loadDevsaiModules();
+  }
+  if (!refreshApiClient()) {
+    throw new Error('Not authenticated. Run: devsai login');
+  }
+  const now = Date.now();
+  if (!force && chatToolsCache && now - chatToolsCacheTime < DEVSAI_CHAT_TOOL_CACHE_TTL_MS) {
+    return chatToolsCache;
+  }
+  if (!apiClient?.listChatTools) {
+    throw new Error('DevsAI API client missing listChatTools');
+  }
+  const result = await apiClient.listChatTools();
+  chatToolsCache = Array.isArray(result?.data) ? result.data : [];
+  chatToolsCacheTime = now;
+  return chatToolsCache;
+}
+
+function findChatToolByName(tools, name) {
+  const target = name.toLowerCase();
+  return tools.find((tool) => (tool?.name || '').toLowerCase() === target);
+}
+
+async function getChatToolByName(name) {
+  const tools = await listChatToolsCached();
+  return findChatToolByName(tools, name);
+}
+
+async function getChatToolAuthStatus(toolId) {
+  if (!apiClient?.getToolOAuthStatus) {
+    throw new Error('DevsAI API client missing getToolOAuthStatus');
+  }
+  return apiClient.getToolOAuthStatus(toolId);
+}
+
+async function initiateChatToolAuth(toolId) {
+  if (!apiClient?.initiateToolOAuth) {
+    throw new Error('DevsAI API client missing initiateToolOAuth');
+  }
+  return apiClient.initiateToolOAuth(toolId);
+}
+
+async function revokeChatToolAuth(toolId) {
+  if (!apiClient?.revokeToolOAuthToken) {
+    throw new Error('DevsAI API client missing revokeToolOAuthToken');
+  }
+  return apiClient.revokeToolOAuthToken(toolId);
 }
 
 /**
@@ -607,9 +508,6 @@ function scheduleDeferredRetry() {
 export async function initialize() {
   console.log('[SearchService] Initializing...');
   
-  // Check for GDrive MCP availability
-  checkGdriveMcpAvailability();
-  
   // Load modules
   const loaded = await loadDevsaiModules();
   if (!loaded) {
@@ -697,6 +595,9 @@ export async function executeQuery(prompt, options = {}) {
     systemPrompt = null,
     sources = null,  // Filter to specific sources: ['slack', 'jira', 'gmail', 'confluence']
   } = options;
+
+  let devsaiDriveEnabled = false;
+  let devsaiGmailEnabled = false;
   
   // Get available MCP tools
   let tools = [];
@@ -706,8 +607,69 @@ export async function executeQuery(prompt, options = {}) {
     // Filter tools by source if specified
     if (sources && sources.length > 0) {
       const beforeCount = tools.length;
+      const normalizedSources = sources.map(s => s.toLowerCase());
+      const wantsDrive = normalizedSources.includes('drive');
+      const wantsGmail = normalizedSources.includes('gmail');
+
+      if (wantsDrive || wantsGmail) {
+        try {
+          const chatTools = await listChatToolsCached();
+          if (wantsGmail) {
+            const gmailTool = findChatToolByName(chatTools, DEVSAI_TOOL_NAMES.gmail);
+            if (!gmailTool) {
+              throw new Error('tool_unavailable:gmail');
+            }
+            if (gmailTool.requiresAuth) {
+              const status = await getChatToolAuthStatus(gmailTool.toolId).catch(() => null);
+              if (!status?.hasToken) {
+                throw new AuthRequiredError('gmail');
+              }
+            }
+            tools = [...tools, { type: 'mcp_server', toolId: gmailTool.toolId }];
+            devsaiGmailEnabled = true;
+            console.log('[SearchService] Added DevsAI Gmail MCP tool');
+          }
+          if (wantsDrive) {
+            const driveTool = findChatToolByName(chatTools, DEVSAI_TOOL_NAMES.drive);
+            if (!driveTool) {
+              throw new Error('tool_unavailable:drive');
+            }
+            if (driveTool.requiresAuth) {
+              const status = await getChatToolAuthStatus(driveTool.toolId).catch(() => null);
+              if (!status?.hasToken) {
+                throw new AuthRequiredError('drive');
+              }
+            }
+            tools = [...tools, { type: 'mcp_server', toolId: driveTool.toolId }];
+            devsaiDriveEnabled = true;
+            console.log('[SearchService] Added DevsAI Drive MCP tool');
+          }
+        } catch (err) {
+          if (err instanceof AuthRequiredError) {
+            throw err;
+          }
+          if (typeof err?.message === 'string' && err.message.startsWith('tool_unavailable:')) {
+            throw err;
+          }
+          console.log(`[SearchService] DevsAI tool discovery failed: ${err.message}`);
+        }
+      }
+      if (wantsGmail && !devsaiGmailEnabled) {
+        throw new AuthRequiredError('gmail');
+      }
+      if (wantsDrive && !devsaiDriveEnabled) {
+        throw new AuthRequiredError('drive');
+      }
       tools = tools.filter(t => {
-        const name = t.function.name.toLowerCase();
+        if (t.type === 'mcp_server') {
+          return true;
+        }
+        const name = t?.function?.name?.toLowerCase();
+        if (!name) return false;
+
+        // Remove local Gmail/Drive tools when using DevsAI MCP servers
+        if (wantsGmail && name.includes('gmail')) return false;
+        if (wantsDrive && name.startsWith('gdrive_')) return false;
         
         // Include all atlassian tools when jira or confluence is selected
         if (sources.some(s => ['jira', 'confluence'].includes(s.toLowerCase()))) {
@@ -719,26 +681,19 @@ export async function executeQuery(prompt, options = {}) {
         return sources.some(s => name.includes(s.toLowerCase()));
       });
       
-      // Add Drive tools when drive is in sources
-      if (sources.some(s => s.toLowerCase() === 'drive')) {
-        if (gdriveMcpAvailable) {
-          // Use GDrive MCP tools (API-based, can search content)
-          const gdriveTools = getGdriveMcpToolDefinitions();
-          tools = [...tools, ...gdriveTools];
-          console.log(`[SearchService] Added ${gdriveTools.length} GDrive MCP tools (API mode)`);
-        } else if (CLI_TOOLS) {
-          // Fallback to filesystem CLI tools (local sync folder)
-          const fileTools = CLI_TOOLS.filter(t => 
-            ['search_files', 'find_files', 'read_file', 'list_directory'].includes(t.function.name)
-          );
-          tools = [...tools, ...fileTools];
-          console.log(`[SearchService] Added ${fileTools.length} CLI file tools for drive (fallback mode)`);
-        }
+      if (sources.some(s => s.toLowerCase() === 'drive') && devsaiDriveEnabled) {
+        console.log('[SearchService] Using DevsAI Drive MCP tool');
       }
       
       console.log(`[SearchService] Filtered tools: ${beforeCount} -> ${tools.length} for sources: ${sources.join(', ')}`);
     }
   } catch (err) {
+    if (err instanceof AuthRequiredError) {
+      throw err;
+    }
+    if (typeof err?.message === 'string' && err.message.startsWith('tool_unavailable:')) {
+      throw err;
+    }
     console.error('[SearchService] Error getting MCP tools:', err.message);
   }
   
@@ -815,52 +770,12 @@ IMPORTANT RULES:
 
   // Add Drive-specific instructions
   if (sources && sources.some(s => s.toLowerCase() === 'drive')) {
-    if (gdriveMcpAvailable) {
-      // Using GDrive MCP (API-based)
+    if (devsaiDriveEnabled) {
       defaultSystem += `
 
-CRITICAL FOR GOOGLE DRIVE - YOU MUST READ FILE CONTENTS:
-1. First use gdrive_search to find relevant documents
-2. From search results, get the "id" field of the top 2-3 most relevant files
-3. ALWAYS call gdrive_read with fileId for each relevant file to get its content
-   Example: gdrive_search returns {"files":[{"id":"abc123","name":"Meeting Notes",...}]}
-   Then call: gdrive_read({"fileId":"abc123"})
-4. Extract the ACTUAL information from file contents to answer the question
-5. NEVER just list files - you MUST read and summarize their contents
-6. Include direct quotes and the file URL as sources
-
-REQUIRED WORKFLOW:
-Step 1: gdrive_search({"query":"topic"}) - find files
-Step 2: gdrive_read({"fileId":"<id from search>"}) - read top 2-3 files  
-Step 3: Synthesize answer from the content you read
-Step 4: Include source URLs`;
-    } else {
-      // Fallback to filesystem mode
-      let gdriveBase = path.join(HOME, 'Library/CloudStorage/GoogleDrive-*');
-      try {
-        const configPath = path.join(HOME, '.local/share/briefdesk/config.json');
-        if (fs.existsSync(configPath)) {
-          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-          if (config.google_drive_path) {
-            gdriveBase = config.google_drive_path;
-          }
-        }
-      } catch (e) {
-        // Use default pattern
-      }
-      
-      defaultSystem += `
-
-IMPORTANT FOR GOOGLE DRIVE:
-1. Use find_files or search_files to search for documents in the Google Drive folder
-2. The Google Drive is synced locally at: ${gdriveBase}
-3. Search for files using patterns like: ${gdriveBase}/My Drive/**/*keyword*
-4. Use read_file to read file contents if needed
-5. For links, convert filenames to Google Drive search URLs:
-   - Extract just the filename (without path and extension)
-   - URL encode spaces as +
-   - Return as: https://drive.google.com/drive/search?q=FILENAME
-   - Example: "My Document.gdoc" -> https://drive.google.com/drive/search?q=My+Document`;
+CRITICAL FOR GOOGLE DRIVE:
+Use the Google Drive tool to search for relevant documents and read their contents.
+Always open and summarize the most relevant files instead of just listing them.`;
     }
   }
 
@@ -975,9 +890,6 @@ IMPORTANT FOR GOOGLE DRIVE:
           
           if (isMCPTool(toolName)) {
             const result = await executeMCPTool(toolName, args);
-            toolResult = result.message || JSON.stringify(result);
-          } else if (toolName.startsWith('gdrive_') && gdriveMcpAvailable) {
-            const result = await executeGdriveMcpTool(toolName, args);
             toolResult = result.message || JSON.stringify(result);
           } else if (toolName === 'search_files' && executeSearchFiles) {
             const result = executeSearchFiles(args);
@@ -1162,6 +1074,15 @@ export function sendJson(res, data, status = 200) {
   res.end(JSON.stringify(data));
 }
 
+class AuthRequiredError extends Error {
+  constructor(tool) {
+    super(`auth_required:${tool}`);
+    this.name = 'AuthRequiredError';
+    this.tool = tool;
+    this.code = 'auth_required';
+  }
+}
+
 /**
  * Handle HTTP requests
  */
@@ -1248,60 +1169,135 @@ export async function handleRequest(req, res) {
       return;
     }
 
-    // Gmail MCP auth (open browser for Google OAuth)
+    // Gmail MCP auth via DevsAI tool OAuth
     if (path === '/gmail/auth' && req.method === 'POST') {
-      const gmailMcpPath = `${BRIEFDESK_DIR}/gmail-mcp/dist/index.js`;
-      const nodePath = process.execPath;
-      
-      // Check if gmail-mcp exists
-      if (!fs.existsSync(gmailMcpPath)) {
-        sendJson(res, { success: false, error: 'Gmail MCP not found. Please reinstall BriefDesk.' }, 404);
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+      if (!refreshApiClient()) {
+        sendJson(res, { success: false, error: 'Not authenticated. Run: devsai login' }, 401);
         return;
       }
-      
-      // Check if already authenticated
-      const credentialsPath = `${HOME}/.gmail-mcp/credentials.json`;
-      if (fs.existsSync(credentialsPath)) {
-        sendJson(res, { success: true, alreadyAuthenticated: true });
+      const tool = await getChatToolByName(DEVSAI_TOOL_NAMES.gmail);
+      if (!tool) {
+        sendJson(res, { success: false, error: 'Gmail tool not found in DevsAI' }, 404);
         return;
       }
-      
-      try {
-        console.log('[SearchService] Starting Gmail MCP auth flow...');
-        const child = spawn(nodePath, [gmailMcpPath, 'auth'], {
-          detached: true,
-          stdio: 'ignore',
-          env: { ...process.env, HOME },
-        });
-        child.unref();
-        sendJson(res, { success: true, launched: true, message: 'OAuth flow started in browser' });
-      } catch (err) {
-        sendJson(res, { success: false, error: err.message }, 500);
+      const status = await getChatToolAuthStatus(tool.toolId).catch(() => null);
+      if (status?.hasToken) {
+        sendJson(res, { success: true, alreadyAuthenticated: true, toolId: tool.toolId });
+        return;
       }
+      const auth = await initiateChatToolAuth(tool.toolId);
+      sendJson(res, { success: true, authUrl: auth.authUrl, toolId: tool.toolId });
       return;
     }
 
-    // Gmail auth status check
+    // Gmail auth status check (DevsAI tool OAuth)
     if (path === '/gmail/status') {
-      const credentialsPath = `${HOME}/.gmail-mcp/credentials.json`;
-      const keysPath = `${HOME}/.gmail-mcp/gcp-oauth.keys.json`;
-      const gmailMcpPath = `${BRIEFDESK_DIR}/gmail-mcp/dist/index.js`;
-      
-      let scope = null;
-      if (fs.existsSync(credentialsPath)) {
-        try {
-          const creds = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
-          scope = creds.scope || null;
-        } catch {}
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
       }
-      
+      if (!refreshApiClient()) {
+        sendJson(res, { authenticated: false, error: 'Not authenticated. Run: devsai login' }, 401);
+        return;
+      }
+      const tool = await getChatToolByName(DEVSAI_TOOL_NAMES.gmail);
+      if (!tool) {
+        sendJson(res, { authenticated: false, error: 'Gmail tool not found in DevsAI' }, 404);
+        return;
+      }
+      const status = await getChatToolAuthStatus(tool.toolId).catch(() => null);
       sendJson(res, {
-        authenticated: fs.existsSync(credentialsPath),
-        hasOAuthKeys: fs.existsSync(keysPath),
-        mcpAvailable: fs.existsSync(gmailMcpPath),
-        scope,
-        isReadOnly: scope ? scope.includes('gmail.readonly') && !scope.includes('gmail.modify') : null,
+        authenticated: !!status?.hasToken,
+        requiresAuth: tool.requiresAuth,
+        toolId: tool.toolId,
+        toolName: tool.name,
       });
+      return;
+    }
+
+    if (path === '/gmail/disconnect' && req.method === 'POST') {
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+      if (!refreshApiClient()) {
+        sendJson(res, { success: false, error: 'Not authenticated. Run: devsai login' }, 401);
+        return;
+      }
+      const tool = await getChatToolByName(DEVSAI_TOOL_NAMES.gmail);
+      if (!tool) {
+        sendJson(res, { success: false, error: 'Gmail tool not found in DevsAI' }, 404);
+        return;
+      }
+      await revokeChatToolAuth(tool.toolId);
+      sendJson(res, { success: true });
+      return;
+    }
+
+    // Drive MCP auth via DevsAI tool OAuth
+    if (path === '/drive/auth' && req.method === 'POST') {
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+      if (!refreshApiClient()) {
+        sendJson(res, { success: false, error: 'Not authenticated. Run: devsai login' }, 401);
+        return;
+      }
+      const tool = await getChatToolByName(DEVSAI_TOOL_NAMES.drive);
+      if (!tool) {
+        sendJson(res, { success: false, error: 'Google Drive tool not found in DevsAI' }, 404);
+        return;
+      }
+      const status = await getChatToolAuthStatus(tool.toolId).catch(() => null);
+      if (status?.hasToken) {
+        sendJson(res, { success: true, alreadyAuthenticated: true, toolId: tool.toolId });
+        return;
+      }
+      const auth = await initiateChatToolAuth(tool.toolId);
+      sendJson(res, { success: true, authUrl: auth.authUrl, toolId: tool.toolId });
+      return;
+    }
+
+    // Drive auth status check (DevsAI tool OAuth)
+    if (path === '/drive/status') {
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+      if (!refreshApiClient()) {
+        sendJson(res, { authenticated: false, error: 'Not authenticated. Run: devsai login' }, 401);
+        return;
+      }
+      const tool = await getChatToolByName(DEVSAI_TOOL_NAMES.drive);
+      if (!tool) {
+        sendJson(res, { authenticated: false, error: 'Google Drive tool not found in DevsAI' }, 404);
+        return;
+      }
+      const status = await getChatToolAuthStatus(tool.toolId).catch(() => null);
+      sendJson(res, {
+        authenticated: !!status?.hasToken,
+        requiresAuth: tool.requiresAuth,
+        toolId: tool.toolId,
+        toolName: tool.name,
+      });
+      return;
+    }
+
+    if (path === '/drive/disconnect' && req.method === 'POST') {
+      if (!devsaiLoaded) {
+        await loadDevsaiModules();
+      }
+      if (!refreshApiClient()) {
+        sendJson(res, { success: false, error: 'Not authenticated. Run: devsai login' }, 401);
+        return;
+      }
+      const tool = await getChatToolByName(DEVSAI_TOOL_NAMES.drive);
+      if (!tool) {
+        sendJson(res, { success: false, error: 'Google Drive tool not found in DevsAI' }, 404);
+        return;
+      }
+      await revokeChatToolAuth(tool.toolId);
+      sendJson(res, { success: true });
       return;
     }
     
@@ -1312,11 +1308,6 @@ export async function handleRequest(req, res) {
         initialized,
         error: initError,
         servers: statuses,
-        gdriveMcp: {
-          available: gdriveMcpAvailable,
-          tokenPath: GDRIVE_TOKEN_PATH,
-          mcpPath: GDRIVE_MCP_PATH,
-        },
       });
       return;
     }
@@ -1452,7 +1443,11 @@ export async function handleRequest(req, res) {
         });
       } catch (err) {
         console.error('[SearchService] Stream error:', err.message);
-        sendEvent('error', { error: err.message });
+        if (err instanceof AuthRequiredError || err?.code === 'auth_required') {
+          sendEvent('error', { error: 'auth_required', tool: err.tool });
+        } else {
+          sendEvent('error', { error: err.message });
+        }
       }
       
       res.end();
@@ -1499,7 +1494,11 @@ export async function handleRequest(req, res) {
     
   } catch (err) {
     console.error('[SearchService] Error:', err.message);
-    sendJson(res, { error: err.message }, 500);
+    if (err instanceof AuthRequiredError || err?.code === 'auth_required') {
+      sendJson(res, { error: 'auth_required', tool: err.tool }, 401);
+    } else {
+      sendJson(res, { error: err.message }, 500);
+    }
   }
 }
 
