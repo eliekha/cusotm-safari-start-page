@@ -1009,9 +1009,11 @@ Add a **Sources** section at the end listing all referenced links."""
             gmail_status = _fetch_search_service_tool_status("gmail")
             drive_status = _fetch_search_service_tool_status("drive")
 
-            # Check GitHub MCP status via search service
+            # Check MCP status via search service (github, atlassian, slack)
             github_configured = False
             github_authenticated = False
+            atlassian_mcp = {"configured": False, "authenticated": False, "error": None}
+            slack_mcp = {"configured": False, "authenticated": False, "error": None}
             try:
                 req = urllib.request.Request('http://127.0.0.1:19765/status', method='GET')
                 with urllib.request.urlopen(req, timeout=3) as resp:
@@ -1020,7 +1022,14 @@ Add a **Sources** section at the end listing all referenced links."""
                         if srv.get('name') == 'github':
                             github_configured = True
                             github_authenticated = srv.get('status') == 'connected'
-                            break
+                        elif srv.get('name') == 'atlassian':
+                            atlassian_mcp["configured"] = True
+                            atlassian_mcp["authenticated"] = srv.get('status') == 'connected'
+                            atlassian_mcp["error"] = srv.get('error')
+                        elif srv.get('name') == 'slack':
+                            slack_mcp["configured"] = True
+                            slack_mcp["authenticated"] = srv.get('status') == 'connected'
+                            slack_mcp["error"] = srv.get('error')
             except Exception:
                 pass
 
@@ -1028,6 +1037,12 @@ Add a **Sources** section at the end listing all referenced links."""
             from lib.config import get_oauth_credentials_config
             google_token_exists = os.path.exists(TOKEN_PATH)
             google_configured = calendar_configured or google_token_exists or (get_oauth_credentials_config() is not None)
+
+            # Prefer MCP runtime status for Atlassian/Slack if available
+            if atlassian_mcp["configured"]:
+                auth_status["atlassian"] = atlassian_mcp["authenticated"]
+            if slack_mcp["configured"]:
+                auth_status["slack"] = slack_mcp["authenticated"]
 
             # Add github to the auth status dict (check_services_auth doesn't include it)
             auth_status['github'] = github_authenticated
@@ -1037,8 +1052,12 @@ Add a **Sources** section at the end listing all referenced links."""
                 **status,
                 "auth": auth_status,
                 # Frontend expects these at top level with {configured: bool, authenticated: bool} format
-                "slack": {"configured": auth_status.get("slack", False), "authenticated": auth_status.get("slack", False)},
-                "atlassian": {"configured": auth_status.get("atlassian", False), "authenticated": auth_status.get("atlassian", False)},
+                "slack": {"configured": slack_mcp["configured"] or auth_status.get("slack", False),
+                          "authenticated": slack_mcp["authenticated"] or auth_status.get("slack", False),
+                          "error": slack_mcp.get("error")},
+                "atlassian": {"configured": atlassian_mcp["configured"] or auth_status.get("atlassian", False),
+                              "authenticated": atlassian_mcp["authenticated"] or auth_status.get("atlassian", False),
+                              "error": atlassian_mcp.get("error")},
                 "gmail": gmail_status,
                 "calendar": {"configured": google_configured,
                             "authenticated": calendar_authenticated,
