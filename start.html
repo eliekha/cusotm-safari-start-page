@@ -316,7 +316,10 @@
 <div class="modal-section">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
 <span style="font-size:14px;color:rgba(255,255,255,.9)">Service Health</span>
+<div style="display:flex;gap:8px;align-items:center">
+<button onclick="window.open('http://127.0.0.1:8765/installer.html','_blank')" style="padding:6px 12px;background:rgba(255,255,255,.08);border:none;border-radius:6px;color:rgba(255,255,255,.7);cursor:pointer;font-size:12px">Open installer</button>
 <button onclick="fetchServiceHealth()" style="padding:6px 12px;background:rgba(255,255,255,.1);border:none;border-radius:6px;color:rgba(255,255,255,.8);cursor:pointer;font-size:12px">Refresh</button>
+</div>
 </div>
 <div id="service-health-container" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
 <div style="font-size:12px;color:rgba(255,255,255,.4);text-align:center;padding:12px">Loading...</div>

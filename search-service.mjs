@@ -425,8 +425,8 @@ function scheduleDeferredRetry() {
     try {
       if (!mcpManager) return;
 
-      // Read expected servers from .devsai.json
-      const devsaiConfigPath = path.join(process.cwd(), '.devsai.json');
+      // Read expected servers from the installed BriefDesk config
+      const devsaiConfigPath = path.join(BRIEFDESK_DIR, '.devsai.json');
       let expectedServers = [];
       try {
         if (fs.existsSync(devsaiConfigPath)) {
@@ -503,6 +503,40 @@ function scheduleDeferredRetry() {
 }
 
 /**
+ * Periodically ensure expected MCP servers are connected.
+ */
+function scheduleMcpReconcile() {
+  setInterval(async () => {
+    try {
+      if (!mcpManager) return;
+      const devsaiConfigPath = path.join(BRIEFDESK_DIR, '.devsai.json');
+      if (!fs.existsSync(devsaiConfigPath)) return;
+      const cfg = JSON.parse(fs.readFileSync(devsaiConfigPath, 'utf8'));
+      const expectedServers = Object.keys(cfg.mcpServers || {});
+      if (expectedServers.length === 0) return;
+
+      const statuses = mcpManager.getServerStatuses();
+      const connectedNames = new Set(
+        statuses.filter(s => s.status === 'connected').map(s => s.name)
+      );
+      const missing = expectedServers.filter(name => !connectedNames.has(name));
+      if (missing.length === 0) return;
+
+      console.log(`[SearchService] Reconcile: ${missing.length} missing server(s): ${missing.join(', ')}`);
+      for (const serverName of missing) {
+        try {
+          await reconnectServer(serverName);
+        } catch (err) {
+          console.log(`[SearchService] Reconcile failed for ${serverName}: ${err.message?.substring(0, 80)}`);
+        }
+      }
+    } catch (err) {
+      console.error('[SearchService] Reconcile error:', err.message);
+    }
+  }, 60000);
+}
+
+/**
  * Initialize MCP connections and API client
  */
 export async function initialize() {
@@ -533,7 +567,11 @@ export async function initialize() {
   
   // Initialize MCP manager
   mcpManager = MCPManager.getInstance();
-  mcpManager.setWorkingDir(process.cwd());
+  if (fs.existsSync(BRIEFDESK_DIR)) {
+    mcpManager.setWorkingDir(BRIEFDESK_DIR);
+  } else {
+    mcpManager.setWorkingDir(process.cwd());
+  }
   
   // Connect to all enabled MCP servers
   console.log('[SearchService] Connecting to MCP servers...');
@@ -570,10 +608,12 @@ export async function initialize() {
     // stale or the SSE handshake takes too long.  We compare the expected
     // server list from .devsai.json with what actually connected.
     scheduleDeferredRetry();
+    scheduleMcpReconcile();
   } catch (err) {
     console.error('[SearchService] MCP connection error:', err.message);
     // Continue anyway - some servers may have connected
     scheduleDeferredRetry();
+    scheduleMcpReconcile();
   }
   
   initialized = true;
